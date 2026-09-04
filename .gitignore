@@ -11,3 +11,9 @@ Thumbs.db
 # for local dev). .env.example documents every variable; .env itself is
 # local-only, same convention as backend/.env.
 /.env
+
+# Portable Redis-for-Windows binaries (downloaded, not authored here — see
+# README.md "Local development setup" for how to fetch them). The helper
+# script that starts it (start-redis.ps1) IS tracked.
+/.local-services/redis/
+
