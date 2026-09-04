@@ -1,0 +1,13 @@
+# Root-level ignores. backend/ and mobile/ each have their own, more
+# specific .gitignore for framework-generated files.
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Root-level env overrides for docker-compose (DB/Redis/MinIO credentials
+# for local dev). .env.example documents every variable; .env itself is
+# local-only, same convention as backend/.env.
+/.env

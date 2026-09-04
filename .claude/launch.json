@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mobile-web-preview",
+      "runtimeExecutable": "C:\\php\\php.exe",
+      "runtimeArgs": ["-S", "127.0.0.1:4173", "-t", "mobile/build/web"],
+      "port": 4173
+    },
+    {
+      "name": "backend",
+      "url": "http://localhost:8000"
+    }
+  ]
+}

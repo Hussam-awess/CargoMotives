@@ -1,0 +1,141 @@
+name: cargo-motives
+
+services:
+  # PostgreSQL + PostGIS — primary datastore. PostGIS is used specifically for
+  # pickup/drop-off distance queries and Featured return-load matching (TRD §9).
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-cargo_motives}
+      POSTGRES_USER: ${DB_USERNAME:-cargo_motives}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    ports:
+      - "${FORWARD_DB_PORT:-5432}:5432"
+    volumes:
+      - cargo_motives_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-cargo_motives} -d ${DB_DATABASE:-cargo_motives}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Redis — backs the queue, WebSocket broadcasting, and rolling-window bid
+  # quota counters (TRD §1, §6).
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_REDIS_PORT:-6379}:6379"
+    volumes:
+      - cargo_motives_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # S3-compatible object storage for local dev — verification documents and
+  # proof-of-delivery photos in production point at a real S3-compatible
+  # bucket; MinIO stands in for that locally so nothing behaves differently
+  # in dev vs. prod for file handling (TRD §1, §7).
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-cargo_motives}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-secretsecret}
+    ports:
+      - "${FORWARD_MINIO_PORT:-9000}:9000"
+      - "${FORWARD_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - cargo_motives_minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: creates the app's bucket on first start and exits. Without
+  # this, MinIO comes up with no buckets and every upload fails with
+  # "bucket does not exist" — an easy trap since the app itself looks fine
+  # right up until the first file upload.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-cargo_motives} ${MINIO_ROOT_PASSWORD:-secretsecret} &&
+      mc mb --ignore-existing local/${AWS_BUCKET:-cargo-motives-local}
+      "
+
+  # Laravel API + Admin (Livewire) + Driver Link pages — one app, per TRD.
+  app:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    ports:
+      - "${FORWARD_APP_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: php artisan serve --host=0.0.0.0 --port=8000
+
+  # Queue worker — everything slow/external (GPS normalization, SMS,
+  # notifications, payment webhooks) runs off the request cycle (TRD §1, §5.2).
+  queue-worker:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: php artisan queue:work --tries=3 --backoff=5,15,60
+
+  # Laravel Reverb — the one WebSocket service, used for exactly two things:
+  # live GPS on an open job's map, and live bid updates (TRD §4).
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    ports:
+      - "${FORWARD_REVERB_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+
+volumes:
+  cargo_motives_postgres:
+  cargo_motives_redis:
+  cargo_motives_minio:
