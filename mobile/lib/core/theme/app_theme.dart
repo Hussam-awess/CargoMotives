@@ -20,7 +20,9 @@ abstract final class AppColors {
   static const statusLive = Color(0xFF2E7D32); // green: live/good
   static const statusIdle = Color(0xFF9E9E9E); // gray: unavailable/idle
   static const statusPending = Color(0xFFF2994A); // amber: pending/attention
-  static const statusError = Color(0xFFD32F2F); // red: rejected/on hold/cancelled
+  static const statusError = Color(
+    0xFFD32F2F,
+  ); // red: rejected/on hold/cancelled
 
   static const background = Color(0xFFF7F8FA);
   static const surface = Color(0xFFFFFFFF);
@@ -55,8 +57,12 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52), // large touch targets (Brief §6)
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          minimumSize: const Size.fromHeight(
+            52,
+          ), // large touch targets (Brief §6)
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -66,7 +72,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFDDE1E6)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
       textTheme: const TextTheme(
         headlineMedium: TextStyle(fontWeight: FontWeight.w700, fontSize: 26),

@@ -30,6 +30,7 @@ docker-compose.yml     Postgres+PostGIS, Redis, MinIO, the Laravel app, queue wo
 | First GPS provider | **Wialon** (Phase 6) | not started |
 | SMS gateway | **Deferred** — `SMS_DRIVER=log` (writes to the log instead of sending) until a provider is chosen. Leading candidate: Beem Africa. | driver abstraction built (`App\Services\Sms`), no real provider wired yet |
 | Error monitoring | Sentry (planned, TRD §10) | not yet added |
+| Auth | Phone + OTP, shared by Customer & Transporter Company (PRD §6) | **working** — Sanctum tokens, Redis-backed OTP, rate-limited |
 
 ## Local development setup
 
@@ -104,7 +105,8 @@ flutter run          # or: flutter run -d chrome
 Tracking the Implementation Plan document's 12 phases. Each phase is built, explained, and verified before the next starts.
 
 - [x] **Phase 0 — Foundations**: Laravel + Flutter scaffolds, Docker Compose, vendor choices documented, `/api/health` endpoint, SMS driver abstraction. Verified end-to-end against a real (natively-installed) Postgres+PostGIS and Redis — not just against sqlite/mocks.
-- [ ] Phase 1 — Auth (Customer & Company), rate-limited
+- [x] **Phase 1 — Auth (Customer & Company)**: shared phone/OTP flow (`App\Services\Auth\OtpService`, Redis-backed with attempt lockout + resend cooldown), phone number normalization, Sanctum tokens, rate limiting (`otp-request`/`otp-verify` limiters), Customer profile completion. Flutter: Phone Entry → OTP → Profile Setup screens, `ApiClient`/`AuthRepository`, session persistence. 29 backend tests + 13 Flutter tests passing; walked the full flow live in a browser against the real stack for both roles (Customer → Profile Setup → Customer Home; Transporter Company → Company Home placeholder). Found and fixed two real bugs along the way: a default Laravel guest-redirect that 500'd unauthenticated API requests lacking an `Accept: application/json` header, and an OTP lockout off-by-one.
+- [ ] Phase 2 — Company Verification (manual review, anti-duplicate)
 - [ ] Phase 2 — Company Verification (manual review, anti-duplicate)
 - [ ] Phase 3 — Trucks & Drivers
 - [ ] Phase 4 — Job Posting & Bidding

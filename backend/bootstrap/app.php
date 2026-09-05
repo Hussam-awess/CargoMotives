@@ -14,7 +14,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // This is a pure JSON API (no server-rendered login page — the
+        // Admin tool, Phase 9, is a separate Blade/Livewire app with its
+        // own guard). Laravel's default guest-redirect assumes a 'login'
+        // route exists and would otherwise throw a RouteNotFoundException
+        // for any unauthenticated request that doesn't explicitly send
+        // Accept: application/json (curl without headers, some HTTP
+        // clients, etc.) — masking a clean 401 behind a 500.
+        $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

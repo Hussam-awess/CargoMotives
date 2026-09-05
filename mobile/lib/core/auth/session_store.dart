@@ -28,6 +28,12 @@ class SessionStore {
     return token != null && token.isNotEmpty;
   }
 
+  /// The raw Sanctum bearer token, or null if there's no session. Read by
+  /// ApiClient's auth interceptor on every request — never read the token
+  /// directly elsewhere, so there's exactly one place that decides how a
+  /// request gets authenticated.
+  Future<String?> getToken() => _storage.read(key: _tokenKey);
+
   Future<AccountRole?> getRole() async {
     final raw = await _storage.read(key: _roleKey);
     return switch (raw) {
