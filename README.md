@@ -22,7 +22,7 @@ docker-compose.yml     Postgres+PostGIS, Redis, MinIO, the Laravel app, queue wo
 | Database | PostgreSQL + PostGIS | **running** — installed natively (v18.4 + PostGIS 3.6.2 on this machine; the Docker image targets v16, either works, nothing in the schema is version-specific) |
 | Cache/Queue/Broadcast | Redis (via `predis`, not the phpredis extension — works identically whether or not that PHP extension is installed) | **running** — see "Local development setup" |
 | Real-time | Laravel Reverb (WebSockets) — used only for live GPS + live bids per TRD §4 | installed |
-| Object storage | S3-compatible; MinIO locally, a real bucket in staging/prod | configured, not yet running locally (needs Docker — see below) |
+| Object storage | S3-compatible; MinIO locally, a real bucket in staging/prod | `App\Services\Documents\DocumentStorage` — **working**, but currently backed by the local disk (Docker/MinIO isn't running on this machine — see below); disk-agnostic by design, so switching to S3/MinIO later is a config change, not a code change |
 | Auth | Laravel Sanctum (Customer/Company/Admin); a separate short-lived signed token for the Driver Link | installed |
 | Mobile | Flutter, one app, role-aware routing (`go_router`) | scaffolded |
 | Maps | **Google Maps** | key not yet provisioned — set `GOOGLE_MAPS_API_KEY` |
@@ -31,6 +31,7 @@ docker-compose.yml     Postgres+PostGIS, Redis, MinIO, the Laravel app, queue wo
 | SMS gateway | **Deferred** — `SMS_DRIVER=log` (writes to the log instead of sending) until a provider is chosen. Leading candidate: Beem Africa. | driver abstraction built (`App\Services\Sms`), no real provider wired yet |
 | Error monitoring | Sentry (planned, TRD §10) | not yet added |
 | Auth | Phone + OTP, shared by Customer & Transporter Company (PRD §6) | **working** — Sanctum tokens, Redis-backed OTP, rate-limited |
+| Admin login | Email + password (`users.password_hash`) | **working** — minimal, ahead of the full Admin tool (Phase 9); bootstrap the first admin with `php artisan admin:create <phone> <email> <password>` |
 
 ## Local development setup
 
@@ -106,8 +107,7 @@ Tracking the Implementation Plan document's 12 phases. Each phase is built, expl
 
 - [x] **Phase 0 — Foundations**: Laravel + Flutter scaffolds, Docker Compose, vendor choices documented, `/api/health` endpoint, SMS driver abstraction. Verified end-to-end against a real (natively-installed) Postgres+PostGIS and Redis — not just against sqlite/mocks.
 - [x] **Phase 1 — Auth (Customer & Company)**: shared phone/OTP flow (`App\Services\Auth\OtpService`, Redis-backed with attempt lockout + resend cooldown), phone number normalization, Sanctum tokens, rate limiting (`otp-request`/`otp-verify` limiters), Customer profile completion. Flutter: Phone Entry → OTP → Profile Setup screens, `ApiClient`/`AuthRepository`, session persistence. 29 backend tests + 13 Flutter tests passing; walked the full flow live in a browser against the real stack for both roles (Customer → Profile Setup → Customer Home; Transporter Company → Company Home placeholder). Found and fixed two real bugs along the way: a default Laravel guest-redirect that 500'd unauthenticated API requests lacking an `Accept: application/json` header, and an OTP lockout off-by-one.
-- [ ] Phase 2 — Company Verification (manual review, anti-duplicate)
-- [ ] Phase 2 — Company Verification (manual review, anti-duplicate)
+- [x] **Phase 2 — Company Verification (manual review, anti-duplicate)**: two-section verification submission (`App\Http\Controllers\Company\CompanyVerificationController`), `CompanyDuplicateDetector` (a registration number/TIN/NIDA collision is flagged for Admin, never silently accepted or rejected — deliberately *not* a DB-level unique constraint, since that would make flagging impossible), private document storage with signed URLs (`DocumentStorage`), and a minimal Admin login + review API (list/approve/reject) ahead of the full Admin tool (Phase 9). Flutter: `CompanyHomeGate` routes a Transporter Company session to the verification form, a pending-review screen, or Company Home based on live status — checked fresh on every session, not just after login. 61 backend tests + 22 Flutter tests passing; walked all four states (submit → flagged-duplicate → admin reject → resubmit → admin approve → Company Home) live against the real stack, including a live approve/reject through the Admin API. Found and fixed three real bugs: two mass-assignment gaps where a field silently got dropped because it wasn't in a model's `$fillable` list (`owner_user_id`, then `password_hash` — the latter meant the admin-bootstrap command created unusable accounts, invisible to factory-based tests since factories bypass mass-assignment), and a `setState()` given a closure that returned a `Future` (an easy-to-miss Dart gotcha from an arrow function whose body was an assignment expression).
 - [ ] Phase 3 — Trucks & Drivers
 - [ ] Phase 4 — Job Posting & Bidding
 - [ ] Phase 5 — Job Assignment, Driver Link & Proof of Delivery

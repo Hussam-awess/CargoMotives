@@ -40,5 +40,9 @@ class AppServiceProvider extends ServiceProvider
         // a single issued code; this just stops rapid-fire guessing across
         // requests.
         RateLimiter::for('otp-verify', fn (Request $request) => Limit::perMinute(10)->by($request->input('phone_number').'|'.$request->ip()));
+
+        // Blunts brute-forcing an Admin password (TRD §7's "handful of
+        // attempts per minute" guidance, same as OTP/login endpoints).
+        RateLimiter::for('admin-login', fn (Request $request) => Limit::perMinute(5)->by($request->input('email').'|'.$request->ip()));
     }
 }

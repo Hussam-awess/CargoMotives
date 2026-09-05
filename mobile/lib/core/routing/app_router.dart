@@ -3,15 +3,17 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/otp_screen.dart';
 import '../../features/auth/phone_entry_screen.dart';
 import '../../features/auth/profile_setup_screen.dart';
+import '../../features/company/company_home_gate.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/welcome/welcome_screen.dart';
 import '../../shared/widgets/coming_soon_screen.dart';
 import '../auth/session_store.dart';
 
-/// App-wide route table. '/customer' and '/company' are still placeholders
-/// (they become StatefulShellRoutes with their own nested tabs once each
-/// role's real home is built — UI/UX Brief §3); everything through Phone
-/// Entry -> OTP -> Profile Setup is real as of Phase 1.
+/// App-wide route table. '/company' is real as of Phase 2 (CompanyHomeGate
+/// branches to verification/pending/home internally); '/customer' is still
+/// a placeholder pending Phase 4. Both become StatefulShellRoutes with
+/// their own nested tabs once each role's real home is built (UI/UX
+/// Brief §3).
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -42,13 +44,6 @@ final appRouter = GoRouter(
             'Jobs / Post / Profile shell lands starting Phase 4 (Job Posting & Bidding).',
       ),
     ),
-    GoRoute(
-      path: '/company',
-      builder: (context, state) => const ComingSoonScreen(
-        title: 'Company Home',
-        subtitle:
-            'Company verification (Phase 2) and the Jobs / Fleet / Earnings / Profile shell come next.',
-      ),
-    ),
+    GoRoute(path: '/company', builder: (context, state) => CompanyHomeGate()),
   ],
 );

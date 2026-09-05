@@ -114,8 +114,9 @@ class _OtpScreenState extends State<OtpScreen> {
       );
       if (!mounted) return;
 
-      // Company's real onboarding (verification) is Phase 2 — every
-      // transporter_company account lands on the placeholder home for now.
+      // '/company' (CompanyHomeGate) decides internally whether that's the
+      // verification form, a pending-review screen, or Company Home —
+      // this route doesn't need to know which.
       if (widget.args.role == AccountRole.transporterCompany) {
         context.go('/company');
       } else if (result.requiresProfileSetup) {

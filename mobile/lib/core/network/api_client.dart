@@ -62,6 +62,18 @@ class ApiClient {
     }
   }
 
+  /// For multipart submissions (file uploads) — everything else about
+  /// error handling/auth is identical to [post], just a different Dio
+  /// payload type so it sends `multipart/form-data` instead of JSON.
+  Future<Map<String, dynamic>> postForm(String path, FormData data) async {
+    try {
+      final response = await _dio.post(path, data: data);
+      return _asMap(response.data);
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
   Map<String, dynamic> _asMap(dynamic data) =>
       data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
 

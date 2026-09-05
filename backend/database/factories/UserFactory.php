@@ -48,4 +48,16 @@ class UserFactory extends Factory
             'password_hash' => Hash::make($password),
         ]);
     }
+
+    /**
+     * An Admin account (email+password login — AdminAuthController, not
+     * the Customer/Company phone+OTP flow).
+     */
+    public function admin(string $password = 'password'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'account_type' => 'admin',
+            'password_hash' => Hash::make($password),
+        ]);
+    }
 }

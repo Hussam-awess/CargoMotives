@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountType;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Accept: application/json (curl without headers, some HTTP
         // clients, etc.) — masking a clean 401 behind a 500.
         $middleware->redirectGuestsTo(fn () => null);
+
+        $middleware->alias(['account_type' => EnsureAccountType::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
