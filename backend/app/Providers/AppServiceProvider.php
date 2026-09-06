@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Services\Gps\GpsProvider;
 use App\Services\Gps\Wialon\WialonGpsProvider;
+use App\Services\MobileMoney\MobileMoneyGateway;
+use App\Services\MobileMoney\Selcom\SelcomMobileMoneyGateway;
 use App\Services\Sms\SmsGateway;
 use App\Services\Sms\SmsManager;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -32,6 +34,16 @@ class AppServiceProvider extends ServiceProvider
             GpsProvider::class,
             fn () => new WialonGpsProvider(config('services.wialon.base_url')),
         );
+
+        // Same reasoning as GpsProvider above — one aggregator (TRD §1),
+        // so a direct binding, no manager layer.
+        $this->app->bind(MobileMoneyGateway::class, fn () => new SelcomMobileMoneyGateway(
+            config('services.selcom.base_url'),
+            config('services.selcom.api_key'),
+            config('services.selcom.api_secret'),
+            config('services.selcom.vendor_id'),
+            config('services.selcom.webhook_secret'),
+        ));
     }
 
     /**

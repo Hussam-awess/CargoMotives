@@ -5,6 +5,7 @@ import '../auth/data/auth_repository.dart';
 import '../jobs/data/company_job_repository.dart';
 import 'company_home_shell.dart';
 import 'company_verification_screen.dart';
+import 'data/commission_repository.dart';
 import 'data/company_repository.dart';
 import 'data/driver_repository.dart';
 import 'data/truck_repository.dart';
@@ -28,12 +29,14 @@ class CompanyHomeGate extends StatefulWidget {
     TruckRepository? truckRepository,
     DriverRepository? driverRepository,
     CompanyJobRepository? companyJobRepository,
+    CommissionRepository? commissionRepository,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
   }) : repository = repository ?? CompanyRepository(),
        truckRepository = truckRepository ?? TruckRepository(),
        driverRepository = driverRepository ?? DriverRepository(),
        companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
+       commissionRepository = commissionRepository ?? CommissionRepository(),
        authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
 
@@ -41,6 +44,7 @@ class CompanyHomeGate extends StatefulWidget {
   final TruckRepository truckRepository;
   final DriverRepository driverRepository;
   final CompanyJobRepository companyJobRepository;
+  final CommissionRepository commissionRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
 
@@ -122,6 +126,7 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
           driverRepository: widget.driverRepository,
           companyRepository: widget.repository,
           companyJobRepository: widget.companyJobRepository,
+          commissionRepository: widget.commissionRepository,
           authRepository: widget.authRepository,
           sessionStore: widget.sessionStore,
         );

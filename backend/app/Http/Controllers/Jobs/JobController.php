@@ -7,6 +7,7 @@ use App\Http\Requests\Jobs\PostJobRequest;
 use App\Http\Resources\JobResource;
 use App\Models\Job;
 use App\Models\Truck;
+use App\Services\Commission\CommissionLedgerService;
 use App\Services\Documents\DocumentStorage;
 use App\Services\Geo\GeoPoint;
 use App\Services\Jobs\JobPostQuotaService;
@@ -28,6 +29,7 @@ class JobController extends Controller
     public function __construct(
         private readonly JobPostQuotaService $postQuota,
         private readonly DocumentStorage $documents,
+        private readonly CommissionLedgerService $commissionLedger,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -114,16 +116,14 @@ class JobController extends Controller
 
     /**
      * Customer confirms receipt after a driver submits proof of delivery
-     * (AppFlow §3.5). This is a job-lifecycle transition only — it does
-     * NOT write a commission_ledger charge (Backend Schema business rule
-     * §7), since that table doesn't exist until Phase 7. Phase 7 will add
-     * the charge-on-completion side effect here once it has a ledger to
-     * write to.
+     * (AppFlow §3.5). On reaching 'completed', writes a commission charge
+     * (TRD §6, Backend Schema business rule §7) — see
+     * App\Services\Commission\CommissionLedgerService for the actual
+     * balance/hold-threshold logic; this controller just triggers it.
      *
      * "Report a Problem" (the AppFlow alternative to confirming) routes to
-     * the disputes table, which — like commission — is out of Phase 5's
-     * scope (disputes review is explicitly Phase 9's Admin tool); it isn't
-     * built here.
+     * the disputes table, which — like Admin's Disputes tool — is
+     * explicitly Phase 9's job; it isn't built here.
      */
     public function confirmDelivery(Request $request, Job $job): JobResource
     {
@@ -142,6 +142,8 @@ class JobController extends Controller
             if ($job->assigned_truck_id !== null) {
                 Truck::whereKey($job->assigned_truck_id)->update(['current_status' => 'idle']);
             }
+
+            $this->commissionLedger->chargeForCompletedJob($job);
         });
 
         return new JobResource(

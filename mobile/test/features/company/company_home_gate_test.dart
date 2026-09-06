@@ -1,8 +1,10 @@
 import 'package:cargo_motives/features/company/company_home_gate.dart';
+import 'package:cargo_motives/features/company/data/commission_repository.dart';
 import 'package:cargo_motives/features/company/data/company_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_commission_repository.dart';
 import '../../support/fake_company_job_repository.dart';
 import '../../support/fake_company_repository.dart';
 import '../../support/fake_driver_repository.dart';
@@ -13,6 +15,7 @@ Widget _appUnder(
   FakeTruckRepository? truckRepository,
   FakeDriverRepository? driverRepository,
   FakeCompanyJobRepository? companyJobRepository,
+  FakeCommissionRepository? commissionRepository,
 }) {
   return MaterialApp(
     home: CompanyHomeGate(
@@ -20,6 +23,7 @@ Widget _appUnder(
       truckRepository: truckRepository ?? FakeTruckRepository(),
       driverRepository: driverRepository ?? FakeDriverRepository(),
       companyJobRepository: companyJobRepository ?? FakeCompanyJobRepository(),
+      commissionRepository: commissionRepository ?? FakeCommissionRepository(),
     ),
   );
 }
@@ -121,6 +125,24 @@ void main() {
     expect(find.text('Fleet'), findsWidgets);
     expect(find.text('Earnings'), findsWidgets);
     expect(find.text('Profile'), findsWidgets);
+  });
+
+  testWidgets('shows an on-hold banner across every tab when the company is on hold', (tester) async {
+    final repository = FakeCompanyRepository(
+      onGetStatus: () async => const CompanyVerification(status: 'approved', rejectedReason: null, companyName: 'ABC Logistics'),
+    );
+
+    await tester.pumpWidget(
+      _appUnder(
+        repository,
+        commissionRepository: FakeCommissionRepository(
+          onSummary: () async => const CommissionSummary(outstandingBalance: 600000, commissionStanding: 'on_hold', holdThreshold: 500000),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Account on hold — pay your commission balance to resume bidding.'), findsOneWidget);
   });
 
   testWidgets('"Check again" refetches the status', (tester) async {

@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'logo_url', 'documents', 'rep_full_name', 'rep_position', 'rep_national_id_number',
     'rep_id_document_url', 'rep_selfie_url', 'rep_phone_verified', 'rep_email_verified',
     'verification_status', 'verification_rejected_reason', 'verified_at',
+    'outstanding_balance', 'commission_standing',
 ])]
 class TransporterCompany extends Model
 {
@@ -83,6 +84,11 @@ class TransporterCompany extends Model
     public function gpsConnections(): HasMany
     {
         return $this->hasMany(GpsConnection::class, 'transporter_company_id');
+    }
+
+    public function commissionLedgerEntries(): HasMany
+    {
+        return $this->hasMany(CommissionLedger::class, 'transporter_company_id');
     }
 
     /**

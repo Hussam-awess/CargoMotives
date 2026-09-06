@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminCompanyController;
 use App\Http\Controllers\Admin\AdminTruckController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\ProfileController;
+use App\Http\Controllers\Company\CommissionController;
 use App\Http\Controllers\Company\CompanyVerificationController;
 use App\Http\Controllers\Company\DriverController;
 use App\Http\Controllers\Company\GpsConnectionController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Jobs\BidController;
 use App\Http\Controllers\Jobs\CompanyJobController;
 use App\Http\Controllers\Jobs\JobAssignmentController;
 use App\Http\Controllers\Jobs\JobController;
+use App\Http\Controllers\Webhooks\SelcomWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class);
@@ -25,6 +27,11 @@ Route::get('/documents/{key}', DocumentController::class)
     ->where('key', '.*')
     ->middleware('signed')
     ->name('documents.show');
+
+// Selcom's payment-outcome callback (TRD §7) — no Sanctum guard (Selcom's
+// server has no user session), authenticated instead by its own signature
+// check inside the controller. See SelcomWebhookController's docblock.
+Route::post('/webhooks/selcom', [SelcomWebhookController::class, 'handle']);
 
 Route::prefix('auth')->group(function () {
     Route::post('/otp/request', [AuthController::class, 'requestOtp'])->middleware('throttle:otp-request');
@@ -88,6 +95,11 @@ Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_
         Route::get('/gps-connections', [GpsConnectionController::class, 'index']);
         Route::post('/gps-connections', [GpsConnectionController::class, 'connect']);
         Route::post('/gps-connections/{connection}/import', [GpsConnectionController::class, 'import']);
+
+        // Commission balance, history, and paying it down (AppFlow §2.6/§2.7).
+        Route::get('/commission/summary', [CommissionController::class, 'summary']);
+        Route::get('/commission/ledger', [CommissionController::class, 'ledger']);
+        Route::post('/commission/payments', [CommissionController::class, 'initiatePayment']);
     });
 });
 
