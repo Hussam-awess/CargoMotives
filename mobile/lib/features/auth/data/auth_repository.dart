@@ -56,6 +56,8 @@ class AuthRepository {
     return _client.post('/auth/profile', data: {'full_name': fullName});
   }
 
+  Future<void> logout() => _client.post('/auth/logout');
+
   String _accountTypeValue(AccountRole role) => switch (role) {
     AccountRole.customer => 'customer',
     AccountRole.transporterCompany => 'transporter_company',

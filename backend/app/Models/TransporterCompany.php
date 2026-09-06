@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A verified (or verification-pending) transporter company and its one
@@ -23,6 +24,23 @@ class TransporterCompany extends Model
 {
     /** @use HasFactory<TransporterCompanyFactory> */
     use HasFactory;
+
+    /**
+     * Mirrors the migration's column defaults — see User::$attributes for
+     * why this is necessary (Eloquent's create() doesn't reflect DB-level
+     * defaults on the returned in-memory model otherwise).
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'rep_phone_verified' => false,
+        'rep_email_verified' => false,
+        'verification_status' => 'pending',
+        'is_featured' => false,
+        'rating_count' => 0,
+        'outstanding_balance' => 0,
+        'commission_standing' => 'good_standing',
+    ];
 
     /**
      * @return array<string, string>
@@ -45,5 +63,15 @@ class TransporterCompany extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    public function trucks(): HasMany
+    {
+        return $this->hasMany(Truck::class, 'transporter_company_id');
+    }
+
+    public function drivers(): HasMany
+    {
+        return $this->hasMany(Driver::class, 'transporter_company_id');
     }
 }

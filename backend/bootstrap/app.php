@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountType;
+use App\Http\Middleware\EnsureCompanyApproved;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,7 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // clients, etc.) — masking a clean 401 behind a 500.
         $middleware->redirectGuestsTo(fn () => null);
 
-        $middleware->alias(['account_type' => EnsureAccountType::class]);
+        $middleware->alias([
+            'account_type' => EnsureAccountType::class,
+            'company.approved' => EnsureCompanyApproved::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

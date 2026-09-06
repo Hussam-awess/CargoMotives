@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminCompanyController;
+use App\Http\Controllers\Admin\AdminTruckController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Company\CompanyVerificationController;
+use App\Http\Controllers\Company\DriverController;
+use App\Http\Controllers\Company\TruckController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\HealthController;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +35,21 @@ Route::prefix('auth')->group(function () {
 Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_company'])->group(function () {
     Route::get('/verification', [CompanyVerificationController::class, 'show']);
     Route::post('/verification', [CompanyVerificationController::class, 'submit']);
+
+    // Fleet management only opens up once the company itself is approved
+    // (PRD §6's core flow: verify, then register trucks) — CompanyHomeGate
+    // on the frontend already prevents reaching this UI earlier, this is
+    // the backend's own enforcement of the same rule.
+    Route::middleware('company.approved')->group(function () {
+        Route::get('/trucks', [TruckController::class, 'index']);
+        Route::post('/trucks', [TruckController::class, 'store']);
+        Route::get('/trucks/{truck}', [TruckController::class, 'show']);
+        Route::post('/trucks/{truck}', [TruckController::class, 'update']);
+
+        Route::get('/drivers', [DriverController::class, 'index']);
+        Route::post('/drivers', [DriverController::class, 'store']);
+        Route::post('/drivers/{driver}', [DriverController::class, 'update']);
+    });
 });
 
 Route::prefix('admin')->group(function () {
@@ -42,5 +60,10 @@ Route::prefix('admin')->group(function () {
         Route::get('/companies/{company}', [AdminCompanyController::class, 'show']);
         Route::post('/companies/{company}/approve', [AdminCompanyController::class, 'approve']);
         Route::post('/companies/{company}/reject', [AdminCompanyController::class, 'reject']);
+
+        Route::get('/trucks', [AdminTruckController::class, 'index']);
+        Route::get('/trucks/{truck}', [AdminTruckController::class, 'show']);
+        Route::post('/trucks/{truck}/approve', [AdminTruckController::class, 'approve']);
+        Route::post('/trucks/{truck}/reject', [AdminTruckController::class, 'reject']);
     });
 });

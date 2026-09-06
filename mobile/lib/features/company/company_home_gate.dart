@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../shared/widgets/coming_soon_screen.dart';
+import '../../core/auth/session_store.dart';
+import '../auth/data/auth_repository.dart';
+import 'company_home_shell.dart';
 import 'company_verification_screen.dart';
 import 'data/company_repository.dart';
+import 'data/driver_repository.dart';
+import 'data/truck_repository.dart';
 
 /// The single entry point for every Transporter Company session (both the
 /// Splash screen's "resume session" path and the OTP screen's "just
@@ -10,11 +14,31 @@ import 'data/company_repository.dart';
 /// status and shows exactly one of: the verification form (none submitted,
 /// or rejected), a pending-review screen, or Company Home. Keeping this
 /// branching in one place means Splash and OTP don't need to duplicate it.
+///
+/// Every repository CompanyHomeShell (and its Fleet tab) eventually needs
+/// is accepted here too and forwarded straight through — not because this
+/// widget uses them itself, but so a test exercising the full "approved"
+/// path can inject fakes end-to-end instead of falling through to real
+/// network calls three widgets deep.
 class CompanyHomeGate extends StatefulWidget {
-  CompanyHomeGate({super.key, CompanyRepository? repository})
-    : repository = repository ?? CompanyRepository();
+  CompanyHomeGate({
+    super.key,
+    CompanyRepository? repository,
+    TruckRepository? truckRepository,
+    DriverRepository? driverRepository,
+    AuthRepository? authRepository,
+    SessionStore? sessionStore,
+  }) : repository = repository ?? CompanyRepository(),
+       truckRepository = truckRepository ?? TruckRepository(),
+       driverRepository = driverRepository ?? DriverRepository(),
+       authRepository = authRepository ?? AuthRepository(),
+       sessionStore = sessionStore ?? SessionStore();
 
   final CompanyRepository repository;
+  final TruckRepository truckRepository;
+  final DriverRepository driverRepository;
+  final AuthRepository authRepository;
+  final SessionStore sessionStore;
 
   @override
   State<CompanyHomeGate> createState() => _CompanyHomeGateState();
@@ -89,10 +113,12 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
           );
         }
 
-        return const ComingSoonScreen(
-          title: 'Company Home',
-          subtitle:
-              'Verified! Fleet / Jobs / Earnings / Profile shell lands starting Phase 3.',
+        return CompanyHomeShell(
+          truckRepository: widget.truckRepository,
+          driverRepository: widget.driverRepository,
+          companyRepository: widget.repository,
+          authRepository: widget.authRepository,
+          sessionStore: widget.sessionStore,
         );
       },
     );

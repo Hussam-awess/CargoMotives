@@ -26,6 +26,23 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
+     * Mirrors the migration's column defaults. Eloquent's create() does NOT
+     * reflect DB-level ->default(...) values on the in-memory model it
+     * returns — only what's explicitly passed to create(), or declared
+     * here, shows up immediately (a real bug this caught in Phase 3: a
+     * fresh Truck's gps_status/current_status/is_active were null in the
+     * API response despite having DB defaults, because nothing set them
+     * explicitly and nothing had declared them here either).
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => 'active',
+        'language_preference' => 'sw',
+        'is_featured' => false,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

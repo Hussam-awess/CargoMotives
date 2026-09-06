@@ -4,9 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_company_repository.dart';
+import '../../support/fake_driver_repository.dart';
+import '../../support/fake_truck_repository.dart';
 
-Widget _appUnder(FakeCompanyRepository repository) {
-  return MaterialApp(home: CompanyHomeGate(repository: repository));
+Widget _appUnder(
+  FakeCompanyRepository repository, {
+  FakeTruckRepository? truckRepository,
+  FakeDriverRepository? driverRepository,
+}) {
+  return MaterialApp(
+    home: CompanyHomeGate(
+      repository: repository,
+      truckRepository: truckRepository ?? FakeTruckRepository(),
+      driverRepository: driverRepository ?? FakeDriverRepository(),
+    ),
+  );
 }
 
 void main() {
@@ -83,7 +95,9 @@ void main() {
     },
   );
 
-  testWidgets('shows Company Home once approved', (tester) async {
+  testWidgets('shows the Company Home shell (Fleet tab) once approved', (
+    tester,
+  ) async {
     final repository = FakeCompanyRepository(
       onGetStatus: () async => const CompanyVerification(
         status: 'approved',
@@ -95,7 +109,15 @@ void main() {
     await tester.pumpWidget(_appUnder(repository));
     await tester.pumpAndSettle();
 
-    expect(find.text('Company Home'), findsOneWidget);
+    // The shell's bottom nav — real content now (Phase 3), not the old
+    // ComingSoonScreen placeholder text. Each label appears twice (that
+    // tab's own AppBar title, plus the nav destination label) since
+    // IndexedStack keeps every tab mounted simultaneously, not just the
+    // visible one.
+    expect(find.text('Jobs'), findsWidgets);
+    expect(find.text('Fleet'), findsWidgets);
+    expect(find.text('Earnings'), findsWidgets);
+    expect(find.text('Profile'), findsWidgets);
   });
 
   testWidgets('"Check again" refetches the status', (tester) async {
