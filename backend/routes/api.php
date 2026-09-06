@@ -10,6 +10,9 @@ use App\Http\Controllers\Company\DriverController;
 use App\Http\Controllers\Company\TruckController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\Jobs\BidController;
+use App\Http\Controllers\Jobs\CompanyJobController;
+use App\Http\Controllers\Jobs\JobController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class);
@@ -32,14 +35,27 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+// Customer job posting + bid acceptance (AppFlow §3).
+Route::middleware(['auth:sanctum', 'account_type:customer'])->group(function () {
+    Route::get('/jobs', [JobController::class, 'index']);
+    Route::post('/jobs', [JobController::class, 'store']);
+    Route::get('/jobs/post-quota', [JobController::class, 'postQuota']);
+    Route::get('/jobs/{job}', [JobController::class, 'show']);
+    Route::post('/jobs/{job}', [JobController::class, 'update']);
+    Route::post('/jobs/{job}/cancel', [JobController::class, 'cancel']);
+    Route::get('/jobs/{job}/bids', [BidController::class, 'index']);
+
+    Route::post('/bids/{bid}/accept', [BidController::class, 'accept']);
+});
+
 Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_company'])->group(function () {
     Route::get('/verification', [CompanyVerificationController::class, 'show']);
     Route::post('/verification', [CompanyVerificationController::class, 'submit']);
 
-    // Fleet management only opens up once the company itself is approved
-    // (PRD §6's core flow: verify, then register trucks) — CompanyHomeGate
-    // on the frontend already prevents reaching this UI earlier, this is
-    // the backend's own enforcement of the same rule.
+    // Fleet management and bidding only open up once the company itself is
+    // approved (PRD §6's core flow: verify, then register trucks, then
+    // bid) — CompanyHomeGate on the frontend already prevents reaching
+    // this UI earlier, this is the backend's own enforcement of the rule.
     Route::middleware('company.approved')->group(function () {
         Route::get('/trucks', [TruckController::class, 'index']);
         Route::post('/trucks', [TruckController::class, 'store']);
@@ -49,6 +65,15 @@ Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_
         Route::get('/drivers', [DriverController::class, 'index']);
         Route::post('/drivers', [DriverController::class, 'store']);
         Route::post('/drivers/{driver}', [DriverController::class, 'update']);
+
+        // Jobs & Bidding (AppFlow §2.4) — the three Jobs-home tabs.
+        Route::get('/jobs/open', [CompanyJobController::class, 'open']);
+        Route::get('/jobs/my-bids', [CompanyJobController::class, 'myBids']);
+        Route::get('/jobs/active', [CompanyJobController::class, 'active']);
+        Route::get('/jobs/{job}', [CompanyJobController::class, 'show']);
+        Route::post('/jobs/{job}/bids', [BidController::class, 'store']);
+        Route::get('/bid-quota', [BidController::class, 'quota']);
+        Route::post('/bids/{bid}/withdraw', [BidController::class, 'withdraw']);
     });
 });
 

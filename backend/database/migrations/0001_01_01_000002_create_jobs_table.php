@@ -8,19 +8,17 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * Deliberately does NOT create Laravel's default "jobs" queue-storage
+     * table: QUEUE_CONNECTION=redis means it would sit empty forever, and
+     * the name is needed for Cargo Motives' own marketplace `jobs` table
+     * (Backend Schema §2.7, 2026_09_07_000001_create_jobs_table). Batches
+     * and failed-job tracking are queue-driver-independent — Laravel
+     * records failed jobs here regardless of which queue driver runs
+     * them — so those two stay.
      */
     public function up(): void
     {
-        Schema::create('jobs', function (Blueprint $table) {
-            $table->id();
-            $table->string('queue')->index();
-            $table->longText('payload');
-            $table->unsignedSmallInteger('attempts');
-            $table->unsignedInteger('reserved_at')->nullable();
-            $table->unsignedInteger('available_at');
-            $table->unsignedInteger('created_at');
-        });
-
         Schema::create('job_batches', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('name');
@@ -52,7 +50,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('jobs');
         Schema::dropIfExists('job_batches');
         Schema::dropIfExists('failed_jobs');
     }

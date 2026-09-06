@@ -3,6 +3,7 @@ import 'package:cargo_motives/features/company/data/company_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_company_job_repository.dart';
 import '../../support/fake_company_repository.dart';
 import '../../support/fake_driver_repository.dart';
 import '../../support/fake_truck_repository.dart';
@@ -11,12 +12,14 @@ Widget _appUnder(
   FakeCompanyRepository repository, {
   FakeTruckRepository? truckRepository,
   FakeDriverRepository? driverRepository,
+  FakeCompanyJobRepository? companyJobRepository,
 }) {
   return MaterialApp(
     home: CompanyHomeGate(
       repository: repository,
       truckRepository: truckRepository ?? FakeTruckRepository(),
       driverRepository: driverRepository ?? FakeDriverRepository(),
+      companyJobRepository: companyJobRepository ?? FakeCompanyJobRepository(),
     ),
   );
 }

@@ -74,4 +74,37 @@ class TransporterCompany extends Model
     {
         return $this->hasMany(Driver::class, 'transporter_company_id');
     }
+
+    public function bids(): HasMany
+    {
+        return $this->hasMany(Bid::class, 'transporter_company_id');
+    }
+
+    /**
+     * The company-level GPS trust signal shown on a bid (PRD §7.3): "at
+     * least one of the company's trucks has GPS connected." Not tied to
+     * any specific truck, since bidding happens before a truck is assigned
+     * to the job (Phase 5) — there's no per-job truck yet to check.
+     *
+     * Uses the already-loaded `trucks` relation when available (a bid
+     * listing eager-loads company.trucks) rather than a fresh query per
+     * company — avoids an N+1 across a job's whole bid list.
+     */
+    public function hasAnyGpsConnectedTruck(): bool
+    {
+        if ($this->relationLoaded('trucks')) {
+            return $this->trucks->contains('gps_status', 'connected');
+        }
+
+        return $this->trucks()->where('gps_status', 'connected')->exists();
+    }
+
+    public function verifiedTruckCount(): int
+    {
+        if ($this->relationLoaded('trucks')) {
+            return $this->trucks->where('verification_status', 'approved')->count();
+        }
+
+        return $this->trucks()->where('verification_status', 'approved')->count();
+    }
 }

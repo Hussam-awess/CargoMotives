@@ -3,37 +3,43 @@ import 'package:flutter/material.dart';
 import '../../core/auth/session_store.dart';
 import '../../shared/widgets/coming_soon_screen.dart';
 import '../auth/data/auth_repository.dart';
+import '../jobs/data/company_job_repository.dart';
 import 'company_profile_tab.dart';
 import 'data/company_repository.dart';
 import 'data/driver_repository.dart';
 import 'data/truck_repository.dart';
 import 'fleet/fleet_screen.dart';
+import 'jobs/company_jobs_screen.dart';
 
 /// Company Home (UI/UX Brief §3): Jobs / Fleet / Earnings / Profile — 4
-/// bottom-nav items, matching the brief's "3-4 items, not 6" rule. Fleet
-/// is the only tab with real functionality as of Phase 3; Jobs (Phase 4)
-/// and Earnings (Phase 7) are placeholders until those phases land.
+/// bottom-nav items, matching the brief's "3-4 items, not 6" rule. Jobs
+/// and Fleet have real functionality as of Phase 4; Earnings (Phase 7)
+/// remains a placeholder until that phase lands.
 ///
 /// Repositories are accepted (not just constructed internally) so this
-/// whole shell — including the Fleet tab's network calls — is testable
-/// with fakes, the same pattern as every other screen since Phase 1.
+/// whole shell — including the Fleet/Jobs tabs' network calls — is
+/// testable with fakes, the same pattern as every other screen since
+/// Phase 1.
 class CompanyHomeShell extends StatefulWidget {
   CompanyHomeShell({
     super.key,
     TruckRepository? truckRepository,
     DriverRepository? driverRepository,
     CompanyRepository? companyRepository,
+    CompanyJobRepository? companyJobRepository,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
   }) : truckRepository = truckRepository ?? TruckRepository(),
        driverRepository = driverRepository ?? DriverRepository(),
        companyRepository = companyRepository ?? CompanyRepository(),
+       companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
        authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
 
   final TruckRepository truckRepository;
   final DriverRepository driverRepository;
   final CompanyRepository companyRepository;
+  final CompanyJobRepository companyJobRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
 
@@ -47,10 +53,7 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      const ComingSoonScreen(
-        title: 'Jobs',
-        subtitle: 'Open jobs, bidding, and active jobs land in Phase 4.',
-      ),
+      CompanyJobsScreen(repository: widget.companyJobRepository),
       FleetScreen(
         truckRepository: widget.truckRepository,
         driverRepository: widget.driverRepository,

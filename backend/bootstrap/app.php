@@ -12,8 +12,17 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )
+    // withRouting(channels: ...) would register /broadcasting/auth under
+    // the default 'web' session-guard middleware — wrong for this app,
+    // which is Sanctum-token authenticated throughout, not session-based.
+    // Registered explicitly instead, under /api and auth:sanctum, so a
+    // private channel subscription (job.{id}, TRD §4) authenticates the
+    // same way every other endpoint does.
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        ['middleware' => ['api', 'auth:sanctum'], 'prefix' => 'api'],
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // This is a pure JSON API (no server-rendered login page — the

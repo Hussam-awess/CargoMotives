@@ -20,4 +20,29 @@ abstract final class AppConfig {
 
     return 'http://localhost:8000';
   }
+
+  /// Reverb (TRD §4's one WebSocket service) connection details. The app
+  /// key is a public identifier, not a secret — the same way a Stripe
+  /// "publishable key" is safe to embed client-side — so a hardcoded
+  /// local-dev default is fine here, same reasoning as apiBaseUrl.
+  static String get reverbHost {
+    const override = String.fromEnvironment('REVERB_HOST');
+    if (override.isNotEmpty) return override;
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return '10.0.2.2';
+    }
+
+    return 'localhost';
+  }
+
+  static int get reverbPort => const int.fromEnvironment('REVERB_PORT', defaultValue: 8080);
+
+  static bool get reverbUseTls => const bool.fromEnvironment('REVERB_USE_TLS');
+
+  static String get reverbAppKey {
+    const override = String.fromEnvironment('REVERB_APP_KEY');
+
+    return override.isNotEmpty ? override : '1lvsdpetjyj7kgmqris1';
+  }
 }

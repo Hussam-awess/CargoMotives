@@ -4,16 +4,16 @@ import '../../features/auth/otp_screen.dart';
 import '../../features/auth/phone_entry_screen.dart';
 import '../../features/auth/profile_setup_screen.dart';
 import '../../features/company/company_home_gate.dart';
+import '../../features/customer/customer_home_shell.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/welcome/welcome_screen.dart';
-import '../../shared/widgets/coming_soon_screen.dart';
 import '../auth/session_store.dart';
 
-/// App-wide route table. '/company' is real as of Phase 2 (CompanyHomeGate
-/// branches to verification/pending/home internally); '/customer' is still
-/// a placeholder pending Phase 4. Both become StatefulShellRoutes with
-/// their own nested tabs once each role's real home is built (UI/UX
-/// Brief §3).
+/// App-wide route table. Both '/customer' and '/company' are real as of
+/// Phase 4 — CompanyHomeGate branches to verification/pending/home
+/// internally, CustomerHomeShell is the Jobs/Post/Profile bottom nav
+/// directly (a customer never needs Admin approval the way a company
+/// does, so there's no equivalent gate to branch through).
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -38,11 +38,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/customer',
-      builder: (context, state) => const ComingSoonScreen(
-        title: 'Customer Home',
-        subtitle:
-            'Jobs / Post / Profile shell lands starting Phase 4 (Job Posting & Bidding).',
-      ),
+      builder: (context, state) => const CustomerHomeShell(),
     ),
     GoRoute(path: '/company', builder: (context, state) => CompanyHomeGate()),
   ],

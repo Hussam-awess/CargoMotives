@@ -23,9 +23,34 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!-- NOT sqlite (Laravel's default): jobs.pickup_location/
+             dropoff_location are real PostGIS geography columns (Backend
+             Schema §2.7), written via raw PostGIS SQL (App\Services\Geo\
+             GeoPoint — ST_SetSRID/ST_MakePoint, a ::geography cast) that
+             SQLite has no equivalent for at all. Since PostGIS is core to
+             the schema from Phase 4 on, tests run against a real,
+             dedicated Postgres database instead (cargo_motives_test —
+             separate from the dev `cargo_motives` database; see README's
+             "Local development setup" for how it's created) rather than
+             carrying two different DB engines across the suite. -->
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="5432"/>
+        <env name="DB_DATABASE" value="cargo_motives_test"/>
+        <env name="DB_USERNAME" value="cargo_motives"/>
+        <env name="DB_PASSWORD" value="secret"/>
         <env name="DB_URL" value=""/>
+        <!-- Tests share the real dev Redis instance (there's no separate
+             Redis-for-tests on this machine — see README's "Local
+             development setup") but must never share its DATA: quota keys
+             are built from model IDs, and the sqlite test DB's IDs can
+             numerically collide with the real dev Postgres DB's IDs,
+             corrupting live quota state (this bit BidQuotaServiceTest
+             during development — see its docblock). Redis logical
+             database 2 keeps test traffic fully isolated from both dev
+             (DB 0) and the cache connection (DB 1), so a plain flushdb()
+             in test setup is always safe. -->
+        <env name="REDIS_DB" value="2"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

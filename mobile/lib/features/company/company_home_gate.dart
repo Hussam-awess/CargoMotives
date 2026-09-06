@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/auth/session_store.dart';
 import '../auth/data/auth_repository.dart';
+import '../jobs/data/company_job_repository.dart';
 import 'company_home_shell.dart';
 import 'company_verification_screen.dart';
 import 'data/company_repository.dart';
@@ -26,17 +27,20 @@ class CompanyHomeGate extends StatefulWidget {
     CompanyRepository? repository,
     TruckRepository? truckRepository,
     DriverRepository? driverRepository,
+    CompanyJobRepository? companyJobRepository,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
   }) : repository = repository ?? CompanyRepository(),
        truckRepository = truckRepository ?? TruckRepository(),
        driverRepository = driverRepository ?? DriverRepository(),
+       companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
        authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
 
   final CompanyRepository repository;
   final TruckRepository truckRepository;
   final DriverRepository driverRepository;
+  final CompanyJobRepository companyJobRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
 
@@ -117,6 +121,7 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
           truckRepository: widget.truckRepository,
           driverRepository: widget.driverRepository,
           companyRepository: widget.repository,
+          companyJobRepository: widget.companyJobRepository,
           authRepository: widget.authRepository,
           sessionStore: widget.sessionStore,
         );
