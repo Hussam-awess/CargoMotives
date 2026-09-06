@@ -2,28 +2,34 @@ import 'package:flutter/material.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/realtime/job_bid_channel.dart';
+import '../../core/realtime/job_location_channel.dart';
 import '../../core/theme/app_theme.dart';
 import 'data/bid_repository.dart';
 import 'data/job_repository.dart';
+import 'gps_status_card.dart';
 
 /// Job Detail (Customer) — AppFlow §3.3/§3.4: the job summary, its bid
 /// list (Featured pinned first, live-updated per TRD §4 while this screen
-/// is open), and Accept Bid.
+/// is open), Accept Bid, and (Phase 6) a live GPS status card once a
+/// truck's assigned.
 class JobDetailScreen extends StatefulWidget {
   JobDetailScreen({
     super.key,
     required this.jobId,
     JobRepository? jobRepository,
     BidRepository? bidRepository,
-    JobBidChannel? channel,
+    JobBidChannel? bidChannel,
+    JobLocationChannel? locationChannel,
   }) : jobRepository = jobRepository ?? JobRepository(),
        bidRepository = bidRepository ?? BidRepository(),
-       channel = channel ?? JobBidChannel(jobId: jobId);
+       bidChannel = bidChannel ?? JobBidChannel(jobId: jobId),
+       locationChannel = locationChannel ?? JobLocationChannel(jobId: jobId);
 
   final int jobId;
   final JobRepository jobRepository;
   final BidRepository bidRepository;
-  final JobBidChannel channel;
+  final JobBidChannel bidChannel;
+  final JobLocationChannel locationChannel;
 
   @override
   State<JobDetailScreen> createState() => _JobDetailScreenState();
@@ -36,19 +42,24 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   String? _loadError;
   int? _acceptingBidId;
   bool _isConfirmingDelivery = false;
+  GpsLocation? _liveLocation;
 
   @override
   void initState() {
     super.initState();
     _load();
-    widget.channel
+    widget.bidChannel
       ..onBidPlaced = _handleLiveBid
+      ..connect();
+    widget.locationChannel
+      ..onLocationUpdated = _handleLiveLocation
       ..connect();
   }
 
   @override
   void dispose() {
-    widget.channel.dispose();
+    widget.bidChannel.dispose();
+    widget.locationChannel.dispose();
     super.dispose();
   }
 
@@ -65,6 +76,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       setState(() {
         _job = job;
         _bids = bids;
+        // A fresh REST fetch is the source of truth for where things
+        // stand right now — a stale live update from before this reload
+        // (or from a job that's no longer trackable) must not linger.
+        _liveLocation = job.lastKnownLocation;
       });
     } catch (_) {
       if (mounted) setState(() => _loadError = 'Could not load this job.');
@@ -82,6 +97,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       // get re-sorted to the top below.
       _bids = [bid, ..._bids.where((b) => b.id != bid.id)]..sort((a, b) => (b.isPriority ? 1 : 0) - (a.isPriority ? 1 : 0));
     });
+  }
+
+  void _handleLiveLocation(Map<String, dynamic> locationJson) {
+    if (!mounted) return;
+    setState(() => _liveLocation = GpsLocation.fromJson(locationJson));
   }
 
   Future<void> _accept(Bid bid) async {
@@ -132,6 +152,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 children: [
                   _JobSummaryCard(job: _job!),
                   const SizedBox(height: 16),
+                  if (_job!.isAssignable) ...[
+                    GpsStatusCard(
+                      trackingActive: _job!.gpsTrackingActive,
+                      signalStatus: _job!.gpsSignalStatus,
+                      location: _liveLocation,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   if (_job!.proofOfDelivery != null) ...[
                     _ProofOfDeliveryCard(
                       proofOfDelivery: _job!.proofOfDelivery!,

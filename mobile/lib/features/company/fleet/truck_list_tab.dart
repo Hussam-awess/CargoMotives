@@ -14,10 +14,10 @@ class TruckListTab extends StatefulWidget {
   final TruckRepository repository;
 
   @override
-  State<TruckListTab> createState() => _TruckListTabState();
+  State<TruckListTab> createState() => TruckListTabState();
 }
 
-class _TruckListTabState extends State<TruckListTab> {
+class TruckListTabState extends State<TruckListTab> {
   late Future<List<Truck>> _future;
 
   @override
@@ -25,6 +25,10 @@ class _TruckListTabState extends State<TruckListTab> {
     super.initState();
     _future = widget.repository.list();
   }
+
+  /// Called by FleetScreen after Connect GPS imports vehicles, so newly
+  /// GPS-connected trucks show up without the user needing to pull-to-refresh.
+  Future<void> refresh() => _refresh();
 
   Future<void> _refresh() async {
     final future = widget.repository.list();

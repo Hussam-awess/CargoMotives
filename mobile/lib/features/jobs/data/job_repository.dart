@@ -27,6 +27,28 @@ class ProofOfDelivery {
   final DateTime? confirmedByCustomerAt;
 }
 
+/// A truck's position as of some moment (Backend Schema §2.3's
+/// last_known_* fields) — the initial value on a freshly-fetched [Job]
+/// (`last_known_location`), later kept current by JobLocationChannel
+/// while the job screen is open (TRD §5.2).
+class GpsLocation {
+  const GpsLocation({required this.lat, required this.lng, required this.heading, required this.recordedAt});
+
+  factory GpsLocation.fromJson(Map<String, dynamic> json) {
+    return GpsLocation(
+      lat: (json['lat'] as num).toDouble(),
+      lng: (json['lng'] as num).toDouble(),
+      heading: (json['heading'] as num?)?.toDouble(),
+      recordedAt: DateTime.parse(json['recorded_at'] as String),
+    );
+  }
+
+  final double lat;
+  final double lng;
+  final double? heading;
+  final DateTime recordedAt;
+}
+
 /// A shipment request (Backend Schema §2.7).
 class Job {
   const Job({
@@ -52,6 +74,9 @@ class Job {
     required this.proofOfDelivery,
     required this.bidsCount,
     this.isAssignedToViewer = false,
+    this.gpsTrackingActive = false,
+    this.gpsSignalStatus = 'not_applicable',
+    this.lastKnownLocation,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -80,6 +105,11 @@ class Job {
           : ProofOfDelivery.fromJson(json['proof_of_delivery'] as Map<String, dynamic>),
       bidsCount: json['bids_count'] as int?,
       isAssignedToViewer: json['is_assigned_to_viewer'] as bool? ?? false,
+      gpsTrackingActive: json['gps_tracking_active'] as bool? ?? false,
+      gpsSignalStatus: json['gps_signal_status'] as String? ?? 'not_applicable',
+      lastKnownLocation: json['last_known_location'] == null
+          ? null
+          : GpsLocation.fromJson(json['last_known_location'] as Map<String, dynamic>),
     );
   }
 
@@ -104,6 +134,21 @@ class Job {
   final String? assignedDriverName;
   final ProofOfDelivery? proofOfDelivery;
   final int? bidsCount;
+
+  /// Whether this job's assigned truck has GPS connected at all (TRD
+  /// §5.3) — false means "GPS Tracking Not Available", never a loading
+  /// state to wait out.
+  final bool gpsTrackingActive;
+
+  /// 'ok' | 'lost' | 'not_applicable' — only meaningful when
+  /// [gpsTrackingActive] is true; 'lost' is a calm "signal unavailable"
+  /// state, never a frozen/misleading marker (TRD §5.3).
+  final String gpsSignalStatus;
+
+  /// The truck's position as of the last ordinary REST fetch — shown
+  /// immediately, then superseded by JobLocationChannel's live updates
+  /// while the screen stays open.
+  final GpsLocation? lastKnownLocation;
 
   /// Only meaningful on a company-side fetch (CompanyJobRepository.show) —
   /// a company can legitimately view a job it lost the bid on via "My

@@ -44,6 +44,32 @@ class JobAssignmentTest extends TestCase
         $this->assertSame($driver->id, $job->assigned_driver_id);
         $this->assertSame('on_job', $truck->fresh()->current_status);
         $this->assertDatabaseHas('driver_links', ['job_id' => $job->id, 'driver_id' => $driver->id, 'status' => 'active']);
+        // No GPS on this truck (Phase 6) — the job must never claim to be
+        // trackable just because it now has a truck assigned.
+        $this->assertFalse((bool) $job->gps_tracking_active);
+        $this->assertSame('not_applicable', $job->gps_signal_status);
+    }
+
+    public function test_assigning_a_gps_connected_truck_marks_the_job_trackable(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $companyId = $company->transporterCompany->id;
+        $job = Job::factory()->assignedTo($companyId)->create();
+        $truck = Truck::factory()->approved()->create([
+            'transporter_company_id' => $companyId,
+            'current_status' => 'idle',
+            'gps_status' => 'connected',
+        ]);
+        $driver = Driver::factory()->create(['transporter_company_id' => $companyId]);
+
+        $this->actingAs($company)->postJson("/api/company/jobs/{$job->id}/assign", [
+            'truck_id' => $truck->id,
+            'driver_id' => $driver->id,
+        ])->assertCreated();
+
+        $job->refresh();
+        $this->assertTrue((bool) $job->gps_tracking_active);
+        $this->assertSame('ok', $job->gps_signal_status);
     }
 
     public function test_cannot_assign_a_truck_that_belongs_to_another_company(): void

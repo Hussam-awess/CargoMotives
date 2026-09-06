@@ -72,7 +72,18 @@ class JobAssignmentService
             }
 
             $truck->update(['current_status' => 'on_job']);
-            $job->update(['assigned_truck_id' => $truck->id, 'assigned_driver_id' => $driver->id]);
+            $job->update([
+                'assigned_truck_id' => $truck->id,
+                'assigned_driver_id' => $driver->id,
+                // Phase 6 (TRD §5.3): whether this job gets a live map at
+                // all is decided right here, once, from the truck's own
+                // GPS state — not re-derived on every read. 'ok' is
+                // optimistic (the truck has a live connection; a real
+                // sweep — App\Console\Commands\CheckGpsSignalLoss — is
+                // what actually catches a feed going quiet later).
+                'gps_tracking_active' => $truck->isGpsConnected(),
+                'gps_signal_status' => $truck->isGpsConnected() ? 'ok' : 'not_applicable',
+            ]);
 
             // Any link still active for this job (a previous assignment)
             // must stop working the instant a new one is issued.

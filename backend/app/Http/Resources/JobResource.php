@@ -41,6 +41,26 @@ class JobResource extends JsonResource
             'assigned_truck_registration' => $this->whenLoaded('assignedTruck', fn () => $this->assignedTruck?->registration_number),
             'assigned_driver_name' => $this->whenLoaded('assignedDriver', fn () => $this->assignedDriver?->full_name),
             'proof_of_delivery' => $this->whenLoaded('proofOfDelivery', fn () => $this->proofOfDelivery ? new ProofOfDeliveryResource($this->proofOfDelivery) : null),
+            // Phase 6 (TRD §5.3): the frontend picks one of three states
+            // from these two fields alone — no GPS connected at all
+            // (gps_tracking_active=false), connected and healthy ('ok',
+            // with a starting position below to show before the first
+            // live WebSocket update arrives), or connected but quiet
+            // ('lost'). Never a fourth ambiguous state.
+            'gps_tracking_active' => (bool) $this->gps_tracking_active,
+            'gps_signal_status' => $this->gps_signal_status,
+            'last_known_location' => $this->whenLoaded('assignedTruck', function () {
+                if (! $this->gps_tracking_active || $this->assignedTruck?->last_known_at === null) {
+                    return null;
+                }
+
+                return [
+                    'lat' => (float) $this->assignedTruck->last_known_lat,
+                    'lng' => (float) $this->assignedTruck->last_known_lng,
+                    'heading' => $this->assignedTruck->last_known_heading !== null ? (float) $this->assignedTruck->last_known_heading : null,
+                    'recorded_at' => $this->assignedTruck->last_known_at->toIso8601String(),
+                ];
+            }),
             'bids_count' => $this->when(isset($this->bids_count), fn () => (int) $this->bids_count),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

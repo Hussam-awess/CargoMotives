@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'transporter_company_id', 'registration_number', 'make_model', 'vehicle_type', 'capacity_tons',
     'documents', 'verification_status', 'verification_rejected_reason', 'current_status',
+    'gps_status', 'gps_connection_id', 'gps_unit_id', 'last_known_lat', 'last_known_lng',
+    'last_known_heading', 'last_known_at',
 ])]
 class Truck extends Model
 {
@@ -51,6 +53,9 @@ class Truck extends Model
             'documents' => 'array',
             'capacity_tons' => 'decimal:2',
             'is_active' => 'boolean',
+            'last_known_lat' => 'decimal:6',
+            'last_known_lng' => 'decimal:6',
+            'last_known_heading' => 'decimal:2',
             'last_known_at' => 'datetime',
         ];
     }
@@ -58,5 +63,15 @@ class Truck extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(TransporterCompany::class, 'transporter_company_id');
+    }
+
+    public function gpsConnection(): BelongsTo
+    {
+        return $this->belongsTo(GpsConnection::class);
+    }
+
+    public function isGpsConnected(): bool
+    {
+        return $this->gps_status === 'connected';
     }
 }

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_bid_repository.dart';
 import '../../support/fake_job_bid_channel.dart';
+import '../../support/fake_job_location_channel.dart';
 import '../../support/fake_job_repository.dart';
 
 final _openJob = Job(
@@ -53,7 +54,8 @@ void main() {
           jobId: 10,
           jobRepository: FakeJobRepository(onShow: (_) async => _openJob),
           bidRepository: FakeBidRepository(onForJob: (_) async => [_pendingBid]),
-          channel: FakeJobBidChannel(jobId: 10),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: FakeJobLocationChannel(jobId: 10),
         ),
       ),
     );
@@ -73,7 +75,8 @@ void main() {
           jobId: 10,
           jobRepository: FakeJobRepository(onShow: (_) async => _openJob),
           bidRepository: FakeBidRepository(onForJob: (_) async => []),
-          channel: channel,
+          bidChannel: channel,
+          locationChannel: FakeJobLocationChannel(jobId: 10),
         ),
       ),
     );
@@ -111,7 +114,8 @@ void main() {
               return (job: _openJob, bid: _pendingBid);
             },
           ),
-          channel: FakeJobBidChannel(jobId: 10),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: FakeJobLocationChannel(jobId: 10),
         ),
       ),
     );
@@ -166,7 +170,8 @@ void main() {
             },
           ),
           bidRepository: FakeBidRepository(onForJob: (_) async => []),
-          channel: FakeJobBidChannel(jobId: 10),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: FakeJobLocationChannel(jobId: 10),
         ),
       ),
     );
@@ -219,7 +224,8 @@ void main() {
           jobId: 10,
           jobRepository: FakeJobRepository(onShow: (_) async => completedJob),
           bidRepository: FakeBidRepository(onForJob: (_) async => []),
-          channel: FakeJobBidChannel(jobId: 10),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: FakeJobLocationChannel(jobId: 10),
         ),
       ),
     );
@@ -227,5 +233,103 @@ void main() {
 
     expect(find.text('Confirmed'), findsOneWidget);
     expect(find.text('Confirm Receipt'), findsNothing);
+  });
+
+  Job trackableJob({required bool gpsTrackingActive, String gpsSignalStatus = 'ok', GpsLocation? lastKnownLocation}) {
+    return Job(
+      id: 10,
+      status: 'in_transit',
+      pickupAddress: _openJob.pickupAddress,
+      pickupLat: _openJob.pickupLat,
+      pickupLng: _openJob.pickupLng,
+      dropoffAddress: _openJob.dropoffAddress,
+      dropoffLat: _openJob.dropoffLat,
+      dropoffLng: _openJob.dropoffLng,
+      containerType: _openJob.containerType,
+      containerSize: _openJob.containerSize,
+      approxWeightTons: _openJob.approxWeightTons,
+      cargoDescription: _openJob.cargoDescription,
+      preferredPickupWindowStart: _openJob.preferredPickupWindowStart,
+      customerNotes: null,
+      agreedPrice: 750000,
+      currency: 'TZS',
+      assignedCompanyName: 'ABC Logistics',
+      assignedTruckRegistration: 'T 123 ABC',
+      assignedDriverName: 'Ali Juma',
+      proofOfDelivery: null,
+      bidsCount: 1,
+      gpsTrackingActive: gpsTrackingActive,
+      gpsSignalStatus: gpsSignalStatus,
+      lastKnownLocation: lastKnownLocation,
+    );
+  }
+
+  testWidgets('a job with no GPS shows "GPS Tracking Not Available"', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobDetailScreen(
+          jobId: 10,
+          jobRepository: FakeJobRepository(onShow: (_) async => trackableJob(gpsTrackingActive: false, gpsSignalStatus: 'not_applicable')),
+          bidRepository: FakeBidRepository(onForJob: (_) async => []),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: FakeJobLocationChannel(jobId: 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('GPS Tracking Not Available'), findsOneWidget);
+  });
+
+  testWidgets('a GPS-lost job shows the signal-unavailable state with the last known position', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobDetailScreen(
+          jobId: 10,
+          jobRepository: FakeJobRepository(
+            onShow: (_) async => trackableJob(
+              gpsTrackingActive: true,
+              gpsSignalStatus: 'lost',
+              lastKnownLocation: GpsLocation(lat: -6.8161, lng: 39.2803, heading: 90, recordedAt: DateTime.now().subtract(const Duration(minutes: 20))),
+            ),
+          ),
+          bidRepository: FakeBidRepository(onForJob: (_) async => []),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: FakeJobLocationChannel(jobId: 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('GPS signal unavailable'), findsOneWidget);
+  });
+
+  testWidgets('a live-tracking job shows the live position and updates from a socket push', (tester) async {
+    final locationChannel = FakeJobLocationChannel(jobId: 10);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobDetailScreen(
+          jobId: 10,
+          jobRepository: FakeJobRepository(
+            onShow: (_) async => trackableJob(
+              gpsTrackingActive: true,
+              lastKnownLocation: GpsLocation(lat: -6.8, lng: 39.2, heading: 0, recordedAt: DateTime.now()),
+            ),
+          ),
+          bidRepository: FakeBidRepository(onForJob: (_) async => []),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: locationChannel,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Live'), findsOneWidget);
+    expect(find.text('-6.8000, 39.2000'), findsOneWidget);
+
+    locationChannel.emitLocation({'lat': -6.85, 'lng': 39.25, 'heading': 180, 'recorded_at': DateTime.now().toIso8601String()});
+    await tester.pump();
+
+    expect(find.text('-6.8500, 39.2500'), findsOneWidget);
   });
 }

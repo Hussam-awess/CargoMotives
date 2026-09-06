@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/realtime/job_location_channel.dart';
 import '../../jobs/data/bid_repository.dart';
 import '../../jobs/data/company_job_repository.dart';
 import '../../jobs/data/job_repository.dart';
+import '../../jobs/gps_status_card.dart';
 import 'assign_job_screen.dart';
 import 'data/job_assignment_repository.dart';
 
@@ -18,14 +20,17 @@ class CompanyJobDetailScreen extends StatefulWidget {
     CompanyJobRepository? jobRepository,
     BidRepository? bidRepository,
     JobAssignmentRepository? assignmentRepository,
+    JobLocationChannel? locationChannel,
   }) : jobRepository = jobRepository ?? CompanyJobRepository(),
        bidRepository = bidRepository ?? BidRepository(),
-       assignmentRepository = assignmentRepository ?? JobAssignmentRepository();
+       assignmentRepository = assignmentRepository ?? JobAssignmentRepository(),
+       locationChannel = locationChannel ?? JobLocationChannel(jobId: jobId);
 
   final int jobId;
   final CompanyJobRepository jobRepository;
   final BidRepository bidRepository;
   final JobAssignmentRepository assignmentRepository;
+  final JobLocationChannel locationChannel;
 
   @override
   State<CompanyJobDetailScreen> createState() => _CompanyJobDetailScreenState();
@@ -42,18 +47,28 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
   bool _isSubmitting = false;
   String? _submitError;
   Bid? _placedBid;
+  GpsLocation? _liveLocation;
 
   @override
   void initState() {
     super.initState();
     _load();
+    widget.locationChannel
+      ..onLocationUpdated = _handleLiveLocation
+      ..connect();
   }
 
   @override
   void dispose() {
     _priceController.dispose();
     _noteController.dispose();
+    widget.locationChannel.dispose();
     super.dispose();
+  }
+
+  void _handleLiveLocation(Map<String, dynamic> locationJson) {
+    if (!mounted) return;
+    setState(() => _liveLocation = GpsLocation.fromJson(locationJson));
   }
 
   Future<void> _load() async {
@@ -69,6 +84,7 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
       setState(() {
         _job = job;
         _quotaRemaining = remaining;
+        _liveLocation = job.lastKnownLocation;
       });
     } catch (_) {
       if (mounted) setState(() => _loadError = 'Could not load this job.');
@@ -199,6 +215,12 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     if (_job!.assignedTruckRegistration != null) ...[
                       const SizedBox(height: 8),
                       OutlinedButton(onPressed: _viewDriverLink, child: const Text('View driver link')),
+                      const SizedBox(height: 16),
+                      GpsStatusCard(
+                        trackingActive: _job!.gpsTrackingActive,
+                        signalStatus: _job!.gpsSignalStatus,
+                        location: _liveLocation,
+                      ),
                     ],
                   ] else if (!_job!.isOpen)
                     const Text('This job is no longer open for bidding.', style: TextStyle(color: Color(0xFF6B7280)))

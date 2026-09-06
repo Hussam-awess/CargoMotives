@@ -1,6 +1,7 @@
 <?php
 
 use App\Broadcasting\JobChannel;
+use App\Broadcasting\JobLocationChannel;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
@@ -16,3 +17,8 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 // so the rule is unit-testable without needing a live Pusher-protocol
 // broadcaster driver wired up just to exercise it.
 Broadcast::channel('job.{jobId}', JobChannel::class);
+
+// Live GPS (TRD §5.2) — a separate channel from job.{jobId} above because
+// its audience is broader: both the customer AND the assigned company
+// watch the same truck's position, not just the customer.
+Broadcast::channel('job.{jobId}.location', JobLocationChannel::class);

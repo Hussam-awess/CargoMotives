@@ -1,7 +1,10 @@
 <?php
 
+use App\Console\Commands\CheckGpsSignalLoss;
 use App\Http\Middleware\EnsureAccountType;
 use App\Http\Middleware\EnsureCompanyApproved;
+use App\Jobs\PollGpsPositionsJob;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,6 +27,21 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../routes/channels.php',
         ['middleware' => ['api', 'auth:sanctum'], 'prefix' => 'api'],
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        // The async GPS pipeline's poll stage (TRD §5.2) — Wialon has no
+        // outbound webhook in this integration, so a scheduled poll is how
+        // positions get in at all. Laravel's scheduler runs no more often
+        // than per-minute; the TRD's "every 30-60 seconds" target is
+        // satisfied well enough at MVP scale by polling every minute —
+        // tightening this later is a one-line change, not a redesign.
+        $schedule->job(new PollGpsPositionsJob)->everyMinute()->withoutOverlapping();
+
+        // The other half of graceful degradation (TRD §5.3): catches a
+        // connected truck's feed going quiet mid-job. Runs independently
+        // of the poll above so a slow/failing poll cycle never delays
+        // detecting signal loss.
+        $schedule->command(CheckGpsSignalLoss::class)->everyMinute();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         // This is a pure JSON API (no server-rendered login page — the
         // Admin tool, Phase 9, is a separate Blade/Livewire app with its

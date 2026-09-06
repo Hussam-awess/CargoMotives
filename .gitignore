@@ -17,3 +17,8 @@ Thumbs.db
 # script that starts it (start-redis.ps1) IS tracked.
 /.local-services/redis/
 
+# Redis's own snapshot file — written to whatever the server's working
+# directory happened to be when it last saved (the repo root, if started
+# from here), not something to commit.
+/dump.rdb
+

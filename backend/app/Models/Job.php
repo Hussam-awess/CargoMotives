@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\DB;
     'customer_id', 'status', 'pickup_address', 'dropoff_address', 'container_type', 'container_size',
     'approx_weight_tons', 'cargo_description', 'preferred_pickup_window_start', 'preferred_pickup_window_end',
     'customer_notes', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'assigned_truck_id',
-    'assigned_driver_id', 'agreed_price', 'cancelled_reason',
+    'assigned_driver_id', 'agreed_price', 'cancelled_reason', 'gps_tracking_active', 'gps_signal_status',
 ])]
 class Job extends Model
 {
@@ -122,5 +122,21 @@ class Job extends Model
     public function proofOfDelivery(): HasOne
     {
         return $this->hasOne(ProofOfDelivery::class);
+    }
+
+    public function locationSnapshots(): HasMany
+    {
+        return $this->hasMany(JobLocationSnapshot::class);
+    }
+
+    /**
+     * Job statuses a truck could plausibly be reporting a live position
+     * for — from the moment it's assigned (already en route to pickup in
+     * practice, even before the driver marks that via the Driver Link)
+     * through delivery. Mirrors JobAssignmentService::ASSIGNABLE_STATUSES.
+     */
+    public function isGpsTrackable(): bool
+    {
+        return in_array($this->status, ['assigned', 'en_route_pickup', 'picked_up', 'in_transit'], true);
     }
 }

@@ -80,6 +80,11 @@ class TransporterCompany extends Model
         return $this->hasMany(Bid::class, 'transporter_company_id');
     }
 
+    public function gpsConnections(): HasMany
+    {
+        return $this->hasMany(GpsConnection::class, 'transporter_company_id');
+    }
+
     /**
      * The company-level GPS trust signal shown on a bid (PRD §7.3): "at
      * least one of the company's trucks has GPS connected." Not tied to

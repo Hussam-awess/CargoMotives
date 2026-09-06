@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\Gps\GpsProvider;
+use App\Services\Gps\Wialon\WialonGpsProvider;
 use App\Services\Sms\SmsGateway;
 use App\Services\Sms\SmsManager;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -21,6 +23,15 @@ class AppServiceProvider extends ServiceProvider
         // Call sites depend on the SmsGateway interface, never SmsManager or
         // a concrete driver directly — see App\Services\Sms\SmsManager.
         $this->app->bind(SmsGateway::class, fn ($app) => $app->make(SmsManager::class)->driver());
+
+        // Only one GPS provider exists yet (TRD §5: "concrete integrations,
+        // not a framework"), so a direct interface binding is enough — a
+        // manager/driver-resolution layer (like SmsManager) only earns its
+        // keep once a second provider actually exists to switch between.
+        $this->app->bind(
+            GpsProvider::class,
+            fn () => new WialonGpsProvider(config('services.wialon.base_url')),
+        );
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Company\CompanyVerificationController;
 use App\Http\Controllers\Company\DriverController;
+use App\Http\Controllers\Company\GpsConnectionController;
 use App\Http\Controllers\Company\TruckController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\HealthController;
@@ -82,6 +83,11 @@ Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_
         // the resulting link to re-share it.
         Route::post('/jobs/{job}/assign', [JobAssignmentController::class, 'store']);
         Route::get('/jobs/{job}/driver-link', [JobAssignmentController::class, 'driverLink']);
+
+        // Connect GPS (AppFlow §2.3) — Wialon only for now (Phase 6).
+        Route::get('/gps-connections', [GpsConnectionController::class, 'index']);
+        Route::post('/gps-connections', [GpsConnectionController::class, 'connect']);
+        Route::post('/gps-connections/{connection}/import', [GpsConnectionController::class, 'import']);
     });
 });
 
