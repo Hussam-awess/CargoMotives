@@ -1,5 +1,32 @@
 import '../../../core/network/api_client.dart';
 
+/// A driver's delivery submission (Backend Schema §2.10), embedded on a
+/// [Job] once its driver has submitted one via the Driver Link.
+class ProofOfDelivery {
+  const ProofOfDelivery({
+    required this.photoUrls,
+    required this.recipientName,
+    required this.notes,
+    required this.confirmedByCustomerAt,
+  });
+
+  factory ProofOfDelivery.fromJson(Map<String, dynamic> json) {
+    return ProofOfDelivery(
+      photoUrls: (json['photo_urls'] as List).cast<String>(),
+      recipientName: json['recipient_name'] as String?,
+      notes: json['notes'] as String?,
+      confirmedByCustomerAt: json['confirmed_by_customer_at'] == null
+          ? null
+          : DateTime.parse(json['confirmed_by_customer_at'] as String),
+    );
+  }
+
+  final List<String> photoUrls;
+  final String? recipientName;
+  final String? notes;
+  final DateTime? confirmedByCustomerAt;
+}
+
 /// A shipment request (Backend Schema §2.7).
 class Job {
   const Job({
@@ -20,7 +47,11 @@ class Job {
     required this.agreedPrice,
     required this.currency,
     required this.assignedCompanyName,
+    required this.assignedTruckRegistration,
+    required this.assignedDriverName,
+    required this.proofOfDelivery,
     required this.bidsCount,
+    this.isAssignedToViewer = false,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -42,7 +73,13 @@ class Job {
       agreedPrice: (json['agreed_price'] as num?)?.toDouble(),
       currency: json['currency'] as String,
       assignedCompanyName: json['assigned_company_name'] as String?,
+      assignedTruckRegistration: json['assigned_truck_registration'] as String?,
+      assignedDriverName: json['assigned_driver_name'] as String?,
+      proofOfDelivery: json['proof_of_delivery'] == null
+          ? null
+          : ProofOfDelivery.fromJson(json['proof_of_delivery'] as Map<String, dynamic>),
       bidsCount: json['bids_count'] as int?,
+      isAssignedToViewer: json['is_assigned_to_viewer'] as bool? ?? false,
     );
   }
 
@@ -63,9 +100,27 @@ class Job {
   final double? agreedPrice;
   final String currency;
   final String? assignedCompanyName;
+  final String? assignedTruckRegistration;
+  final String? assignedDriverName;
+  final ProofOfDelivery? proofOfDelivery;
   final int? bidsCount;
 
+  /// Only meaningful on a company-side fetch (CompanyJobRepository.show) —
+  /// a company can legitimately view a job it lost the bid on via "My
+  /// Bids" even after it's moved past 'open', but only the company this
+  /// job is actually assigned to may act on truck/driver assignment.
+  /// Defaults to false (customer-side responses never set this key).
+  final bool isAssignedToViewer;
+
   bool get isOpen => status == 'open';
+
+  /// Whether a truck/driver may still be assigned (or reassigned) to this
+  /// job (AppFlow §2.5) — mirrors JobAssignmentService::ASSIGNABLE_STATUSES
+  /// on the backend. Company-side callers must also check
+  /// [isAssignedToViewer] before showing assignment actions.
+  bool get isAssignable => const ['assigned', 'en_route_pickup', 'picked_up', 'in_transit'].contains(status);
+
+  bool get isAwaitingDeliveryConfirmation => status == 'delivered';
 }
 
 /// The Post a Job form's fields (AppFlow §3.2).
@@ -150,5 +205,13 @@ class JobRepository {
     final body = await _client.get('/jobs/post-quota');
 
     return body['remaining'] as int;
+  }
+
+  /// Customer confirms receipt after a driver submits proof of delivery
+  /// (AppFlow §3.5) — job moves from delivered to completed.
+  Future<Job> confirmDelivery(int jobId) async {
+    final body = await _client.post('/jobs/$jobId/confirm-delivery');
+
+    return Job.fromJson(body['data'] as Map<String, dynamic>);
   }
 }

@@ -1,13 +1,21 @@
 import 'package:cargo_motives/features/jobs/data/job_repository.dart';
 
 class FakeJobRepository extends JobRepository {
-  FakeJobRepository({this.onList, this.onShow, this.onPost, this.onCancel, this.onPostQuotaRemaining});
+  FakeJobRepository({
+    this.onList,
+    this.onShow,
+    this.onPost,
+    this.onCancel,
+    this.onPostQuotaRemaining,
+    this.onConfirmDelivery,
+  });
 
   final Future<List<Job>> Function()? onList;
   final Future<Job> Function(int jobId)? onShow;
   final Future<Job> Function(JobSubmission submission)? onPost;
   final Future<Job> Function(int jobId, {String? reason})? onCancel;
   final Future<int> Function()? onPostQuotaRemaining;
+  final Future<Job> Function(int jobId)? onConfirmDelivery;
 
   @override
   Future<List<Job>> list() => onList?.call() ?? Future.value(const []);
@@ -23,6 +31,9 @@ class FakeJobRepository extends JobRepository {
 
   @override
   Future<int> postQuotaRemaining() => onPostQuotaRemaining?.call() ?? Future.value(5);
+
+  @override
+  Future<Job> confirmDelivery(int jobId) => onConfirmDelivery?.call(jobId) ?? Future.value(_defaultJob(jobId));
 }
 
 Job _defaultJob(int id) => Job(
@@ -43,5 +54,8 @@ Job _defaultJob(int id) => Job(
   agreedPrice: null,
   currency: 'TZS',
   assignedCompanyName: null,
+  assignedTruckRegistration: null,
+  assignedDriverName: null,
+  proofOfDelivery: null,
   bidsCount: 0,
 );

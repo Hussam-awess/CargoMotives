@@ -17,6 +17,7 @@ class Truck {
     required this.verificationStatus,
     required this.rejectedReason,
     required this.gpsStatus,
+    required this.currentStatus,
   });
 
   factory Truck.fromJson(Map<String, dynamic> json) {
@@ -30,6 +31,7 @@ class Truck {
       verificationStatus: json['verification_status'] as String,
       rejectedReason: json['verification_rejected_reason'] as String?,
       gpsStatus: json['gps_status'] as String,
+      currentStatus: json['current_status'] as String,
     );
   }
 
@@ -42,9 +44,11 @@ class Truck {
   final String verificationStatus; // pending | approved | rejected
   final String? rejectedReason;
   final String gpsStatus; // not_connected | connected | signal_lost
+  final String currentStatus; // idle | on_job
 
   bool get isRejected => verificationStatus == 'rejected';
   bool get isApproved => verificationStatus == 'approved';
+  bool get isIdle => currentStatus == 'idle';
 }
 
 /// The vehicle-info + documents fields for registering (or resubmitting) a

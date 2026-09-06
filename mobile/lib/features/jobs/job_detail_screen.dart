@@ -35,6 +35,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   bool _isLoading = true;
   String? _loadError;
   int? _acceptingBidId;
+  bool _isConfirmingDelivery = false;
 
   @override
   void initState() {
@@ -97,6 +98,20 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
+  Future<void> _confirmDelivery() async {
+    setState(() => _isConfirmingDelivery = true);
+    try {
+      await widget.jobRepository.confirmDelivery(widget.jobId);
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isConfirmingDelivery = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,6 +132,15 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 children: [
                   _JobSummaryCard(job: _job!),
                   const SizedBox(height: 16),
+                  if (_job!.proofOfDelivery != null) ...[
+                    _ProofOfDeliveryCard(
+                      proofOfDelivery: _job!.proofOfDelivery!,
+                      canConfirm: _job!.isAwaitingDeliveryConfirmation,
+                      isConfirming: _isConfirmingDelivery,
+                      onConfirm: _confirmDelivery,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Text('Bids (${_bids.length})', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   if (_bids.isEmpty) const Text('No bids yet.', style: TextStyle(color: Color(0xFF6B7280))),
@@ -249,6 +273,86 @@ class _BidCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(bid.status, style: const TextStyle(color: Color(0xFF6B7280))),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// AppFlow §3.5: the driver's submitted proof — photos, optional recipient
+/// name/notes — plus Confirm Receipt while the job is still 'delivered'
+/// (not yet 'completed'). Once confirmed, this just shows the same
+/// information read-only (confirmedByCustomerAt is set).
+class _ProofOfDeliveryCard extends StatelessWidget {
+  const _ProofOfDeliveryCard({
+    required this.proofOfDelivery,
+    required this.canConfirm,
+    required this.isConfirming,
+    required this.onConfirm,
+  });
+
+  final ProofOfDelivery proofOfDelivery;
+  final bool canConfirm;
+  final bool isConfirming;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Proof of delivery', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 100,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: proofOfDelivery.photoUrls.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    proofOfDelivery.photoUrls[index],
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) =>
+                        progress == null ? child : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 100,
+                      height: 100,
+                      color: const Color(0xFFF3F4F6),
+                      child: const Icon(Icons.broken_image_outlined, color: Color(0xFF9E9E9E)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (proofOfDelivery.recipientName != null) ...[
+              const SizedBox(height: 12),
+              Text('Received by: ${proofOfDelivery.recipientName}'),
+            ],
+            if (proofOfDelivery.notes != null && proofOfDelivery.notes!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(proofOfDelivery.notes!),
+            ],
+            if (canConfirm) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: isConfirming ? null : onConfirm,
+                child: isConfirming
+                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Confirm Receipt'),
+              ),
+            ] else if (proofOfDelivery.confirmedByCustomerAt != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text('Confirmed', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
               ),
           ],
         ),

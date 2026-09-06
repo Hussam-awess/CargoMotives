@@ -145,6 +145,9 @@ void main() {
               agreedPrice: null,
               currency: 'TZS',
               assignedCompanyName: null,
+              assignedTruckRegistration: null,
+              assignedDriverName: null,
+              proofOfDelivery: null,
               bidsCount: 0,
             );
           },

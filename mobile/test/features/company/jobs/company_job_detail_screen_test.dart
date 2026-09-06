@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/fake_bid_repository.dart';
 import '../../../support/fake_company_job_repository.dart';
+import '../../../support/fake_job_assignment_repository.dart';
 
 final _openJob = Job(
   id: 5,
@@ -26,6 +27,9 @@ final _openJob = Job(
   agreedPrice: null,
   currency: 'TZS',
   assignedCompanyName: null,
+  assignedTruckRegistration: null,
+  assignedDriverName: null,
+  proofOfDelivery: null,
   bidsCount: 0,
 );
 
@@ -156,6 +160,9 @@ void main() {
               agreedPrice: null,
               currency: 'TZS',
               assignedCompanyName: 'Another Co',
+              assignedTruckRegistration: null,
+              assignedDriverName: null,
+              proofOfDelivery: null,
               bidsCount: 1,
             ),
           ),
@@ -167,5 +174,91 @@ void main() {
 
     expect(find.text('This job is no longer open for bidding.'), findsOneWidget);
     expect(find.text('Place bid'), findsNothing);
+  });
+
+  testWidgets('the assigned company sees the assignment section, not the bid form', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyJobDetailScreen(
+          jobId: 5,
+          jobRepository: FakeCompanyJobRepository(
+            onShow: (_) async => Job(
+              id: 5,
+              status: 'assigned',
+              pickupAddress: _openJob.pickupAddress,
+              pickupLat: _openJob.pickupLat,
+              pickupLng: _openJob.pickupLng,
+              dropoffAddress: _openJob.dropoffAddress,
+              dropoffLat: _openJob.dropoffLat,
+              dropoffLng: _openJob.dropoffLng,
+              containerType: _openJob.containerType,
+              containerSize: _openJob.containerSize,
+              approxWeightTons: _openJob.approxWeightTons,
+              cargoDescription: _openJob.cargoDescription,
+              preferredPickupWindowStart: _openJob.preferredPickupWindowStart,
+              customerNotes: null,
+              agreedPrice: null,
+              currency: 'TZS',
+              assignedCompanyName: null,
+              assignedTruckRegistration: null,
+              assignedDriverName: null,
+              proofOfDelivery: null,
+              bidsCount: 0,
+              isAssignedToViewer: true,
+            ),
+          ),
+          bidRepository: FakeBidRepository(onCompanyQuotaRemaining: () async => 3),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No truck/driver assigned yet.'), findsOneWidget);
+    expect(find.text('Assign truck & driver'), findsOneWidget);
+    expect(find.text('Place bid'), findsNothing);
+    expect(find.text('This job is no longer open for bidding.'), findsNothing);
+  });
+
+  testWidgets('once a truck/driver is assigned, shows their names and a driver-link action', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyJobDetailScreen(
+          jobId: 5,
+          jobRepository: FakeCompanyJobRepository(
+            onShow: (_) async => Job(
+              id: 5,
+              status: 'en_route_pickup',
+              pickupAddress: _openJob.pickupAddress,
+              pickupLat: _openJob.pickupLat,
+              pickupLng: _openJob.pickupLng,
+              dropoffAddress: _openJob.dropoffAddress,
+              dropoffLat: _openJob.dropoffLat,
+              dropoffLng: _openJob.dropoffLng,
+              containerType: _openJob.containerType,
+              containerSize: _openJob.containerSize,
+              approxWeightTons: _openJob.approxWeightTons,
+              cargoDescription: _openJob.cargoDescription,
+              preferredPickupWindowStart: _openJob.preferredPickupWindowStart,
+              customerNotes: null,
+              agreedPrice: null,
+              currency: 'TZS',
+              assignedCompanyName: null,
+              assignedTruckRegistration: 'T 123 ABC',
+              assignedDriverName: 'Ali Juma',
+              proofOfDelivery: null,
+              bidsCount: 0,
+              isAssignedToViewer: true,
+            ),
+          ),
+          bidRepository: FakeBidRepository(onCompanyQuotaRemaining: () async => 3),
+          assignmentRepository: FakeJobAssignmentRepository(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('T 123 ABC · Ali Juma'), findsOneWidget);
+    expect(find.text('Reassign truck & driver'), findsOneWidget);
+    expect(find.text('View driver link'), findsOneWidget);
   });
 }

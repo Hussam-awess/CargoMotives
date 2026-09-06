@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../jobs/data/bid_repository.dart';
 import '../../jobs/data/company_job_repository.dart';
 import '../../jobs/data/job_repository.dart';
+import 'assign_job_screen.dart';
+import 'data/job_assignment_repository.dart';
 
 /// Company's Job Detail + Place Bid (AppFlow §2.4): "Tap a job -> details
 /// -> Place Bid (price, ETA, note) -> quota check (shows remaining bids/
@@ -14,12 +17,15 @@ class CompanyJobDetailScreen extends StatefulWidget {
     required this.jobId,
     CompanyJobRepository? jobRepository,
     BidRepository? bidRepository,
+    JobAssignmentRepository? assignmentRepository,
   }) : jobRepository = jobRepository ?? CompanyJobRepository(),
-       bidRepository = bidRepository ?? BidRepository();
+       bidRepository = bidRepository ?? BidRepository(),
+       assignmentRepository = assignmentRepository ?? JobAssignmentRepository();
 
   final int jobId;
   final CompanyJobRepository jobRepository;
   final BidRepository bidRepository;
+  final JobAssignmentRepository assignmentRepository;
 
   @override
   State<CompanyJobDetailScreen> createState() => _CompanyJobDetailScreenState();
@@ -106,6 +112,43 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
     }
   }
 
+  Future<void> _openAssignScreen() async {
+    final assigned = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => AssignJobScreen(job: _job!, assignmentRepository: widget.assignmentRepository)),
+    );
+    if (assigned == true) _load();
+  }
+
+  Future<void> _viewDriverLink() async {
+    try {
+      final link = await widget.assignmentRepository.currentDriverLink(widget.jobId);
+      if (!mounted) return;
+      if (link == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No driver link yet.')));
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Driver link'),
+          content: SelectableText(link.url),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: link.url));
+                if (context.mounted) Navigator.of(context).pop();
+              },
+              child: const Text('Copy'),
+            ),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
+          ],
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,7 +184,23 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (!_job!.isOpen)
+                  if (_job!.isAssignable && _job!.isAssignedToViewer) ...[
+                    Text('Assignment', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 8),
+                    if (_job!.assignedTruckRegistration != null)
+                      Text('${_job!.assignedTruckRegistration} · ${_job!.assignedDriverName}')
+                    else
+                      const Text('No truck/driver assigned yet.', style: TextStyle(color: Color(0xFF6B7280))),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _openAssignScreen,
+                      child: Text(_job!.assignedTruckRegistration != null ? 'Reassign truck & driver' : 'Assign truck & driver'),
+                    ),
+                    if (_job!.assignedTruckRegistration != null) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton(onPressed: _viewDriverLink, child: const Text('View driver link')),
+                    ],
+                  ] else if (!_job!.isOpen)
                     const Text('This job is no longer open for bidding.', style: TextStyle(color: Color(0xFF6B7280)))
                   else if (_placedBid != null)
                     Text('Bid placed: TZS ${_placedBid!.price.toStringAsFixed(0)} — pending review.', style: const TextStyle(fontWeight: FontWeight.w600))

@@ -42,6 +42,16 @@ class JobFactory extends Factory
         return $this->state(fn (array $attributes) => ['status' => 'assigned']);
     }
 
+    /**
+     * A job a specific company has already won the bid on — the starting
+     * point for Phase 5's Job Assignment flow (assigning a truck/driver),
+     * which needs assigned_company_id set, not just status='assigned'.
+     */
+    public function assignedTo(int $companyId): static
+    {
+        return $this->state(fn (array $attributes) => ['status' => 'assigned', 'assigned_company_id' => $companyId]);
+    }
+
     public function cancelled(string $reason = 'Customer no longer needs this shipment.'): static
     {
         return $this->state(fn (array $attributes) => [

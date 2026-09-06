@@ -15,6 +15,7 @@ const _approvedTruck = Truck(
   verificationStatus: 'approved',
   rejectedReason: null,
   gpsStatus: 'not_connected',
+  currentStatus: 'idle',
 );
 
 const _rejectedTruck = Truck(
@@ -27,6 +28,7 @@ const _rejectedTruck = Truck(
   verificationStatus: 'rejected',
   rejectedReason: 'Insurance expired.',
   gpsStatus: 'not_connected',
+  currentStatus: 'idle',
 );
 
 void main() {

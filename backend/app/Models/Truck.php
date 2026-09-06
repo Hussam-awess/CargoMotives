@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 #[Fillable([
     'transporter_company_id', 'registration_number', 'make_model', 'vehicle_type', 'capacity_tons',
-    'documents', 'verification_status', 'verification_rejected_reason',
+    'documents', 'verification_status', 'verification_rejected_reason', 'current_status',
 ])]
 class Truck extends Model
 {

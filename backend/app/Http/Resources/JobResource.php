@@ -38,6 +38,9 @@ class JobResource extends JsonResource
             'currency' => $this->currency,
             'cancelled_reason' => $this->cancelled_reason,
             'assigned_company_name' => $this->whenLoaded('assignedCompany', fn () => $this->assignedCompany?->company_name),
+            'assigned_truck_registration' => $this->whenLoaded('assignedTruck', fn () => $this->assignedTruck?->registration_number),
+            'assigned_driver_name' => $this->whenLoaded('assignedDriver', fn () => $this->assignedDriver?->full_name),
+            'proof_of_delivery' => $this->whenLoaded('proofOfDelivery', fn () => $this->proofOfDelivery ? new ProofOfDeliveryResource($this->proofOfDelivery) : null),
             'bids_count' => $this->when(isset($this->bids_count), fn () => (int) $this->bids_count),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

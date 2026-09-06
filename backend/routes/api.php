@@ -12,6 +12,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Jobs\BidController;
 use App\Http\Controllers\Jobs\CompanyJobController;
+use App\Http\Controllers\Jobs\JobAssignmentController;
 use App\Http\Controllers\Jobs\JobController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +44,7 @@ Route::middleware(['auth:sanctum', 'account_type:customer'])->group(function () 
     Route::get('/jobs/{job}', [JobController::class, 'show']);
     Route::post('/jobs/{job}', [JobController::class, 'update']);
     Route::post('/jobs/{job}/cancel', [JobController::class, 'cancel']);
+    Route::post('/jobs/{job}/confirm-delivery', [JobController::class, 'confirmDelivery']);
     Route::get('/jobs/{job}/bids', [BidController::class, 'index']);
 
     Route::post('/bids/{bid}/accept', [BidController::class, 'accept']);
@@ -74,6 +76,12 @@ Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_
         Route::post('/jobs/{job}/bids', [BidController::class, 'store']);
         Route::get('/bid-quota', [BidController::class, 'quota']);
         Route::post('/bids/{bid}/withdraw', [BidController::class, 'withdraw']);
+
+        // Job Assignment & Driver Link (AppFlow §2.5) — picking a truck +
+        // driver for a job this company has already won, and re-fetching
+        // the resulting link to re-share it.
+        Route::post('/jobs/{job}/assign', [JobAssignmentController::class, 'store']);
+        Route::get('/jobs/{job}/driver-link', [JobAssignmentController::class, 'driverLink']);
     });
 });
 

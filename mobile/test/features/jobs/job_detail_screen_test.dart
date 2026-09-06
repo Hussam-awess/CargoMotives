@@ -26,6 +26,9 @@ final _openJob = Job(
   agreedPrice: null,
   currency: 'TZS',
   assignedCompanyName: null,
+  assignedTruckRegistration: null,
+  assignedDriverName: null,
+  proofOfDelivery: null,
   bidsCount: 1,
 );
 
@@ -118,5 +121,111 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(acceptedBidId, 1);
+  });
+
+  testWidgets('a delivered job shows proof of delivery and a Confirm Receipt button', (tester) async {
+    final deliveredJob = Job(
+      id: 10,
+      status: 'delivered',
+      pickupAddress: _openJob.pickupAddress,
+      pickupLat: _openJob.pickupLat,
+      pickupLng: _openJob.pickupLng,
+      dropoffAddress: _openJob.dropoffAddress,
+      dropoffLat: _openJob.dropoffLat,
+      dropoffLng: _openJob.dropoffLng,
+      containerType: _openJob.containerType,
+      containerSize: _openJob.containerSize,
+      approxWeightTons: _openJob.approxWeightTons,
+      cargoDescription: _openJob.cargoDescription,
+      preferredPickupWindowStart: _openJob.preferredPickupWindowStart,
+      customerNotes: null,
+      agreedPrice: 750000,
+      currency: 'TZS',
+      assignedCompanyName: 'ABC Logistics',
+      assignedTruckRegistration: 'T 123 ABC',
+      assignedDriverName: 'Ali Juma',
+      proofOfDelivery: const ProofOfDelivery(
+        photoUrls: ['https://example.test/photo1.jpg'],
+        recipientName: 'Asha Mwinyi',
+        notes: 'Left at reception.',
+        confirmedByCustomerAt: null,
+      ),
+      bidsCount: 1,
+    );
+
+    int? confirmedJobId;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobDetailScreen(
+          jobId: 10,
+          jobRepository: FakeJobRepository(
+            onShow: (_) async => deliveredJob,
+            onConfirmDelivery: (jobId) async {
+              confirmedJobId = jobId;
+              return deliveredJob;
+            },
+          ),
+          bidRepository: FakeBidRepository(onForJob: (_) async => []),
+          channel: FakeJobBidChannel(jobId: 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Proof of delivery'), findsOneWidget);
+    expect(find.text('Received by: Asha Mwinyi'), findsOneWidget);
+    expect(find.text('Left at reception.'), findsOneWidget);
+    expect(find.text('Confirm Receipt'), findsOneWidget);
+
+    await tester.tap(find.text('Confirm Receipt'));
+    await tester.pumpAndSettle();
+
+    expect(confirmedJobId, 10);
+  });
+
+  testWidgets('a completed job shows the confirmed proof of delivery without a button', (tester) async {
+    final completedJob = Job(
+      id: 10,
+      status: 'completed',
+      pickupAddress: _openJob.pickupAddress,
+      pickupLat: _openJob.pickupLat,
+      pickupLng: _openJob.pickupLng,
+      dropoffAddress: _openJob.dropoffAddress,
+      dropoffLat: _openJob.dropoffLat,
+      dropoffLng: _openJob.dropoffLng,
+      containerType: _openJob.containerType,
+      containerSize: _openJob.containerSize,
+      approxWeightTons: _openJob.approxWeightTons,
+      cargoDescription: _openJob.cargoDescription,
+      preferredPickupWindowStart: _openJob.preferredPickupWindowStart,
+      customerNotes: null,
+      agreedPrice: 750000,
+      currency: 'TZS',
+      assignedCompanyName: 'ABC Logistics',
+      assignedTruckRegistration: 'T 123 ABC',
+      assignedDriverName: 'Ali Juma',
+      proofOfDelivery: ProofOfDelivery(
+        photoUrls: const ['https://example.test/photo1.jpg'],
+        recipientName: 'Asha Mwinyi',
+        notes: null,
+        confirmedByCustomerAt: DateTime(2026, 9, 6),
+      ),
+      bidsCount: 1,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobDetailScreen(
+          jobId: 10,
+          jobRepository: FakeJobRepository(onShow: (_) async => completedJob),
+          bidRepository: FakeBidRepository(onForJob: (_) async => []),
+          channel: FakeJobBidChannel(jobId: 10),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confirmed'), findsOneWidget);
+    expect(find.text('Confirm Receipt'), findsNothing);
   });
 }

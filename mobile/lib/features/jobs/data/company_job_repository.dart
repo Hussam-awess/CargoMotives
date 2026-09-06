@@ -18,7 +18,12 @@ class CompanyJobRepository {
   Future<Job> show(int jobId) async {
     final body = await _client.get('/company/jobs/$jobId');
 
-    return Job.fromJson(body['data'] as Map<String, dynamic>);
+    // is_assigned_to_viewer rides alongside `data` (JsonResource::additional
+    // on the backend), not inside it — merge it in so Job.fromJson sees it.
+    return Job.fromJson({
+      ...body['data'] as Map<String, dynamic>,
+      'is_assigned_to_viewer': body['is_assigned_to_viewer'],
+    });
   }
 
   Future<List<Job>> _list(String path) async {

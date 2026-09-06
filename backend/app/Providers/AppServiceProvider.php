@@ -44,5 +44,11 @@ class AppServiceProvider extends ServiceProvider
         // Blunts brute-forcing an Admin password (TRD §7's "handful of
         // attempts per minute" guidance, same as OTP/login endpoints).
         RateLimiter::for('admin-login', fn (Request $request) => Limit::perMinute(5)->by($request->input('email').'|'.$request->ip()));
+
+        // Defense in depth on top of the token's own unguessability (48
+        // random chars) — a driver legitimately reloading/submitting this
+        // page a few times a minute is unaffected; a scripted token-guessing
+        // attempt is not.
+        RateLimiter::for('driver-link', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
     }
 }

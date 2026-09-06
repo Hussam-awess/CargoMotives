@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
@@ -23,7 +24,8 @@ use Illuminate\Support\Facades\DB;
 #[Fillable([
     'customer_id', 'status', 'pickup_address', 'dropoff_address', 'container_type', 'container_size',
     'approx_weight_tons', 'cargo_description', 'preferred_pickup_window_start', 'preferred_pickup_window_end',
-    'customer_notes', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'agreed_price', 'cancelled_reason',
+    'customer_notes', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'assigned_truck_id',
+    'assigned_driver_id', 'agreed_price', 'cancelled_reason',
 ])]
 class Job extends Model
 {
@@ -97,8 +99,28 @@ class Job extends Model
         return $this->belongsTo(TransporterCompany::class, 'assigned_company_id');
     }
 
+    public function assignedTruck(): BelongsTo
+    {
+        return $this->belongsTo(Truck::class, 'assigned_truck_id');
+    }
+
+    public function assignedDriver(): BelongsTo
+    {
+        return $this->belongsTo(Driver::class, 'assigned_driver_id');
+    }
+
     public function bids(): HasMany
     {
         return $this->hasMany(Bid::class, 'job_id');
+    }
+
+    public function driverLinks(): HasMany
+    {
+        return $this->hasMany(DriverLink::class);
+    }
+
+    public function proofOfDelivery(): HasOne
+    {
+        return $this->hasOne(ProofOfDelivery::class);
     }
 }

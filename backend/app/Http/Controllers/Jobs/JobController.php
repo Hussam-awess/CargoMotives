@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Jobs\PostJobRequest;
 use App\Http\Resources\JobResource;
 use App\Models\Job;
+use App\Models\Truck;
 use App\Services\Documents\DocumentStorage;
 use App\Services\Geo\GeoPoint;
 use App\Services\Jobs\JobPostQuotaService;
@@ -13,6 +14,7 @@ use App\Services\Quota\QuotaExceededException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -46,7 +48,9 @@ class JobController extends Controller
     {
         $this->authorizeCustomerOwnership($request, $job);
 
-        return new JobResource(Job::withCoordinates()->findOrFail($job->id));
+        return new JobResource(
+            Job::withCoordinates()->with(['assignedTruck', 'assignedDriver', 'proofOfDelivery'])->findOrFail($job->id)
+        );
     }
 
     public function store(PostJobRequest $request): JobResource|JsonResponse
@@ -106,6 +110,43 @@ class JobController extends Controller
     public function postQuota(Request $request): JsonResponse
     {
         return response()->json(['remaining' => $this->postQuota->remaining($request->user())]);
+    }
+
+    /**
+     * Customer confirms receipt after a driver submits proof of delivery
+     * (AppFlow §3.5). This is a job-lifecycle transition only — it does
+     * NOT write a commission_ledger charge (Backend Schema business rule
+     * §7), since that table doesn't exist until Phase 7. Phase 7 will add
+     * the charge-on-completion side effect here once it has a ledger to
+     * write to.
+     *
+     * "Report a Problem" (the AppFlow alternative to confirming) routes to
+     * the disputes table, which — like commission — is out of Phase 5's
+     * scope (disputes review is explicitly Phase 9's Admin tool); it isn't
+     * built here.
+     */
+    public function confirmDelivery(Request $request, Job $job): JobResource
+    {
+        $this->authorizeCustomerOwnership($request, $job);
+
+        if ($job->status !== 'delivered') {
+            throw ValidationException::withMessages([
+                'status' => ['This job has no delivery awaiting confirmation.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($job) {
+            $job->update(['status' => 'completed']);
+            $job->proofOfDelivery()->update(['confirmed_by_customer_at' => now()]);
+
+            if ($job->assigned_truck_id !== null) {
+                Truck::whereKey($job->assigned_truck_id)->update(['current_status' => 'idle']);
+            }
+        });
+
+        return new JobResource(
+            Job::withCoordinates()->with(['assignedTruck', 'assignedDriver', 'proofOfDelivery'])->findOrFail($job->id)
+        );
     }
 
     private function authorizeCustomerOwnership(Request $request, Job $job): void

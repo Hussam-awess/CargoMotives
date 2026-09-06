@@ -79,6 +79,14 @@ class CompanyJobController extends Controller
 
         abort_unless($visible, 404);
 
-        return new JobResource(Job::withCoordinates()->withCount('bids')->findOrFail($job->id));
+        // A company can legitimately view a job it lost the bid on (via
+        // "My Bids") even after it's moved past 'open' — but only the
+        // *assigned* company may see truck/driver-assignment actions on
+        // it, so the app needs to tell those two cases apart.
+        return (new JobResource(
+            Job::withCoordinates()->withCount('bids')
+                ->with(['assignedTruck', 'assignedDriver', 'proofOfDelivery'])
+                ->findOrFail($job->id)
+        ))->additional(['is_assigned_to_viewer' => $job->assigned_company_id === $companyId]);
     }
 }

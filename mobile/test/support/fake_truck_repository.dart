@@ -27,6 +27,7 @@ class FakeTruckRepository extends TruckRepository {
             verificationStatus: 'pending',
             rejectedReason: null,
             gpsStatus: 'not_connected',
+            currentStatus: 'idle',
           ),
         );
   }

@@ -107,6 +107,7 @@ void main() {
         verificationStatus: 'rejected',
         rejectedReason: 'Photos too blurry.',
         gpsStatus: 'not_connected',
+        currentStatus: 'idle',
       );
 
       await tester.pumpWidget(
