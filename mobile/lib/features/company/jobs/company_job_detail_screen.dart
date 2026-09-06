@@ -7,6 +7,7 @@ import '../../jobs/data/bid_repository.dart';
 import '../../jobs/data/company_job_repository.dart';
 import '../../jobs/data/job_repository.dart';
 import '../../jobs/gps_status_card.dart';
+import '../../jobs/messages_screen.dart';
 import 'assign_job_screen.dart';
 import 'data/job_assignment_repository.dart';
 
@@ -48,6 +49,7 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
   String? _submitError;
   Bid? _placedBid;
   GpsLocation? _liveLocation;
+  List<Job> _returnLoadSuggestions = [];
 
   @override
   void initState() {
@@ -86,10 +88,25 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
         _quotaRemaining = remaining;
         _liveLocation = job.lastKnownLocation;
       });
+      if (job.isAssignedToViewer && (job.status == 'delivered' || job.status == 'completed')) {
+        _loadReturnLoadSuggestions();
+      }
     } catch (_) {
       if (mounted) setState(() => _loadError = 'Could not load this job.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Featured-only on the backend (403 for anyone else) — a non-Featured
+  /// company simply never sees this section, no separate "are you
+  /// Featured" check needed here.
+  Future<void> _loadReturnLoadSuggestions() async {
+    try {
+      final suggestions = await widget.jobRepository.returnLoadSuggestions(widget.jobId);
+      if (mounted) setState(() => _returnLoadSuggestions = suggestions);
+    } catch (_) {
+      // Silently skip — this is a bonus prompt, not core functionality.
     }
   }
 
@@ -168,7 +185,17 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Job detail')),
+      appBar: AppBar(
+        title: const Text('Job detail'),
+        actions: [
+          if (_job?.isAssignedToViewer == true)
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline),
+              tooltip: 'Messages',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MessagesScreen(jobId: widget.jobId))),
+            ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
@@ -221,6 +248,22 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                         signalStatus: _job!.gpsSignalStatus,
                         location: _liveLocation,
                       ),
+                    ],
+                    if (_returnLoadSuggestions.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text('Find a return load', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      for (final suggestion in _returnLoadSuggestions)
+                        Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            title: Text('${suggestion.containerType} · ${suggestion.containerSize}'),
+                            subtitle: Text('${suggestion.pickupAddress} → ${suggestion.dropoffAddress}'),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: suggestion.id)),
+                            ),
+                          ),
+                        ),
                     ],
                   ] else if (!_job!.isOpen)
                     const Text('This job is no longer open for bidding.', style: TextStyle(color: Color(0xFF6B7280)))

@@ -9,11 +9,19 @@ class CompanyJobRepository {
 
   final ApiClient _client;
 
-  Future<List<Job>> open() => _list('/company/jobs/open');
+  /// [usePreferredRoutes] applies a Featured company's saved route filter
+  /// (AppFlow §2.7) — ignored server-side for a non-Featured company or
+  /// one with no saved routes, so it's always safe to pass.
+  Future<List<Job>> open({bool usePreferredRoutes = false}) =>
+      _list(usePreferredRoutes ? '/company/jobs/open?use_preferred_routes=1' : '/company/jobs/open');
 
   Future<List<Job>> myBids() => _list('/company/jobs/my-bids');
 
   Future<List<Job>> active() => _list('/company/jobs/active');
+
+  /// "Find a return load" (AppFlow §2.7, Featured-only) — other open jobs
+  /// near where [jobId] just dropped off.
+  Future<List<Job>> returnLoadSuggestions(int jobId) => _list('/company/jobs/$jobId/return-load-suggestions');
 
   Future<Job> show(int jobId) async {
     final body = await _client.get('/company/jobs/$jobId');

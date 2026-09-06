@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/session_store.dart';
 import '../auth/data/auth_repository.dart';
 import 'data/company_repository.dart';
+import 'featured/featured_screen.dart';
 
 /// A deliberately minimal Profile tab — a real screen, not a placeholder,
 /// since the pieces it needs (company name, logout) already exist from
@@ -71,6 +72,11 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
                 ),
                 const SizedBox(height: 32),
               ],
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyFeaturedScreen())),
+                child: const Text('Upgrade to Featured'),
+              ),
+              const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _isLoggingOut ? null : _logout,
                 child: _isLoggingOut

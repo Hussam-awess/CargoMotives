@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import 'data/bid_repository.dart';
 import 'data/job_repository.dart';
 import 'gps_status_card.dart';
+import 'messages_screen.dart';
 
 /// Job Detail (Customer) — AppFlow §3.3/§3.4: the job summary, its bid
 /// list (Featured pinned first, live-updated per TRD §4 while this screen
@@ -135,7 +136,17 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Job detail')),
+      appBar: AppBar(
+        title: const Text('Job detail'),
+        actions: [
+          if (_job?.assignedCompanyName != null)
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline),
+              tooltip: 'Messages',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MessagesScreen(jobId: widget.jobId))),
+            ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null

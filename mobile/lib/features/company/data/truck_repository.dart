@@ -5,7 +5,9 @@ import '../../../core/network/api_client.dart';
 
 /// A registered truck (Backend Schema §2.3). GPS/current-assignment fields
 /// exist on the model from Phase 3 but stay at their defaults (not shown
-/// prominently in the UI) until Phase 6/4 respectively.
+/// prominently in the UI) until Phase 6/4 respectively. last_known_* are
+/// only ever populated on the Featured fleet-map endpoint (Phase 8) — the
+/// ordinary Fleet list still doesn't need them.
 class Truck {
   const Truck({
     required this.id,
@@ -18,6 +20,10 @@ class Truck {
     required this.rejectedReason,
     required this.gpsStatus,
     required this.currentStatus,
+    this.lastKnownLat,
+    this.lastKnownLng,
+    this.lastKnownHeading,
+    this.lastKnownAt,
   });
 
   factory Truck.fromJson(Map<String, dynamic> json) {
@@ -32,6 +38,10 @@ class Truck {
       rejectedReason: json['verification_rejected_reason'] as String?,
       gpsStatus: json['gps_status'] as String,
       currentStatus: json['current_status'] as String,
+      lastKnownLat: (json['last_known_lat'] as num?)?.toDouble(),
+      lastKnownLng: (json['last_known_lng'] as num?)?.toDouble(),
+      lastKnownHeading: (json['last_known_heading'] as num?)?.toDouble(),
+      lastKnownAt: json['last_known_at'] == null ? null : DateTime.parse(json['last_known_at'] as String),
     );
   }
 
@@ -45,6 +55,10 @@ class Truck {
   final String? rejectedReason;
   final String gpsStatus; // not_connected | connected | signal_lost
   final String currentStatus; // idle | on_job
+  final double? lastKnownLat;
+  final double? lastKnownLng;
+  final double? lastKnownHeading;
+  final DateTime? lastKnownAt;
 
   bool get isRejected => verificationStatus == 'rejected';
   bool get isApproved => verificationStatus == 'approved';
@@ -86,6 +100,15 @@ class TruckRepository {
     return (body['data'] as List)
         .map((e) => Truck.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// The Featured "fleet map" (AppFlow §2.7) — Featured-only server-side;
+  /// a non-Featured company gets a 403 (ApiException), which the screen
+  /// shows as a friendly upgrade prompt rather than a generic error.
+  Future<List<Truck>> map() async {
+    final body = await _client.get('/company/fleet/map');
+
+    return (body['data'] as List).map((e) => Truck.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<Truck> submit(

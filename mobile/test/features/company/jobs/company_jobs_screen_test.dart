@@ -1,8 +1,10 @@
+import 'package:cargo_motives/features/company/data/featured_repository.dart';
 import 'package:cargo_motives/features/company/jobs/company_jobs_screen.dart';
 import 'package:cargo_motives/features/jobs/data/job_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../support/fake_company_featured_repository.dart';
 import '../../../support/fake_company_job_repository.dart';
 
 final _openJob = Job(
@@ -32,11 +34,17 @@ final _openJob = Job(
 void main() {
   testWidgets('shows the Open tab by default with its own empty state', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: CompanyJobsScreen(repository: FakeCompanyJobRepository(onOpen: () async => []))),
+      MaterialApp(
+        home: CompanyJobsScreen(
+          repository: FakeCompanyJobRepository(onOpen: ({usePreferredRoutes = false}) async => []),
+          featuredRepository: FakeCompanyFeaturedRepository(),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('No open jobs right now.'), findsOneWidget);
+    expect(find.text('My preferred routes only'), findsNothing);
   });
 
   testWidgets('switching to My Bids and Active tabs loads their own feeds', (tester) async {
@@ -44,10 +52,11 @@ void main() {
       MaterialApp(
         home: CompanyJobsScreen(
           repository: FakeCompanyJobRepository(
-            onOpen: () async => [_openJob],
+            onOpen: ({usePreferredRoutes = false}) async => [_openJob],
             onMyBids: () async => [],
             onActive: () async => [],
           ),
+          featuredRepository: FakeCompanyFeaturedRepository(),
         ),
       ),
     );
@@ -62,5 +71,34 @@ void main() {
     await tester.tap(find.text('Active'));
     await tester.pumpAndSettle();
     expect(find.text('No active jobs yet.'), findsOneWidget);
+  });
+
+  testWidgets('a Featured company sees and can use the preferred-routes toggle', (tester) async {
+    bool? capturedUsePreferredRoutes;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyJobsScreen(
+          repository: FakeCompanyJobRepository(
+            onOpen: ({usePreferredRoutes = false}) async {
+              capturedUsePreferredRoutes = usePreferredRoutes;
+              return [_openJob];
+            },
+          ),
+          featuredRepository: FakeCompanyFeaturedRepository(
+            onStatus: () async =>
+                const CompanyFeaturedStatus(isFeatured: true, featuredUntil: null, price: 50000, durationDays: 30, preferredRoutes: []),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My preferred routes only'), findsOneWidget);
+    expect(capturedUsePreferredRoutes, false);
+
+    await tester.tap(find.text('My preferred routes only'));
+    await tester.pumpAndSettle();
+
+    expect(capturedUsePreferredRoutes, true);
   });
 }

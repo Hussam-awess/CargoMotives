@@ -36,6 +36,22 @@ class TruckController extends Controller
         return new TruckResource($truck);
     }
 
+    /**
+     * The Featured "fleet map" (AppFlow §2.7) — just the company's own
+     * GPS-connected trucks (TruckResource already exposes last_known_*
+     * for every truck since Phase 6; this just narrows the list to ones
+     * that actually have a position worth showing).
+     */
+    public function map(Request $request): AnonymousResourceCollection
+    {
+        $company = $request->user()->transporterCompany;
+        abort_unless($company->is_featured, 403, 'The fleet map is a Featured-only feature.');
+
+        return TruckResource::collection(
+            $company->trucks()->where('gps_status', 'connected')->get()
+        );
+    }
+
     public function store(SubmitTruckRequest $request): TruckResource
     {
         return new TruckResource($this->save($request, $request->user()->transporterCompany, null));

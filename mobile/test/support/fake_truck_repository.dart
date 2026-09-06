@@ -1,7 +1,7 @@
 import 'package:cargo_motives/features/company/data/truck_repository.dart';
 
 class FakeTruckRepository extends TruckRepository {
-  FakeTruckRepository({this.onList, this.onSubmit});
+  FakeTruckRepository({this.onList, this.onSubmit, this.onMap});
 
   final Future<List<Truck>> Function()? onList;
   final Future<Truck> Function(
@@ -9,9 +9,13 @@ class FakeTruckRepository extends TruckRepository {
     int? resubmitTruckId,
   })?
   onSubmit;
+  final Future<List<Truck>> Function()? onMap;
 
   @override
   Future<List<Truck>> list() => onList?.call() ?? Future.value(const []);
+
+  @override
+  Future<List<Truck>> map() => onMap?.call() ?? Future.value(const []);
 
   @override
   Future<Truck> submit(TruckSubmission submission, {int? resubmitTruckId}) {

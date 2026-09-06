@@ -8,14 +8,17 @@ use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Company\CommissionController;
 use App\Http\Controllers\Company\CompanyVerificationController;
 use App\Http\Controllers\Company\DriverController;
+use App\Http\Controllers\Company\FeaturedController as CompanyFeaturedController;
 use App\Http\Controllers\Company\GpsConnectionController;
 use App\Http\Controllers\Company\TruckController;
+use App\Http\Controllers\Customer\FeaturedController as CustomerFeaturedController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Jobs\BidController;
 use App\Http\Controllers\Jobs\CompanyJobController;
 use App\Http\Controllers\Jobs\JobAssignmentController;
 use App\Http\Controllers\Jobs\JobController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\Webhooks\SelcomWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -56,6 +59,19 @@ Route::middleware(['auth:sanctum', 'account_type:customer'])->group(function () 
     Route::get('/jobs/{job}/bids', [BidController::class, 'index']);
 
     Route::post('/bids/{bid}/accept', [BidController::class, 'accept']);
+
+    // Featured (Customer) — AppFlow §3.6.
+    Route::get('/featured/status', [CustomerFeaturedController::class, 'status']);
+    Route::post('/featured/purchase', [CustomerFeaturedController::class, 'purchase']);
+});
+
+// A job's message thread (Backend Schema §2.15) — reachable by either
+// participant (customer or the assigned company's owner), so this sits
+// under plain auth:sanctum rather than either role-specific group above;
+// MessageController does its own per-job participant check.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/jobs/{job}/messages', [MessageController::class, 'index']);
+    Route::post('/jobs/{job}/messages', [MessageController::class, 'store']);
 });
 
 Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_company'])->group(function () {
@@ -100,6 +116,15 @@ Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_
         Route::get('/commission/summary', [CommissionController::class, 'summary']);
         Route::get('/commission/ledger', [CommissionController::class, 'ledger']);
         Route::post('/commission/payments', [CommissionController::class, 'initiatePayment']);
+
+        // Featured (Company) — AppFlow §2.7.
+        Route::get('/featured/status', [CompanyFeaturedController::class, 'status']);
+        Route::post('/featured/purchase', [CompanyFeaturedController::class, 'purchase']);
+        Route::post('/featured/preferred-routes', [CompanyFeaturedController::class, 'updatePreferredRoutes']);
+
+        // Featured-only fleet map and return-load suggestions.
+        Route::get('/fleet/map', [TruckController::class, 'map']);
+        Route::get('/jobs/{job}/return-load-suggestions', [CompanyJobController::class, 'returnLoadSuggestions']);
     });
 });
 

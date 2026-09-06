@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_commission_repository.dart';
+import '../../support/fake_company_featured_repository.dart';
 import '../../support/fake_company_job_repository.dart';
 import '../../support/fake_company_repository.dart';
 import '../../support/fake_driver_repository.dart';
@@ -16,6 +17,7 @@ Widget _appUnder(
   FakeDriverRepository? driverRepository,
   FakeCompanyJobRepository? companyJobRepository,
   FakeCommissionRepository? commissionRepository,
+  FakeCompanyFeaturedRepository? featuredRepository,
 }) {
   return MaterialApp(
     home: CompanyHomeGate(
@@ -24,6 +26,7 @@ Widget _appUnder(
       driverRepository: driverRepository ?? FakeDriverRepository(),
       companyJobRepository: companyJobRepository ?? FakeCompanyJobRepository(),
       commissionRepository: commissionRepository ?? FakeCommissionRepository(),
+      featuredRepository: featuredRepository ?? FakeCompanyFeaturedRepository(),
     ),
   );
 }

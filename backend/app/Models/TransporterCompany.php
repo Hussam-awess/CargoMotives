@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'rep_id_document_url', 'rep_selfie_url', 'rep_phone_verified', 'rep_email_verified',
     'verification_status', 'verification_rejected_reason', 'verified_at',
     'outstanding_balance', 'commission_standing',
+    'is_featured', 'featured_until', 'home_region', 'preferred_routes',
 ])]
 class TransporterCompany extends Model
 {

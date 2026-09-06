@@ -6,14 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\InitiateCommissionPaymentRequest;
 use App\Http\Resources\CommissionLedgerEntryResource;
 use App\Http\Resources\PaymentResource;
-use App\Models\Payment;
-use App\Services\MobileMoney\MobileMoneyGateway;
-use App\Services\MobileMoney\MobileMoneyGatewayException;
+use App\Services\MobileMoney\MobileMoneyPaymentInitiator;
 use App\Services\Settings\PlatformSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Str;
 
 /**
  * A company's commission balance, its transaction history, and paying it
@@ -27,7 +24,7 @@ use Illuminate\Support\Str;
 class CommissionController extends Controller
 {
     public function __construct(
-        private readonly MobileMoneyGateway $gateway,
+        private readonly MobileMoneyPaymentInitiator $paymentInitiator,
         private readonly PlatformSettings $settings,
     ) {}
 
@@ -61,31 +58,13 @@ class CommissionController extends Controller
      */
     public function initiatePayment(InitiateCommissionPaymentRequest $request): PaymentResource
     {
-        $payment = Payment::create([
-            'user_id' => $request->user()->id,
-            'purpose' => 'commission_payment',
-            'amount' => $request->validated('amount'),
-            'mobile_money_provider' => $request->validated('mobile_money_provider'),
-            'gateway_reference' => (string) Str::uuid(),
-        ]);
-
-        try {
-            $result = $this->gateway->initiateCharge(
-                $payment->gateway_reference,
-                (float) $payment->amount,
-                $payment->mobile_money_provider,
-                $request->validated('phone_number'),
-            );
-        } catch (MobileMoneyGatewayException $e) {
-            $payment->update(['status' => 'failed', 'raw_gateway_payload' => ['error' => $e->getMessage()]]);
-
-            return new PaymentResource($payment);
-        }
-
-        $payment->update([
-            'status' => $result->initiated ? 'pending_confirmation' : 'failed',
-            'raw_gateway_payload' => $result->rawPayload,
-        ]);
+        $payment = $this->paymentInitiator->initiate(
+            $request->user()->id,
+            'commission_payment',
+            (float) $request->validated('amount'),
+            $request->validated('mobile_money_provider'),
+            $request->validated('phone_number'),
+        );
 
         return new PaymentResource($payment);
     }

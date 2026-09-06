@@ -8,6 +8,7 @@ import 'company_verification_screen.dart';
 import 'data/commission_repository.dart';
 import 'data/company_repository.dart';
 import 'data/driver_repository.dart';
+import 'data/featured_repository.dart';
 import 'data/truck_repository.dart';
 
 /// The single entry point for every Transporter Company session (both the
@@ -30,6 +31,7 @@ class CompanyHomeGate extends StatefulWidget {
     DriverRepository? driverRepository,
     CompanyJobRepository? companyJobRepository,
     CommissionRepository? commissionRepository,
+    CompanyFeaturedRepository? featuredRepository,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
   }) : repository = repository ?? CompanyRepository(),
@@ -37,6 +39,7 @@ class CompanyHomeGate extends StatefulWidget {
        driverRepository = driverRepository ?? DriverRepository(),
        companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
        commissionRepository = commissionRepository ?? CommissionRepository(),
+       featuredRepository = featuredRepository ?? CompanyFeaturedRepository(),
        authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
 
@@ -45,6 +48,7 @@ class CompanyHomeGate extends StatefulWidget {
   final DriverRepository driverRepository;
   final CompanyJobRepository companyJobRepository;
   final CommissionRepository commissionRepository;
+  final CompanyFeaturedRepository featuredRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
 
@@ -127,6 +131,7 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
           companyRepository: widget.repository,
           companyJobRepository: widget.companyJobRepository,
           commissionRepository: widget.commissionRepository,
+          featuredRepository: widget.featuredRepository,
           authRepository: widget.authRepository,
           sessionStore: widget.sessionStore,
         );

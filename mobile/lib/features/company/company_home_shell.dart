@@ -8,6 +8,7 @@ import 'company_profile_tab.dart';
 import 'data/commission_repository.dart';
 import 'data/company_repository.dart';
 import 'data/driver_repository.dart';
+import 'data/featured_repository.dart';
 import 'data/truck_repository.dart';
 import 'earnings/earnings_screen.dart';
 import 'fleet/fleet_screen.dart';
@@ -29,6 +30,7 @@ class CompanyHomeShell extends StatefulWidget {
     CompanyRepository? companyRepository,
     CompanyJobRepository? companyJobRepository,
     CommissionRepository? commissionRepository,
+    CompanyFeaturedRepository? featuredRepository,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
   }) : truckRepository = truckRepository ?? TruckRepository(),
@@ -36,6 +38,7 @@ class CompanyHomeShell extends StatefulWidget {
        companyRepository = companyRepository ?? CompanyRepository(),
        companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
        commissionRepository = commissionRepository ?? CommissionRepository(),
+       featuredRepository = featuredRepository ?? CompanyFeaturedRepository(),
        authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
 
@@ -44,6 +47,7 @@ class CompanyHomeShell extends StatefulWidget {
   final CompanyRepository companyRepository;
   final CompanyJobRepository companyJobRepository;
   final CommissionRepository commissionRepository;
+  final CompanyFeaturedRepository featuredRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
 
@@ -76,7 +80,7 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      CompanyJobsScreen(repository: widget.companyJobRepository),
+      CompanyJobsScreen(repository: widget.companyJobRepository, featuredRepository: widget.featuredRepository),
       FleetScreen(
         truckRepository: widget.truckRepository,
         driverRepository: widget.driverRepository,

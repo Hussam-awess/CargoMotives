@@ -129,6 +129,11 @@ class Job extends Model
         return $this->hasMany(JobLocationSnapshot::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
     /**
      * Job statuses a truck could plausibly be reporting a live position
      * for — from the moment it's assigned (already en route to pickup in

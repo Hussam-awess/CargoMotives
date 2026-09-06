@@ -5,6 +5,7 @@ import '../data/gps_repository.dart';
 import '../data/truck_repository.dart';
 import 'connect_gps_screen.dart';
 import 'driver_list_tab.dart';
+import 'fleet_map_screen.dart';
 import 'truck_list_tab.dart';
 
 /// Fleet (UI/UX Brief §3): trucks and the driver roster as top-level tabs
@@ -48,7 +49,14 @@ class _FleetScreenState extends State<FleetScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Fleet'),
-          actions: [IconButton(onPressed: _openConnectGps, icon: const Icon(Icons.satellite_alt_outlined), tooltip: 'Connect GPS')],
+          actions: [
+            IconButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FleetMapScreen(repository: widget.truckRepository))),
+              icon: const Icon(Icons.map_outlined),
+              tooltip: 'Fleet map',
+            ),
+            IconButton(onPressed: _openConnectGps, icon: const Icon(Icons.satellite_alt_outlined), tooltip: 'Connect GPS'),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Trucks'),
