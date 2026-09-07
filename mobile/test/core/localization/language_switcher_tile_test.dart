@@ -25,7 +25,7 @@ void main() {
     FlutterSecureStoragePlatform.instance = FakeSecureStoragePlatform();
   });
 
-  testWidgets('shows Swahili selected by default and switches to English on tap', (tester) async {
+  testWidgets('shows English selected by default and switches to Kiswahili on tap', (tester) async {
     String? syncedLanguage;
     final controller = LocaleController(LocaleController.defaultLocale);
     final repository = FakeAuthRepository(
@@ -37,11 +37,11 @@ void main() {
     expect(find.text('English'), findsOneWidget);
     expect(find.text('Kiswahili'), findsOneWidget);
 
-    await tester.tap(find.text('English'));
+    await tester.tap(find.text('Kiswahili'));
     await tester.pumpAndSettle();
 
-    expect(controller.value, const Locale('en'));
-    expect(syncedLanguage, 'en');
+    expect(controller.value, const Locale('sw'));
+    expect(syncedLanguage, 'sw');
   });
 
   testWidgets('a repository failure does not crash the switcher', (tester) async {
@@ -51,12 +51,12 @@ void main() {
     );
 
     await tester.pumpWidget(_appUnder(controller, repository));
-    await tester.tap(find.text('English'));
+    await tester.tap(find.text('Kiswahili'));
     await tester.pumpAndSettle();
 
     // The on-device locale still changed — syncing to the backend is
     // best-effort, never a precondition for the switch itself taking
     // effect (see LanguageSwitcherTile's docblock).
-    expect(controller.value, const Locale('en'));
+    expect(controller.value, const Locale('sw'));
   });
 }

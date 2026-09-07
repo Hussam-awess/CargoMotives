@@ -33,6 +33,22 @@ class CompanyJobFeedTest extends TestCase
         $this->assertCount(1, $response->json('data'));
     }
 
+    public function test_open_feed_shows_the_posting_customers_business_identity(): void
+    {
+        // Phase 11 product decision: a Customer's optional company_name
+        // is shown to companies bidding on their jobs, not just the
+        // customer themselves — see JobResource/users.company_name.
+        $company = $this->approvedCompanyUser();
+        $customer = User::factory()->create(['full_name' => 'Amina Hassan', 'company_name' => 'Amina Textiles Ltd']);
+        Job::factory()->create(['status' => 'open', 'customer_id' => $customer->id]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.customer_name', 'Amina Hassan')
+            ->assertJsonPath('data.0.customer_company_name', 'Amina Textiles Ltd');
+    }
+
     public function test_my_bids_shows_only_jobs_this_company_bid_on(): void
     {
         $company = $this->approvedCompanyUser();

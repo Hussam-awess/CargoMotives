@@ -13,10 +13,12 @@ class LocaleController extends ValueNotifier<Locale> {
 
   final LocaleStore _store;
 
-  /// Swahili default, English fallback (PRD §12, UI/UX Brief §2.6) — the
-  /// same default the Phase 0 placeholder used, kept for a user who has
-  /// never explicitly set a preference (no device, no signed-in account).
-  static const defaultLocale = Locale('sw');
+  /// English default (product decision, Phase 11 — overrides the docs'
+  /// original "Swahili default, English fallback," PRD §12/UI-UX Brief
+  /// §2.6). Kept for a user who has never explicitly set a preference (no
+  /// device, no signed-in account) — the language icon on Welcome/Login
+  /// lets them switch to Kiswahili immediately if they prefer it.
+  static const defaultLocale = Locale('en');
 
   static Future<LocaleController> load({LocaleStore? store}) async {
     final resolvedStore = store ?? LocaleStore();

@@ -15,8 +15,9 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Phone/OTP authentication shared by Customer and Transporter Company
- * (PRD §6, AppFlow §1) — Admin uses a separate web login (Phase 9), and
+ * Phone/OTP authentication for Transporter Company (PRD §6, AppFlow §1
+ * originally; Customer moved to email+password in Phase 11 — see
+ * CustomerAuthController). Admin uses a separate web login (Phase 9), and
  * Drivers never authenticate at all (Driver Link tokens, Phase 5).
  */
 class AuthController extends Controller
@@ -48,6 +49,7 @@ class AuthController extends Controller
     {
         $phone = $this->normalizedPhoneOrFail($request->string('phone_number'));
         $accountType = $request->string('account_type')->toString();
+        $email = $request->string('email')->toString();
 
         $this->assertAccountTypeConsistent($phone, $accountType);
 
@@ -57,9 +59,20 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['code' => [$this->messageFor($result->reason)]]);
         }
 
+        $existing = User::where('phone_number', $phone)->first();
+
+        if ($existing === null && User::where('email', $email)->exists()) {
+            // Only a problem for a genuinely new account — an existing
+            // user re-verifying (e.g. re-requested a code) keeps whatever
+            // email it already has, firstOrCreate below won't touch it.
+            throw ValidationException::withMessages([
+                'email' => ['This email is already registered.'],
+            ]);
+        }
+
         $user = User::firstOrCreate(
             ['phone_number' => $phone],
-            ['account_type' => $accountType, 'language_preference' => 'sw'],
+            ['account_type' => $accountType, 'full_name' => $request->string('full_name'), 'email' => $email],
         );
 
         $token = $user->createToken('mobile-app')->plainTextToken;
@@ -67,9 +80,6 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'user' => new UserResource($user),
-            // Company's own profile step is the verification flow (Phase 2);
-            // this flag only ever asks for the Customer's simple profile.
-            'requires_profile_setup' => $user->account_type === 'customer' && $user->full_name === null,
         ]);
     }
 

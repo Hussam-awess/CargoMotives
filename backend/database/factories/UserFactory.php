@@ -26,7 +26,7 @@ class UserFactory extends Factory
             'phone_number' => '+255'.fake()->unique()->numerify('7########'),
             'email' => fake()->unique()->safeEmail(),
             'full_name' => fake()->name(),
-            'language_preference' => 'sw',
+            'language_preference' => 'en',
         ];
     }
 

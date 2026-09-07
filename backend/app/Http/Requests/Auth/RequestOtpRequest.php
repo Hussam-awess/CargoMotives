@@ -18,7 +18,9 @@ class RequestOtpRequest extends FormRequest
     {
         return [
             'phone_number' => ['required', 'string', 'max:20'],
-            'account_type' => ['required', 'in:customer,transporter_company'],
+            // Customer moved to email+password (CustomerAuthController,
+            // Phase 11) — phone+SMS-OTP is Transporter Company only now.
+            'account_type' => ['required', 'in:transporter_company'],
         ];
     }
 }

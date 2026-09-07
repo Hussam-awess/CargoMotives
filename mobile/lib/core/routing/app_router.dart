@@ -2,8 +2,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/otp_screen.dart';
 import '../../features/auth/phone_entry_screen.dart';
-import '../../features/auth/profile_setup_screen.dart';
 import '../../features/company/company_home_gate.dart';
+import '../../features/customer/auth/customer_login_screen.dart';
+import '../../features/customer/auth/customer_otp_screen.dart';
+import '../../features/customer/auth/customer_register_screen.dart';
+import '../../features/customer/auth/data/customer_auth_repository.dart';
 import '../../features/customer/customer_home_shell.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/welcome/welcome_screen.dart';
@@ -14,6 +17,10 @@ import '../auth/session_store.dart';
 /// internally, CustomerHomeShell is the Jobs/Post/Profile bottom nav
 /// directly (a customer never needs Admin approval the way a company
 /// does, so there's no equivalent gate to branch through).
+///
+/// Phase 11: Customer's own auth (register/verify/login) replaces the
+/// phone+OTP flow it used to share with Transporter Company — '/phone-
+/// entry' and '/otp' are Transporter Company only now.
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -33,8 +40,17 @@ final appRouter = GoRouter(
           OtpScreen(args: state.extra! as OtpScreenArgs),
     ),
     GoRoute(
-      path: '/profile-setup',
-      builder: (context, state) => ProfileSetupScreen(),
+      path: '/customer-register',
+      builder: (context, state) => CustomerRegisterScreen(),
+    ),
+    GoRoute(
+      path: '/customer-login',
+      builder: (context, state) => CustomerLoginScreen(),
+    ),
+    GoRoute(
+      path: '/customer-otp',
+      builder: (context, state) =>
+          CustomerOtpScreen(registration: state.extra! as CustomerRegistration),
     ),
     GoRoute(
       path: '/customer',

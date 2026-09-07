@@ -11,11 +11,11 @@ use Mockery;
 use Tests\TestCase;
 
 /**
- * Covers the shared Customer/Company phone+OTP flow (PRD §6, AppFlow §1):
- * request -> verify -> token issuance, plus the failure modes that matter
- * for a marketplace's trust model — wrong code, expired code, brute-force
- * lockout, resend cooldown, and the account_type/phone binding that stops
- * one phone number from becoming both a customer and a company.
+ * Covers Transporter Company's phone+OTP flow (PRD §6, AppFlow §1) —
+ * Customer moved to email+password in Phase 11 (see CustomerAuthTest) —
+ * plus the failure modes that matter for a marketplace's trust model:
+ * wrong code, expired code, brute-force lockout, resend cooldown, and the
+ * account_type/phone binding that stops one phone number being reused.
  */
 class OtpAuthTest extends TestCase
 {
@@ -34,7 +34,7 @@ class OtpAuthTest extends TestCase
 
         $response = $this->postJson('/api/auth/otp/request', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
         ]);
 
         $response->assertOk()->assertJson(['message' => 'If the number is valid, a verification code has been sent.']);
@@ -46,45 +46,78 @@ class OtpAuthTest extends TestCase
 
         $this->postJson('/api/auth/otp/request', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
         ])->assertOk();
 
         $code = Cache::get('otp:+255712345678:code')['code'];
 
         $response = $this->postJson('/api/auth/otp/verify', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
             'code' => $code,
+            'full_name' => 'Juma Ally',
+            'email' => 'juma@example.com',
         ]);
 
         $response->assertOk()
             ->assertJsonPath('user.phone_number', '+255712345678')
-            ->assertJsonPath('user.account_type', 'customer')
-            ->assertJsonPath('requires_profile_setup', true)
+            ->assertJsonPath('user.account_type', 'transporter_company')
+            ->assertJsonPath('user.full_name', 'Juma Ally')
+            ->assertJsonPath('user.email', 'juma@example.com')
             ->assertJsonStructure(['token']);
 
-        $this->assertDatabaseHas('users', ['phone_number' => '+255712345678', 'account_type' => 'customer']);
+        $this->assertDatabaseHas('users', [
+            'phone_number' => '+255712345678',
+            'account_type' => 'transporter_company',
+            'full_name' => 'Juma Ally',
+            'email' => 'juma@example.com',
+        ]);
     }
 
     public function test_different_phone_number_formats_resolve_to_the_same_account(): void
     {
         $this->fakeSms();
-        User::factory()->create(['phone_number' => '+255712345678']);
+        User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
 
         $this->postJson('/api/auth/otp/request', [
             'phone_number' => '255712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
         ])->assertOk();
 
         $code = Cache::get('otp:+255712345678:code')['code'];
 
         $this->postJson('/api/auth/otp/verify', [
             'phone_number' => '255712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
             'code' => $code,
+            'full_name' => 'Juma Ally',
+            'email' => 'juma2@example.com',
         ])->assertOk();
 
         $this->assertSame(1, User::where('phone_number', '+255712345678')->count());
+    }
+
+    public function test_an_email_already_used_by_another_account_is_rejected(): void
+    {
+        $this->fakeSms();
+        User::factory()->create(['email' => 'taken@example.com']);
+
+        $this->postJson('/api/auth/otp/request', [
+            'phone_number' => '0712345678',
+            'account_type' => 'transporter_company',
+        ])->assertOk();
+
+        $code = Cache::get('otp:+255712345678:code')['code'];
+
+        $this->postJson('/api/auth/otp/verify', [
+            'phone_number' => '0712345678',
+            'account_type' => 'transporter_company',
+            'code' => $code,
+            'full_name' => 'Juma Ally',
+            'email' => 'taken@example.com',
+        ])->assertUnprocessable()->assertJsonValidationErrors('email');
+
+        $this->assertDatabaseMissing('users', ['phone_number' => '+255712345678']);
     }
 
     public function test_wrong_code_is_rejected_without_consuming_the_real_code(): void
@@ -92,20 +125,24 @@ class OtpAuthTest extends TestCase
         $this->fakeSms();
         $this->postJson('/api/auth/otp/request', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
         ]);
 
         $this->postJson('/api/auth/otp/verify', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
             'code' => '000000',
+            'full_name' => 'Juma Ally',
+            'email' => 'juma@example.com',
         ])->assertUnprocessable()->assertJsonValidationErrors('code');
 
         $realCode = Cache::get('otp:+255712345678:code')['code'];
         $this->postJson('/api/auth/otp/verify', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
             'code' => $realCode,
+            'full_name' => 'Juma Ally',
+            'email' => 'juma@example.com',
         ])->assertOk();
     }
 
@@ -114,14 +151,16 @@ class OtpAuthTest extends TestCase
         $this->fakeSms();
         $this->postJson('/api/auth/otp/request', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
         ]);
 
         for ($i = 0; $i < 5; $i++) {
             $this->postJson('/api/auth/otp/verify', [
                 'phone_number' => '0712345678',
-                'account_type' => 'customer',
+                'account_type' => 'transporter_company',
                 'code' => '000000',
+                'full_name' => 'Juma Ally',
+                'email' => 'juma@example.com',
             ]);
         }
 
@@ -134,12 +173,12 @@ class OtpAuthTest extends TestCase
         $this->fakeSms();
         $this->postJson('/api/auth/otp/request', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
         ])->assertOk();
 
         $this->postJson('/api/auth/otp/request', [
             'phone_number' => '0712345678',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
         ])->assertStatus(429)->assertJsonStructure(['seconds_remaining']);
     }
 
@@ -158,7 +197,15 @@ class OtpAuthTest extends TestCase
     {
         $this->postJson('/api/auth/otp/request', [
             'phone_number' => '12345',
-            'account_type' => 'customer',
+            'account_type' => 'transporter_company',
         ])->assertUnprocessable()->assertJsonValidationErrors('phone_number');
+    }
+
+    public function test_customer_account_type_is_no_longer_accepted_here(): void
+    {
+        $this->postJson('/api/auth/otp/request', [
+            'phone_number' => '0712345678',
+            'account_type' => 'customer',
+        ])->assertUnprocessable()->assertJsonValidationErrors('account_type');
     }
 }

@@ -11,28 +11,31 @@ void main() {
     FlutterSecureStoragePlatform.instance = FakeSecureStoragePlatform();
   });
 
-  test('load() falls back to the Swahili default when nothing is stored', () async {
+  test('load() falls back to the English default when nothing is stored', () async {
     final controller = await LocaleController.load();
 
     expect(controller.value, LocaleController.defaultLocale);
+    expect(controller.value, const Locale('en'));
   });
 
   test('load() returns a previously saved locale', () async {
-    await LocaleStore().write(const Locale('en'));
+    await LocaleStore().write(const Locale('sw'));
 
     final controller = await LocaleController.load();
 
-    expect(controller.value, const Locale('en'));
+    expect(controller.value, const Locale('sw'));
   });
 
   test('setLocale() updates the value and persists it for the next load()', () async {
     final controller = await LocaleController.load();
 
-    await controller.setLocale(const Locale('en'));
+    // Switching away from the default (English) — a target equal to the
+    // starting value wouldn't actually prove anything changed.
+    await controller.setLocale(const Locale('sw'));
 
-    expect(controller.value, const Locale('en'));
+    expect(controller.value, const Locale('sw'));
     final reloaded = await LocaleController.load();
-    expect(reloaded.value, const Locale('en'));
+    expect(reloaded.value, const Locale('sw'));
   });
 
   test('setLocale() notifies listeners', () async {
@@ -40,7 +43,7 @@ void main() {
     var notified = false;
     controller.addListener(() => notified = true);
 
-    await controller.setLocale(const Locale('en'));
+    await controller.setLocale(const Locale('sw'));
 
     expect(notified, isTrue);
   });

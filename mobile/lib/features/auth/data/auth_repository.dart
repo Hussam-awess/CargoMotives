@@ -2,18 +2,15 @@ import '../../../core/auth/session_store.dart';
 import '../../../core/network/api_client.dart';
 
 class OtpVerifyResult {
-  const OtpVerifyResult({
-    required this.token,
-    required this.requiresProfileSetup,
-  });
+  const OtpVerifyResult({required this.token});
 
   final String token;
-  final bool requiresProfileSetup;
 }
 
-/// Wraps the Phase 1 auth endpoints (see backend routes/api.php `auth.*`)
-/// behind typed methods, so screens never construct request bodies or parse
-/// response maps themselves.
+/// Wraps Transporter Company's phone+OTP endpoints (see backend
+/// routes/api.php `auth.*`) behind typed methods, so screens never
+/// construct request bodies or parse response maps themselves. Customer
+/// moved to email+password in Phase 11 — see CustomerAuthRepository.
 class AuthRepository {
   AuthRepository({ApiClient? client}) : _client = client ?? ApiClient();
 
@@ -36,6 +33,8 @@ class AuthRepository {
     required String phoneNumber,
     required AccountRole role,
     required String code,
+    required String fullName,
+    required String email,
   }) async {
     final body = await _client.post(
       '/auth/otp/verify',
@@ -43,17 +42,12 @@ class AuthRepository {
         'phone_number': phoneNumber,
         'account_type': _accountTypeValue(role),
         'code': code,
+        'full_name': fullName,
+        'email': email,
       },
     );
 
-    return OtpVerifyResult(
-      token: body['token'] as String,
-      requiresProfileSetup: body['requires_profile_setup'] as bool? ?? false,
-    );
-  }
-
-  Future<void> completeProfile({required String fullName}) {
-    return _client.post('/auth/profile', data: {'full_name': fullName});
+    return OtpVerifyResult(token: body['token'] as String);
   }
 
   /// Best-effort sync of the language switcher (Phase 10) to the backend's

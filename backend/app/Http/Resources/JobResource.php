@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Job;
+use App\Services\Documents\DocumentStorage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -34,6 +35,19 @@ class JobResource extends JsonResource
             'preferred_pickup_window_start' => $this->preferred_pickup_window_start?->toIso8601String(),
             'preferred_pickup_window_end' => $this->preferred_pickup_window_end?->toIso8601String(),
             'customer_notes' => $this->customer_notes,
+            // A Customer's optional business identity (Phase 11) — shown
+            // to companies bidding on the job, not just the customer
+            // themselves, per the product decision behind this field
+            // (see users.company_name's migration comment).
+            'customer_name' => $this->whenLoaded('customer', fn () => $this->customer->full_name),
+            'customer_company_name' => $this->whenLoaded('customer', fn () => $this->customer->company_name),
+            'customer_company_logo_url' => $this->whenLoaded('customer', function () {
+                if (! $this->customer->company_logo_url) {
+                    return null;
+                }
+
+                return app(DocumentStorage::class)->signedUrl($this->customer->company_logo_url);
+            }),
             'agreed_price' => $this->agreed_price !== null ? (float) $this->agreed_price : null,
             'currency' => $this->currency,
             'cancelled_reason' => $this->cancelled_reason,

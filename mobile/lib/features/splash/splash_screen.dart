@@ -22,6 +22,12 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   final _sessionStore = SessionStore();
 
+  // A session check on this machine resolves near-instantly (no network
+  // call, just secure storage), which would otherwise make the splash
+  // flash by too fast to read — a fixed minimum keeps the brand moment
+  // visible regardless of how fast the real check finishes.
+  static const _minimumVisible = Duration(milliseconds: 900);
+
   @override
   void initState() {
     super.initState();
@@ -29,7 +35,11 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _resolveInitialRoute() async {
-    final hasSession = await _sessionStore.hasValidSession();
+    final results = await Future.wait([
+      _sessionStore.hasValidSession(),
+      Future<void>.delayed(_minimumVisible),
+    ]);
+    final hasSession = results[0] as bool;
 
     if (!mounted) return;
 
@@ -59,12 +69,21 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              AppLocalizations.of(context)!.appTitle,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.easeOut,
+              builder: (context, value, child) => Opacity(
+                opacity: value,
+                child: Transform.scale(scale: 0.9 + (0.1 * value), child: child),
+              ),
+              child: Text(
+                AppLocalizations.of(context)!.appTitle,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(height: 16),

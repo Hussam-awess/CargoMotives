@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
+import '../../core/localization/language_menu_button.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/truck_road_animation.dart';
 import '../../l10n/generated/app_localizations.dart';
 
 /// Welcome Screen (AppFlow §1): "I'm a Customer" / "I'm a Transporter
 /// Company" — the only fork in the whole app between the two role shells.
-/// Picking one starts the shared Phone Entry -> OTP flow (Phase 1).
+/// Transporter Company starts the phone Entry -> OTP flow (Phase 1);
+/// Customer goes to its own email+password sign-up (Phase 11) — see
+/// CustomerRegisterScreen for why the two roles diverge here.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
@@ -21,7 +25,11 @@ class WelcomeScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
-              const Spacer(flex: 2),
+              Align(
+                alignment: Alignment.topRight,
+                child: const LanguageMenuButton(),
+              ),
+              const Spacer(flex: 1),
               Text(l10n.appTitle, style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 8),
               Text(
@@ -30,10 +38,11 @@ class WelcomeScreen extends StatelessWidget {
                   color: const Color(0xFF6B7280),
                 ),
               ),
-              const Spacer(flex: 3),
+              const SizedBox(height: 24),
+              const TruckRoadAnimation(),
+              const Spacer(flex: 2),
               ElevatedButton(
-                onPressed: () =>
-                    context.push('/phone-entry', extra: AccountRole.customer),
+                onPressed: () => context.go('/customer-register'),
                 child: Text(l10n.iAmCustomer),
               ),
               const SizedBox(height: 12),

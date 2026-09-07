@@ -56,9 +56,6 @@
     }
   },
 
-  "yourDetailsTitle": "Your details",
-  "@yourDetailsTitle": {"description": "AppBar title on the Profile Setup screen."},
-
   "fullNameHint": "Full name",
   "@fullNameHint": {"description": "Placeholder text inside the full-name field."},
 
@@ -66,7 +63,63 @@
   "@enterYourName": {"description": "Validation error when the name field is submitted empty."},
 
   "continueLabel": "Continue",
-  "@continueLabel": {"description": "Profile Setup screen submit button."},
+  "@continueLabel": {"description": "A generic continue/submit button."},
+
+  "customerSignUpTitle": "Create your account",
+  "@customerSignUpTitle": {"description": "AppBar title on the Customer registration screen."},
+
+  "emailHint": "Email",
+  "@emailHint": {"description": "Placeholder text inside an email field."},
+
+  "enterYourEmail": "Enter your email.",
+  "@enterYourEmail": {"description": "Validation error when the email field is submitted empty."},
+
+  "companyNameOptionalHint": "Company name (optional)",
+  "@companyNameOptionalHint": {"description": "Placeholder text inside the Customer sign-up's optional company-name field."},
+
+  "uploadLogoOptional": "Upload logo (optional)",
+  "@uploadLogoOptional": {"description": "Button label for the Customer sign-up's optional logo upload."},
+
+  "passwordHint": "Password",
+  "@passwordHint": {"description": "Placeholder text inside a password field."},
+
+  "confirmPasswordHint": "Confirm password",
+  "@confirmPasswordHint": {"description": "Placeholder text inside the confirm-password field."},
+
+  "enterAPassword": "Enter a password.",
+  "@enterAPassword": {"description": "Validation error when the password field is submitted empty."},
+
+  "passwordsDoNotMatch": "Passwords don't match.",
+  "@passwordsDoNotMatch": {"description": "Validation error when password and confirm-password differ."},
+
+  "createAccount": "Create account",
+  "@createAccount": {"description": "Customer sign-up screen submit button."},
+
+  "alreadyHaveAnAccount": "Already have an account?",
+  "@alreadyHaveAnAccount": {"description": "Customer sign-up screen — link to the login screen."},
+
+  "logIn": "Log in",
+  "@logIn": {"description": "Log-in link/button label."},
+
+  "customerLoginTitle": "Log in",
+  "@customerLoginTitle": {"description": "AppBar title on the Customer login screen."},
+
+  "dontHaveAnAccount": "Don't have an account?",
+  "@dontHaveAnAccount": {"description": "Customer login screen — link to the sign-up screen."},
+
+  "signUp": "Sign up",
+  "@signUp": {"description": "Sign-up link/button label."},
+
+  "verifyEmailTitle": "Verify your email",
+  "@verifyEmailTitle": {"description": "AppBar title on the Customer email-OTP screen."},
+
+  "verifyEmailSubtitle": "Enter the code sent to {email}",
+  "@verifyEmailSubtitle": {
+    "description": "Customer email-OTP screen body copy, naming the email address the code was sent to.",
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
 
   "navJobs": "Jobs",
   "@navJobs": {"description": "Bottom navigation label, both Customer and Company shells."},

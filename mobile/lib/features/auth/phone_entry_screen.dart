@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
+import '../../core/localization/language_menu_button.dart';
 import '../../core/network/api_exception.dart';
 import '../../l10n/generated/app_localizations.dart';
 import 'data/auth_repository.dart';
 
-/// Phone Entry (AppFlow §1): the first step for both roles after picking
-/// "I'm a Customer" / "I'm a Transporter Company" on Welcome. Submitting
-/// requests an OTP and hands off to the OTP screen — the phone number
-/// itself isn't validated client-side beyond "non-empty"; the backend's
-/// PhoneNumberNormalizer is the single source of truth for what counts as a
-/// valid Tanzanian number, so errors surface from there rather than two
-/// slightly-different validation rules drifting apart over time.
+/// Phone Entry (AppFlow §1): Transporter Company's first step after
+/// picking "I'm a Transporter Company" on Welcome (Customer moved to its
+/// own email+password sign-up in Phase 11 — see CustomerRegisterScreen).
+/// Submitting requests an OTP and hands off to the OTP screen — the phone
+/// number itself isn't validated client-side beyond "non-empty"; the
+/// backend's PhoneNumberNormalizer is the single source of truth for what
+/// counts as a valid Tanzanian number, so errors surface from there rather
+/// than two slightly-different validation rules drifting apart over time.
 class PhoneEntryScreen extends StatefulWidget {
   PhoneEntryScreen({
     super.key,
@@ -73,7 +75,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.phoneEntryTitle)),
+      appBar: AppBar(title: Text(l10n.phoneEntryTitle), actions: const [LanguageMenuButton()]),
       // SingleChildScrollView, not just Padding+Column: on a short viewport
       // (a small phone, or a keyboard eating half the screen) an unscrolled
       // Column here silently overflows in release builds — no debug banner,

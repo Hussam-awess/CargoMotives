@@ -80,6 +80,14 @@ class AppServiceProvider extends ServiceProvider
         // attempts per minute" guidance, same as OTP/login endpoints).
         RateLimiter::for('admin-login', fn (Request $request) => Limit::perMinute(5)->by($request->input('email').'|'.$request->ip()));
 
+        // Same reasoning as otp-request/otp-verify, keyed by email instead
+        // of phone — covers both /customer/register (issues the code) and
+        // /customer/register/verify (guesses it).
+        RateLimiter::for('customer-register', fn (Request $request) => Limit::perMinute(5)->by($request->input('email').'|'.$request->ip()));
+
+        // Same reasoning as admin-login.
+        RateLimiter::for('customer-login', fn (Request $request) => Limit::perMinute(5)->by($request->input('email').'|'.$request->ip()));
+
         // Defense in depth on top of the token's own unguessability (48
         // random chars) — a driver legitimately reloading/submitting this
         // page a few times a minute is unaffected; a scripted token-guessing

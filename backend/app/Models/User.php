@@ -19,7 +19,10 @@ use Laravel\Sanctum\HasApiTokens;
  * get a row here — they act only through a scoped Driver Link token
  * (PRD §5, TRD §7).
  */
-#[Fillable(['account_type', 'phone_number', 'email', 'full_name', 'language_preference', 'is_featured', 'featured_until'])]
+#[Fillable([
+    'account_type', 'phone_number', 'email', 'full_name', 'language_preference', 'is_featured', 'featured_until',
+    'company_name', 'company_logo_url', 'email_verified_at',
+])]
 #[Hidden(['password_hash', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -39,7 +42,10 @@ class User extends Authenticatable
      */
     protected $attributes = [
         'status' => 'active',
-        'language_preference' => 'sw',
+        // English default (deliberate product decision, overriding the
+        // docs' original "Swahili default" — see LocaleController on the
+        // Flutter side for the matching change).
+        'language_preference' => 'en',
         'is_featured' => false,
     ];
 
@@ -52,6 +58,7 @@ class User extends Authenticatable
             'password_hash' => 'hashed',
             'is_featured' => 'boolean',
             'featured_until' => 'datetime',
+            'email_verified_at' => 'datetime',
         ];
     }
 

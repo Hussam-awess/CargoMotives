@@ -1,4 +1,6 @@
 import 'package:cargo_motives/core/auth/session_store.dart';
+import 'package:cargo_motives/core/localization/locale_controller.dart';
+import 'package:cargo_motives/core/localization/locale_scope.dart';
 import 'package:cargo_motives/core/network/api_exception.dart';
 import 'package:cargo_motives/features/auth/phone_entry_screen.dart';
 import 'package:cargo_motives/l10n/generated/app_localizations.dart';
@@ -27,10 +29,15 @@ Widget _appUnder({required FakeAuthRepository repository}) {
     ],
   );
 
-  return MaterialApp.router(
-    routerConfig: router,
-    supportedLocales: AppLocalizations.supportedLocales,
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
+  // PhoneEntryScreen's AppBar carries a LanguageMenuButton (Phase 11),
+  // which reads LocaleScope — needs an ancestor here or it null-check-fails.
+  return LocaleScope(
+    controller: LocaleController(const Locale('en')),
+    child: MaterialApp.router(
+      routerConfig: router,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+    ),
   );
 }
 

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminCompanyController;
 use App\Http\Controllers\Admin\AdminTruckController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Company\CommissionController;
 use App\Http\Controllers\Company\CompanyVerificationController;
@@ -37,13 +38,19 @@ Route::get('/documents/{key}', DocumentController::class)
 Route::post('/webhooks/selcom', [SelcomWebhookController::class, 'handle']);
 
 Route::prefix('auth')->group(function () {
+    // Transporter Company only (Phase 11) — Customer moved to email+password below.
     Route::post('/otp/request', [AuthController::class, 'requestOtp'])->middleware('throttle:otp-request');
     Route::post('/otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:otp-verify');
+
+    // Customer signup + login (Phase 11): email + password, verified once
+    // via an emailed code — see CustomerAuthController's docblock.
+    Route::post('/customer/register', [CustomerAuthController::class, 'register'])->middleware('throttle:customer-register');
+    Route::post('/customer/register/verify', [CustomerAuthController::class, 'verifyRegistration'])->middleware('throttle:customer-register');
+    Route::post('/customer/login', [CustomerAuthController::class, 'login'])->middleware('throttle:customer-login');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
-        Route::post('/profile', [ProfileController::class, 'complete']);
         Route::post('/profile/language', [ProfileController::class, 'updateLanguage']);
     });
 });

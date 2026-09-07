@@ -32,7 +32,7 @@ class CompanyJobController extends Controller
      */
     public function open(Request $request): AnonymousResourceCollection
     {
-        $query = Job::withCoordinates()->where('status', 'open')->withCount('bids')->latest();
+        $query = Job::withCoordinates()->where('status', 'open')->with('customer')->withCount('bids')->latest();
 
         if ($request->boolean('use_preferred_routes')) {
             $this->applyPreferredRoutesFilter($query, $request->user()->transporterCompany);
@@ -52,6 +52,7 @@ class CompanyJobController extends Controller
 
         $query = Job::withCoordinates()
             ->whereHas('bids', fn ($q) => $q->where('transporter_company_id', $companyId))
+            ->with('customer')
             ->withCount('bids')
             ->latest();
 
@@ -69,6 +70,7 @@ class CompanyJobController extends Controller
         $query = Job::withCoordinates()
             ->where('assigned_company_id', $companyId)
             ->whereNotIn('status', ['cancelled'])
+            ->with('customer')
             ->withCount('bids')
             ->latest();
 
@@ -98,7 +100,7 @@ class CompanyJobController extends Controller
         // it, so the app needs to tell those two cases apart.
         return (new JobResource(
             Job::withCoordinates()->withCount('bids')
-                ->with(['assignedTruck', 'assignedDriver', 'proofOfDelivery'])
+                ->with(['assignedTruck', 'assignedDriver', 'proofOfDelivery', 'customer'])
                 ->findOrFail($job->id)
         ))->additional(['is_assigned_to_viewer' => $job->assigned_company_id === $companyId]);
     }
