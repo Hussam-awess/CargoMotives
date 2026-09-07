@@ -43,5 +43,9 @@
   "navProfile": "Wasifu",
   "languageLabel": "Lugha",
   "languageEnglish": "Kiingereza",
-  "languageSwahili": "Kiswahili"
+  "languageSwahili": "Kiswahili",
+  "notificationsTitle": "Arifa",
+  "notificationsBellTooltip": "Arifa",
+  "markAllRead": "Weka zote kama zimesomwa",
+  "noNotificationsYet": "Hakuna arifa bado."
 }

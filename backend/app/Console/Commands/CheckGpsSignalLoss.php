@@ -25,6 +25,13 @@ use Illuminate\Console\Command;
  *     against NULL are neither true nor false). gps_tracking_started_at
  *     exists specifically to give this case something to measure elapsed
  *     time against instead.
+ *
+ * Updates each matching job individually rather than one bulk ->update()
+ * call — a bulk query-builder update never fires Eloquent model events, and
+ * JobObserver::updated() firing a gps_signal_lost notification (Phase 12)
+ * depends on wasChanged('gps_signal_status') actually running. The affected
+ * set is a handful of jobs at most (trackable jobs whose GPS just went
+ * quiet), so the per-row save cost here is negligible.
  */
 class CheckGpsSignalLoss extends Command
 {
@@ -37,7 +44,7 @@ class CheckGpsSignalLoss extends Command
         $thresholdMinutes = (int) config('gps.signal_lost_after_minutes', 10);
         $cutoff = now()->subMinutes($thresholdMinutes);
 
-        $affected = Job::where('gps_tracking_active', true)
+        $jobs = Job::where('gps_tracking_active', true)
             ->where('gps_signal_status', 'ok')
             ->where(function ($query) use ($cutoff) {
                 $query->whereHas('assignedTruck', fn ($q) => $q->where('last_known_at', '<', $cutoff))
@@ -46,10 +53,14 @@ class CheckGpsSignalLoss extends Command
                             ->where('gps_tracking_started_at', '<', $cutoff);
                     });
             })
-            ->update(['gps_signal_status' => 'lost']);
+            ->get();
 
-        if ($affected > 0) {
-            $this->info("Marked {$affected} job(s) as GPS signal lost.");
+        foreach ($jobs as $job) {
+            $job->update(['gps_signal_status' => 'lost']);
+        }
+
+        if ($jobs->isNotEmpty()) {
+            $this->info("Marked {$jobs->count()} job(s) as GPS signal lost.");
         }
 
         return self::SUCCESS;

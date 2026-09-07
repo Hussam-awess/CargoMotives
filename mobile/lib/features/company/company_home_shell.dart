@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session_store.dart';
+import '../../core/push/push_notification_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
@@ -64,6 +65,10 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
   void initState() {
     super.initState();
     _checkHoldStatus();
+    // Same reasoning as CustomerHomeShell — reaching this shell means a
+    // session exists, fresh or resumed, either way the right moment to
+    // (re)register this device's FCM token.
+    PushNotificationService().registerDeviceToken();
   }
 
   Future<void> _checkHoldStatus() async {

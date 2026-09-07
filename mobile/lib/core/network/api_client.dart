@@ -62,6 +62,15 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> delete(String path, {Map<String, dynamic>? data}) async {
+    try {
+      final response = await _dio.delete(path, data: data);
+      return _asMap(response.data);
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
   /// For multipart submissions (file uploads) — everything else about
   /// error handling/auth is identical to [post], just a different Dio
   /// payload type so it sends `multipart/form-data` instead of JSON.

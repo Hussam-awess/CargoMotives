@@ -133,10 +133,17 @@ class BidController extends Controller
 
             $bid->update(['status' => 'accepted']);
 
+            // Individually, not a bulk ->update(): a bulk query-builder
+            // update never fires Eloquent model events, and
+            // BidObserver::updated() firing the "bid not selected"
+            // notification (Phase 12) to each losing company depends on
+            // wasChanged('status') actually running per row. Competing
+            // pending bids on one job are a small set, so this is cheap.
             Bid::where('job_id', $job->id)
                 ->where('id', '!=', $bid->id)
                 ->where('status', 'pending')
-                ->update(['status' => 'rejected']);
+                ->get()
+                ->each(fn (Bid $losingBid) => $losingBid->update(['status' => 'rejected']));
 
             return response()->json([
                 'job' => (new JobResource(Job::withCoordinates()->findOrFail($job->id)))->resolve(),

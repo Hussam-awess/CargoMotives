@@ -143,5 +143,17 @@
   "@languageEnglish": {"description": "Language switcher option."},
 
   "languageSwahili": "Kiswahili",
-  "@languageSwahili": {"description": "Language switcher option — Swahili's own name for itself."}
+  "@languageSwahili": {"description": "Language switcher option — Swahili's own name for itself."},
+
+  "notificationsTitle": "Notifications",
+  "@notificationsTitle": {"description": "AppBar title on the Notifications screen."},
+
+  "notificationsBellTooltip": "Notifications",
+  "@notificationsBellTooltip": {"description": "Tooltip on the bell icon button, both home screens."},
+
+  "markAllRead": "Mark all read",
+  "@markAllRead": {"description": "Button on the Notifications screen."},
+
+  "noNotificationsYet": "No notifications yet.",
+  "@noNotificationsYet": {"description": "Empty state on the Notifications screen."}
 }

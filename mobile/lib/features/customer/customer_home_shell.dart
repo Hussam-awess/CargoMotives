@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/push/push_notification_service.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../jobs/data/job_repository.dart';
 import '../jobs/post_job_screen.dart';
@@ -30,6 +31,16 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
     CustomerJobsTab(key: _jobsTabKey, repository: JobRepository()),
     CustomerProfileTab(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Reaching this shell at all means a session exists (Splash routes
+    // here only after confirming one), whether from a fresh login or a
+    // resumed session — either way is the right moment to (re)register
+    // this device's FCM token.
+    PushNotificationService().registerDeviceToken();
+  }
 
   Future<void> _openPostJob() async {
     final posted = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => PostJobScreen()));

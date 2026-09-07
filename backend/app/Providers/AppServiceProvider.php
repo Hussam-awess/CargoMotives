@@ -5,12 +5,14 @@ namespace App\Providers;
 use App\Models\Bid;
 use App\Models\Dispute;
 use App\Models\Job;
+use App\Models\Message;
 use App\Models\Payment;
 use App\Models\TransporterCompany;
 use App\Models\Truck;
 use App\Observers\BidObserver;
 use App\Observers\DisputeObserver;
 use App\Observers\JobObserver;
+use App\Observers\MessageObserver;
 use App\Observers\PaymentObserver;
 use App\Observers\TransporterCompanyObserver;
 use App\Observers\TruckObserver;
@@ -18,6 +20,8 @@ use App\Services\Gps\GpsProvider;
 use App\Services\Gps\Wialon\WialonGpsProvider;
 use App\Services\MobileMoney\MobileMoneyGateway;
 use App\Services\MobileMoney\Selcom\SelcomMobileMoneyGateway;
+use App\Services\Push\PushGateway;
+use App\Services\Push\PushManager;
 use App\Services\Sms\SmsGateway;
 use App\Services\Sms\SmsManager;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -37,6 +41,13 @@ class AppServiceProvider extends ServiceProvider
         // Call sites depend on the SmsGateway interface, never SmsManager or
         // a concrete driver directly — see App\Services\Sms\SmsManager.
         $this->app->bind(SmsGateway::class, fn ($app) => $app->make(SmsManager::class)->driver());
+
+        $this->app->singleton(PushManager::class);
+
+        // Same manager/driver pattern as SmsGateway above — call sites
+        // depend on the PushGateway interface, never PushManager or a
+        // concrete driver directly.
+        $this->app->bind(PushGateway::class, fn ($app) => $app->make(PushManager::class)->driver());
 
         // Only one GPS provider exists yet (TRD §5: "concrete integrations,
         // not a framework"), so a direct interface binding is enough — a
@@ -104,5 +115,11 @@ class AppServiceProvider extends ServiceProvider
         Bid::observe(BidObserver::class);
         Payment::observe(PaymentObserver::class);
         Dispute::observe(DisputeObserver::class);
+
+        // MessageObserver fires notifications only (Phase 8 deliberately
+        // never audit-logs messages — see MessageObserver's docblock) —
+        // it's registered separately from the activity-log comment above
+        // since it doesn't share that motivation.
+        Message::observe(MessageObserver::class);
     }
 }
