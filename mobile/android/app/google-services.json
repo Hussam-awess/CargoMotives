@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "852268622432",
+    "project_id": "cargo-motives",
+    "storage_bucket": "cargo-motives.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:852268622432:android:d7f275fbabde54db1c9905",
+        "android_client_info": {
+          "package_name": "com.cargomotives.cargo_motives"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACssG5d2utyi4LjoWDmIJeD4wgGFPHt6U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

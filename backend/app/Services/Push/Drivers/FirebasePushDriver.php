@@ -53,7 +53,7 @@ class FirebasePushDriver implements PushGateway
             $invalidTokens = [...$report->invalidTokens(), ...$report->unknownTokens()];
 
             if ($report->successes()->count() === 0) {
-                return PushSendResult::failure('Every device token in this send failed.');
+                return PushSendResult::failure('Every device token in this send failed.', $invalidTokens);
             }
 
             return PushSendResult::success($invalidTokens);

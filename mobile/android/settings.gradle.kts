@@ -20,7 +20,12 @@ pluginManagement {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.9.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    // Reads android/app/google-services.json (Phase 10.6 follow-up — a
+    // real Firebase project now exists) so Firebase.initializeApp() can
+    // find its config natively, the same way it already does via
+    // GoogleService-Info.plist on iOS with no Gradle-equivalent step needed.
+    id("com.google.gms.google-services") version "4.4.2" apply false
 }
 
 include(":app")

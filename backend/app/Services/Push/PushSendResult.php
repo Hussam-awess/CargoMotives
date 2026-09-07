@@ -30,8 +30,17 @@ final readonly class PushSendResult
         return new self(successful: true, invalidTokens: $invalidTokens, error: null);
     }
 
-    public static function failure(string $error): self
+    /**
+     * @param  string[]  $invalidTokens  Still reportable on a failure: "no
+     *                                   token got a real delivery" and "this specific token is dead and
+     *                                   should be pruned" are independent facts — a single-device send
+     *                                   where that one token happens to be invalid is a real case (not
+     *                                   just a multi-device partial-failure one), and its dead token
+     *                                   needs to be reported here or SendPushNotificationJob can never
+     *                                   prune it.
+     */
+    public static function failure(string $error, array $invalidTokens = []): self
     {
-        return new self(successful: false, invalidTokens: [], error: $error);
+        return new self(successful: false, invalidTokens: $invalidTokens, error: $error);
     }
 }
