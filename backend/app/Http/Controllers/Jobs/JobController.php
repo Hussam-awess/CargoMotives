@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Jobs;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Jobs\PostJobRequest;
+use App\Http\Resources\DisputeResource;
 use App\Http\Resources\JobResource;
+use App\Models\Dispute;
 use App\Models\Job;
 use App\Models\Truck;
 use App\Services\Commission\CommissionLedgerService;
@@ -121,9 +123,8 @@ class JobController extends Controller
      * App\Services\Commission\CommissionLedgerService for the actual
      * balance/hold-threshold logic; this controller just triggers it.
      *
-     * "Report a Problem" (the AppFlow alternative to confirming) routes to
-     * the disputes table, which — like Admin's Disputes tool — is
-     * explicitly Phase 9's job; it isn't built here.
+     * "Report a Problem" (the AppFlow alternative to confirming) is
+     * reportProblem() below, routing to the disputes table Phase 9 added.
      */
     public function confirmDelivery(Request $request, Job $job): JobResource
     {
@@ -149,6 +150,42 @@ class JobController extends Controller
         return new JobResource(
             Job::withCoordinates()->with(['assignedTruck', 'assignedDriver', 'proofOfDelivery'])->findOrFail($job->id)
         );
+    }
+
+    /**
+     * "Report a Problem" (AppFlow §3.5) — the alternative to
+     * confirmDelivery() once a driver has submitted proof of delivery.
+     * Raises a Dispute for Admin to review (PRD §10 item 8) against the
+     * job's proof of delivery and, when available, its GPS history; it
+     * deliberately does NOT change the job's own status — a dispute is a
+     * parallel review process, not a job state, and Admin's resolution
+     * decides what (if anything) happens next.
+     */
+    public function reportProblem(Request $request, Job $job): DisputeResource
+    {
+        $this->authorizeCustomerOwnership($request, $job);
+
+        if ($job->status !== 'delivered') {
+            throw ValidationException::withMessages([
+                'status' => ['This job has no delivery to report a problem with.'],
+            ]);
+        }
+
+        if ($job->disputes()->whereIn('status', ['open', 'under_review'])->exists()) {
+            throw ValidationException::withMessages([
+                'job_id' => ['A dispute for this job is already under review.'],
+            ]);
+        }
+
+        $request->validate(['reason' => ['required', 'string', 'min:10', 'max:1000']]);
+
+        $dispute = Dispute::create([
+            'job_id' => $job->id,
+            'raised_by_user_id' => $request->user()->id,
+            'reason' => $request->string('reason'),
+        ]);
+
+        return new DisputeResource($dispute);
     }
 
     private function authorizeCustomerOwnership(Request $request, Job $job): void

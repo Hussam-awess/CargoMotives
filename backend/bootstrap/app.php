@@ -43,14 +43,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(CheckGpsSignalLoss::class)->everyMinute();
     })
     ->withMiddleware(function (Middleware $middleware): void {
-        // This is a pure JSON API (no server-rendered login page — the
-        // Admin tool, Phase 9, is a separate Blade/Livewire app with its
-        // own guard). Laravel's default guest-redirect assumes a 'login'
-        // route exists and would otherwise throw a RouteNotFoundException
-        // for any unauthenticated request that doesn't explicitly send
-        // Accept: application/json (curl without headers, some HTTP
-        // clients, etc.) — masking a clean 401 behind a 500.
-        $middleware->redirectGuestsTo(fn () => null);
+        // Everywhere else, this is a pure JSON API (no server-rendered
+        // login page) — Laravel's default guest-redirect assumes a
+        // 'login' route exists and would otherwise throw a
+        // RouteNotFoundException for any unauthenticated request that
+        // doesn't explicitly send Accept: application/json (curl without
+        // headers, some HTTP clients, etc.), masking a clean 401 behind a
+        // 500. The one exception is the Admin tool (Phase 9, TRD §8) — a
+        // real server-rendered Blade/Livewire app under /admin, session-
+        // authenticated via the 'web' guard — where a guest should land
+        // on its actual login page instead.
+        $middleware->redirectGuestsTo(
+            fn (Request $request) => $request->is('admin', 'admin/*') ? route('admin.login') : null,
+        );
 
         $middleware->alias([
             'account_type' => EnsureAccountType::class,

@@ -134,6 +134,11 @@ class Job extends Model
         return $this->hasMany(Message::class);
     }
 
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class);
+    }
+
     /**
      * Job statuses a truck could plausibly be reporting a live position
      * for — from the moment it's assigned (already en route to pickup in

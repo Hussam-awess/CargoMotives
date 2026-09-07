@@ -2,6 +2,18 @@
 
 namespace App\Providers;
 
+use App\Models\Bid;
+use App\Models\Dispute;
+use App\Models\Job;
+use App\Models\Payment;
+use App\Models\TransporterCompany;
+use App\Models\Truck;
+use App\Observers\BidObserver;
+use App\Observers\DisputeObserver;
+use App\Observers\JobObserver;
+use App\Observers\PaymentObserver;
+use App\Observers\TransporterCompanyObserver;
+use App\Observers\TruckObserver;
 use App\Services\Gps\GpsProvider;
 use App\Services\Gps\Wialon\WialonGpsProvider;
 use App\Services\MobileMoney\MobileMoneyGateway;
@@ -73,5 +85,16 @@ class AppServiceProvider extends ServiceProvider
         // page a few times a minute is unaffected; a scripted token-guessing
         // attempt is not.
         RateLimiter::for('driver-link', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
+
+        // Phase 9's activity_logs (Backend Schema §2.16) is populated
+        // entirely through observers rather than threading a logging call
+        // into every controller across Phases 1-8 — see
+        // App\Services\ActivityLog\ActivityLogger's docblock for why.
+        Job::observe(JobObserver::class);
+        TransporterCompany::observe(TransporterCompanyObserver::class);
+        Truck::observe(TruckObserver::class);
+        Bid::observe(BidObserver::class);
+        Payment::observe(PaymentObserver::class);
+        Dispute::observe(DisputeObserver::class);
     }
 }

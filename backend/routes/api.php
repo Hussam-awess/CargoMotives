@@ -56,6 +56,7 @@ Route::middleware(['auth:sanctum', 'account_type:customer'])->group(function () 
     Route::post('/jobs/{job}', [JobController::class, 'update']);
     Route::post('/jobs/{job}/cancel', [JobController::class, 'cancel']);
     Route::post('/jobs/{job}/confirm-delivery', [JobController::class, 'confirmDelivery']);
+    Route::post('/jobs/{job}/report-problem', [JobController::class, 'reportProblem']);
     Route::get('/jobs/{job}/bids', [BidController::class, 'index']);
 
     Route::post('/bids/{bid}/accept', [BidController::class, 'accept']);
