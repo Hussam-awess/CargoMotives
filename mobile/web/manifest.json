@@ -1,11 +1,11 @@
 {
-    "name": "cargo_motives",
-    "short_name": "cargo_motives",
+    "name": "Cargo Motives",
+    "short_name": "Cargo Motives",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B4F6C",
+    "theme_color": "#0B4F6C",
+    "description": "Cargo Motives — B2B container logistics for Tanzania.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

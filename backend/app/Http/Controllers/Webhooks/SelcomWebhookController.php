@@ -61,27 +61,40 @@ class SelcomWebhookController extends Controller
         // delivery must never credit the ledger twice, and a late/
         // out-of-order "failed" delivery must never downgrade a payment
         // already confirmed successful.
-        if ($payment->status === 'succeeded') {
-            return response()->json(['message' => 'ok']);
-        }
+        //
+        // The status check must happen INSIDE the same transaction as the
+        // update, against a row-locked read — checking it beforehand (as
+        // this used to do) is a TOCTOU race: two genuinely concurrent
+        // webhook deliveries for the same reference (Selcom does retry on
+        // a slow ack) could both read 'pending_confirmation' before either
+        // commits, both pass the guard, and both credit the ledger. A
+        // Phase 10 audit caught this — the only prior regression test
+        // called the endpoint sequentially, which can never exercise the
+        // race, since the second call always sees the already-committed
+        // 'succeeded' status by the time it reads.
+        DB::transaction(function () use ($payment, $payload, $paymentStatus) {
+            $locked = Payment::whereKey($payment->id)->lockForUpdate()->first();
 
-        if ($paymentStatus === 'COMPLETED') {
-            DB::transaction(function () use ($payment, $payload) {
-                $payment->update(['status' => 'succeeded', 'raw_gateway_payload' => $payload]);
+            if ($locked->status === 'succeeded') {
+                return;
+            }
+
+            if ($paymentStatus === 'COMPLETED') {
+                $locked->update(['status' => 'succeeded', 'raw_gateway_payload' => $payload]);
 
                 // What "succeeding" actually does depends on what was being
                 // paid for — a commission paydown credits the ledger, a
                 // Featured purchase flips is_featured (AppFlow: "unlocks
                 // immediately," meaning the instant this webhook lands, not
                 // the initiate-purchase response).
-                match ($payment->purpose) {
-                    'commission_payment' => $this->ledger->applyPayment($payment->fresh()),
-                    'featured_company', 'featured_customer' => $this->featuredTier->activateFromPayment($payment->fresh()),
+                match ($locked->purpose) {
+                    'commission_payment' => $this->ledger->applyPayment($locked->fresh()),
+                    'featured_company', 'featured_customer' => $this->featuredTier->activateFromPayment($locked->fresh()),
                 };
-            });
-        } elseif ($paymentStatus === 'FAILED' || $paymentStatus === 'CANCELLED') {
-            $payment->update(['status' => 'failed', 'raw_gateway_payload' => $payload]);
-        }
+            } elseif ($paymentStatus === 'FAILED' || $paymentStatus === 'CANCELLED') {
+                $locked->update(['status' => 'failed', 'raw_gateway_payload' => $payload]);
+            }
+        });
 
         return response()->json(['message' => 'ok']);
     }

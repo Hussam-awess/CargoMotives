@@ -1,33 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'core/localization/locale_controller.dart';
+import 'core/localization/locale_scope.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'l10n/generated/app_localizations.dart';
 
 class CargoMotivesApp extends StatelessWidget {
-  const CargoMotivesApp({super.key});
+  const CargoMotivesApp({super.key, required this.localeController});
+
+  final LocaleController localeController;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Cargo Motives',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      routerConfig: appRouter,
-      // Swahili default, English fallback (PRD §12, UI/UX Brief §2.6).
-      // GlobalMaterialLocalizations/GlobalWidgetsLocalizations/
-      // GlobalCupertinoLocalizations cover framework-level strings (buttons,
-      // date pickers, etc.) for both locales out of the box; Cargo Motives'
-      // own translated app strings (an .arb file per locale) are added in
-      // the Phase 10 localization pass — this wiring just has to exist now
-      // so the app doesn't crash on its own default locale.
-      locale: const Locale('sw'),
-      supportedLocales: const [Locale('sw'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+    // LocaleScope makes localeController reachable from any screen (the
+    // language switcher in each role's Profile tab); AnimatedBuilder is
+    // what actually makes MaterialApp.router rebuild with the new locale
+    // the instant setLocale() is called, without restarting the app.
+    return LocaleScope(
+      controller: localeController,
+      child: AnimatedBuilder(
+        animation: localeController,
+        builder: (context, _) => MaterialApp.router(
+          title: 'Cargo Motives',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          routerConfig: appRouter,
+          locale: localeController.value,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+        ),
+      ),
     );
   }
 }

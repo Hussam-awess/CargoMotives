@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CompanyResource;
 use App\Models\TransporterCompany;
+use App\Services\Company\CompanyApprovalConflictException;
 use App\Services\Company\CompanyDuplicateDetector;
+use App\Services\Company\CompanyVerificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Minimal Admin review tooling for company verification (PRD §10 items 1
@@ -17,7 +20,10 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  */
 class AdminCompanyController extends Controller
 {
-    public function __construct(private readonly CompanyDuplicateDetector $duplicateDetector) {}
+    public function __construct(
+        private readonly CompanyDuplicateDetector $duplicateDetector,
+        private readonly CompanyVerificationService $verificationService,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -44,13 +50,13 @@ class AdminCompanyController extends Controller
 
     public function approve(TransporterCompany $company): CompanyResource
     {
-        $company->update([
-            'verification_status' => 'approved',
-            'verification_rejected_reason' => null,
-            'verified_at' => now(),
-        ]);
+        try {
+            $this->verificationService->approve($company);
+        } catch (CompanyApprovalConflictException $e) {
+            throw ValidationException::withMessages(['verification_status' => [$e->getMessage()]]);
+        }
 
-        return new CompanyResource($company);
+        return new CompanyResource($company->fresh());
     }
 
     public function reject(Request $request, TransporterCompany $company): CompanyResource

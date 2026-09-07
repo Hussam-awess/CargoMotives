@@ -61,6 +61,21 @@ return Application::configure(basePath: dirname(__DIR__))
             'account_type' => EnsureAccountType::class,
             'company.approved' => EnsureCompanyApproved::class,
         ]);
+
+        // TRD §7: "all traffic over HTTPS." Nothing here can enforce that
+        // in local dev (no TLS termination exists to trust), but a Phase
+        // 10 security audit flagged its absence: without this, a
+        // production deployment behind a TLS-terminating load balancer
+        // (TRD §11's "a modest VM or a simple managed platform") would
+        // have Laravel see every request as plain HTTP, breaking
+        // $request->secure() — which the 'secure' session cookie flag and
+        // signed-URL scheme (private document/POD access) both depend on.
+        // Empty by default (trust nobody, correct for direct local/dev
+        // access); production sets TRUSTED_PROXIES to '*' or the load
+        // balancer's real IP(s) in its own .env — see .env.example.
+        $middleware->trustProxies(
+            at: array_filter(explode(',', (string) env('TRUSTED_PROXIES', ''))) ?: null,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

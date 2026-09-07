@@ -322,4 +322,53 @@ void main() {
 
     expect(find.text('-6.8100, 39.2100'), findsOneWidget);
   });
+
+  testWidgets('a GPS-lost truck shows the signal-unavailable state with the last known position', (tester) async {
+    // Phase 10 audit gap: the customer-facing job detail screen already
+    // tested this state (job_detail_screen_test.dart); this screen's own
+    // GpsStatusCard usage never had the equivalent test, despite showing
+    // the identical widget.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyJobDetailScreen(
+          jobId: 5,
+          jobRepository: FakeCompanyJobRepository(
+            onShow: (_) async => Job(
+              id: 5,
+              status: 'en_route_pickup',
+              pickupAddress: _openJob.pickupAddress,
+              pickupLat: _openJob.pickupLat,
+              pickupLng: _openJob.pickupLng,
+              dropoffAddress: _openJob.dropoffAddress,
+              dropoffLat: _openJob.dropoffLat,
+              dropoffLng: _openJob.dropoffLng,
+              containerType: _openJob.containerType,
+              containerSize: _openJob.containerSize,
+              approxWeightTons: _openJob.approxWeightTons,
+              cargoDescription: _openJob.cargoDescription,
+              preferredPickupWindowStart: _openJob.preferredPickupWindowStart,
+              customerNotes: null,
+              agreedPrice: null,
+              currency: 'TZS',
+              assignedCompanyName: null,
+              assignedTruckRegistration: 'T 123 ABC',
+              assignedDriverName: 'Ali Juma',
+              proofOfDelivery: null,
+              bidsCount: 0,
+              isAssignedToViewer: true,
+              gpsTrackingActive: true,
+              gpsSignalStatus: 'lost',
+              lastKnownLocation: GpsLocation(lat: -6.8161, lng: 39.2803, heading: 90, recordedAt: DateTime.now().subtract(const Duration(minutes: 20))),
+            ),
+          ),
+          bidRepository: FakeBidRepository(onCompanyQuotaRemaining: () async => 3),
+          assignmentRepository: FakeJobAssignmentRepository(),
+          locationChannel: FakeJobLocationChannel(jobId: 5),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('GPS signal unavailable'), findsOneWidget);
+  });
 }

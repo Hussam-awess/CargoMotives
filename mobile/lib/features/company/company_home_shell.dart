@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/auth/session_store.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
 import '../jobs/data/company_job_repository.dart';
 import 'company_profile_tab.dart';
@@ -79,6 +80,7 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final tabs = [
       CompanyJobsScreen(repository: widget.companyJobRepository, featuredRepository: widget.featuredRepository),
       FleetScreen(
@@ -113,19 +115,19 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (index) => setState(() => _index = index),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.work_outline), label: 'Jobs'),
+        destinations: [
+          NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navJobs),
           NavigationDestination(
-            icon: Icon(Icons.local_shipping_outlined),
-            label: 'Fleet',
+            icon: const Icon(Icons.local_shipping_outlined),
+            label: l10n.navFleet,
           ),
           NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            label: 'Earnings',
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            label: l10n.navEarnings,
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outline),
+            label: l10n.navProfile,
           ),
         ],
       ),

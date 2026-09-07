@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\CompleteProfileRequest;
+use App\Http\Requests\Auth\UpdateLanguagePreferenceRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Validation\ValidationException;
 
@@ -34,6 +35,23 @@ class ProfileController extends Controller
         }
 
         $user->update($request->only('full_name', 'language_preference'));
+
+        return new UserResource($user);
+    }
+
+    /**
+     * Phase 10's localization pass (Swahili strings): unlike full_name,
+     * this needs to be changeable any time after signup too, from either
+     * role's Profile screen — not just once at Customer profile
+     * completion. Kept as its own tiny endpoint rather than folded into
+     * complete() above, since it applies to both account types and
+     * complete() is deliberately Customer-only (see this controller's
+     * own docblock).
+     */
+    public function updateLanguage(UpdateLanguagePreferenceRequest $request): UserResource
+    {
+        $user = $request->user();
+        $user->update($request->only('language_preference'));
 
         return new UserResource($user);
     }

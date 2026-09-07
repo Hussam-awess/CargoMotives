@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
 import '../../core/network/api_exception.dart';
+import '../../l10n/generated/app_localizations.dart';
 import 'data/auth_repository.dart';
 import 'phone_entry_screen.dart';
 
@@ -92,7 +93,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _verify() async {
     final code = _codeController.text.trim();
     if (code.length != 6) {
-      setState(() => _errorText = 'Enter the 6-digit code.');
+      setState(() => _errorText = AppLocalizations.of(context)!.enterSixDigitCode);
       return;
     }
 
@@ -133,8 +134,10 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Verification code')),
+      appBar: AppBar(title: Text(l10n.otpTitle)),
       // See PhoneEntryScreen's build() comment — SingleChildScrollView
       // avoids a silent, unclickable overflow on short viewports.
       body: SingleChildScrollView(
@@ -143,7 +146,7 @@ class _OtpScreenState extends State<OtpScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Enter the code sent to ${widget.args.phoneNumber}',
+              l10n.otpSubtitle(widget.args.phoneNumber),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
@@ -173,7 +176,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Verify'),
+                  : Text(l10n.verify),
             ),
             const SizedBox(height: 12),
             TextButton(
@@ -182,8 +185,8 @@ class _OtpScreenState extends State<OtpScreen> {
                   : _resend,
               child: Text(
                 _secondsRemaining > 0
-                    ? 'Resend code in ${_secondsRemaining}s'
-                    : 'Resend code',
+                    ? l10n.resendCodeIn(_secondsRemaining)
+                    : l10n.resendCode,
               ),
             ),
           ],

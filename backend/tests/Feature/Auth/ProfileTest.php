@@ -54,6 +54,30 @@ class ProfileTest extends TestCase
             ->assertJsonStructure(['message']);
     }
 
+    public function test_either_account_type_can_change_their_language_preference(): void
+    {
+        $customer = User::factory()->create(['language_preference' => 'sw']);
+        $company = User::factory()->transporterCompany()->create(['language_preference' => 'sw']);
+
+        $this->actingAs($customer)->postJson('/api/auth/profile/language', ['language_preference' => 'en'])
+            ->assertOk()->assertJsonPath('data.language_preference', 'en');
+        $this->actingAs($company)->postJson('/api/auth/profile/language', ['language_preference' => 'en'])
+            ->assertOk()->assertJsonPath('data.language_preference', 'en');
+
+        $this->assertSame('en', $customer->fresh()->language_preference);
+        $this->assertSame('en', $company->fresh()->language_preference);
+    }
+
+    public function test_language_preference_must_be_a_supported_locale(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/language', ['language_preference' => 'fr'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('language_preference');
+    }
+
     public function test_me_endpoint_returns_the_authenticated_user(): void
     {
         $user = User::factory()->create();

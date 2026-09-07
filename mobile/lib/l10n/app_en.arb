@@ -1,0 +1,94 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Cargo Motives",
+  "@appTitle": {"description": "The app's name, shown on Splash and as the window/task title."},
+
+  "appTagline": "B2B container logistics for Tanzania",
+  "@appTagline": {"description": "Shown under the app name on the Welcome screen."},
+
+  "iAmCustomer": "I'm a Customer",
+  "@iAmCustomer": {"description": "Welcome screen: role-selection button."},
+
+  "iAmTransporterCompany": "I'm a Transporter Company",
+  "@iAmTransporterCompany": {"description": "Welcome screen: role-selection button."},
+
+  "phoneEntryTitle": "Phone number",
+  "@phoneEntryTitle": {"description": "AppBar title on the Phone Entry screen."},
+
+  "phoneEntrySubtitle": "We'll send a verification code by SMS.",
+  "@phoneEntrySubtitle": {"description": "Phone Entry screen body copy."},
+
+  "phoneNumberHint": "0712 345 678",
+  "@phoneNumberHint": {"description": "Placeholder text inside the phone number field."},
+
+  "enterYourPhoneNumber": "Enter your phone number.",
+  "@enterYourPhoneNumber": {"description": "Validation error when the phone field is submitted empty."},
+
+  "sendCode": "Send code",
+  "@sendCode": {"description": "Phone Entry screen submit button."},
+
+  "otpTitle": "Verification code",
+  "@otpTitle": {"description": "AppBar title on the OTP screen."},
+
+  "otpSubtitle": "Enter the code sent to {phoneNumber}",
+  "@otpSubtitle": {
+    "description": "OTP screen body copy, naming the phone number the code was sent to.",
+    "placeholders": {
+      "phoneNumber": {"type": "String"}
+    }
+  },
+
+  "enterSixDigitCode": "Enter the 6-digit code.",
+  "@enterSixDigitCode": {"description": "Validation error when the OTP code isn't 6 digits."},
+
+  "verify": "Verify",
+  "@verify": {"description": "OTP screen submit button."},
+
+  "resendCode": "Resend code",
+  "@resendCode": {"description": "OTP screen resend link, shown once the cooldown has elapsed."},
+
+  "resendCodeIn": "Resend code in {seconds}s",
+  "@resendCodeIn": {
+    "description": "OTP screen resend link during the cooldown, counting down the remaining seconds.",
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+
+  "yourDetailsTitle": "Your details",
+  "@yourDetailsTitle": {"description": "AppBar title on the Profile Setup screen."},
+
+  "fullNameHint": "Full name",
+  "@fullNameHint": {"description": "Placeholder text inside the full-name field."},
+
+  "enterYourName": "Enter your name.",
+  "@enterYourName": {"description": "Validation error when the name field is submitted empty."},
+
+  "continueLabel": "Continue",
+  "@continueLabel": {"description": "Profile Setup screen submit button."},
+
+  "navJobs": "Jobs",
+  "@navJobs": {"description": "Bottom navigation label, both Customer and Company shells."},
+
+  "navPost": "Post",
+  "@navPost": {"description": "Customer bottom navigation label — posts a new job."},
+
+  "navFleet": "Fleet",
+  "@navFleet": {"description": "Company bottom navigation label."},
+
+  "navEarnings": "Earnings",
+  "@navEarnings": {"description": "Company bottom navigation label."},
+
+  "navProfile": "Profile",
+  "@navProfile": {"description": "Bottom navigation label, both Customer and Company shells."},
+
+  "languageLabel": "Language",
+  "@languageLabel": {"description": "Profile tab section heading for the language switcher."},
+
+  "languageEnglish": "English",
+  "@languageEnglish": {"description": "Language switcher option."},
+
+  "languageSwahili": "Kiswahili",
+  "@languageSwahili": {"description": "Language switcher option — Swahili's own name for itself."}
+}

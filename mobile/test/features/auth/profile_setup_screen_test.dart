@@ -1,5 +1,6 @@
 import 'package:cargo_motives/core/network/api_exception.dart';
 import 'package:cargo_motives/features/auth/profile_setup_screen.dart';
+import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +23,11 @@ Widget _appUnder({required FakeAuthRepository repository}) {
     ],
   );
 
-  return MaterialApp.router(routerConfig: router);
+  return MaterialApp.router(
+    routerConfig: router,
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+  );
 }
 
 void main() {

@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
     'approx_weight_tons', 'cargo_description', 'preferred_pickup_window_start', 'preferred_pickup_window_end',
     'customer_notes', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'assigned_truck_id',
     'assigned_driver_id', 'agreed_price', 'cancelled_reason', 'gps_tracking_active', 'gps_signal_status',
+    'gps_tracking_started_at',
 ])]
 class Job extends Model
 {
@@ -59,6 +60,7 @@ class Job extends Model
             'preferred_pickup_window_start' => 'datetime',
             'preferred_pickup_window_end' => 'datetime',
             'gps_tracking_active' => 'boolean',
+            'gps_tracking_started_at' => 'datetime',
         ];
     }
 

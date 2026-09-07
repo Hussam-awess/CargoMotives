@@ -1,6 +1,9 @@
+import 'package:cargo_motives/core/localization/locale_controller.dart';
+import 'package:cargo_motives/core/localization/locale_scope.dart';
 import 'package:cargo_motives/features/company/company_home_gate.dart';
 import 'package:cargo_motives/features/company/data/commission_repository.dart';
 import 'package:cargo_motives/features/company/data/company_repository.dart';
+import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,14 +22,23 @@ Widget _appUnder(
   FakeCommissionRepository? commissionRepository,
   FakeCompanyFeaturedRepository? featuredRepository,
 }) {
-  return MaterialApp(
-    home: CompanyHomeGate(
-      repository: repository,
-      truckRepository: truckRepository ?? FakeTruckRepository(),
-      driverRepository: driverRepository ?? FakeDriverRepository(),
-      companyJobRepository: companyJobRepository ?? FakeCompanyJobRepository(),
-      commissionRepository: commissionRepository ?? FakeCommissionRepository(),
-      featuredRepository: featuredRepository ?? FakeCompanyFeaturedRepository(),
+  // The Company Home shell's Profile tab (mounted alongside every other
+  // tab by the shell's IndexedStack, not just whichever one is visible)
+  // now uses AppLocalizations + LocaleScope for its language switcher —
+  // both need to exist here, not just the localization delegates alone.
+  return LocaleScope(
+    controller: LocaleController(const Locale('en')),
+    child: MaterialApp(
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: CompanyHomeGate(
+        repository: repository,
+        truckRepository: truckRepository ?? FakeTruckRepository(),
+        driverRepository: driverRepository ?? FakeDriverRepository(),
+        companyJobRepository: companyJobRepository ?? FakeCompanyJobRepository(),
+        commissionRepository: commissionRepository ?? FakeCommissionRepository(),
+        featuredRepository: featuredRepository ?? FakeCompanyFeaturedRepository(),
+      ),
     ),
   );
 }

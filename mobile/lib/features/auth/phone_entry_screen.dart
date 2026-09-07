@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
 import '../../core/network/api_exception.dart';
+import '../../l10n/generated/app_localizations.dart';
 import 'data/auth_repository.dart';
 
 /// Phone Entry (AppFlow §1): the first step for both roles after picking
@@ -41,7 +42,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
   Future<void> _submit() async {
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) {
-      setState(() => _errorText = 'Enter your phone number.');
+      setState(() => _errorText = AppLocalizations.of(context)!.enterYourPhoneNumber);
       return;
     }
 
@@ -69,8 +70,10 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Phone number')),
+      appBar: AppBar(title: Text(l10n.phoneEntryTitle)),
       // SingleChildScrollView, not just Padding+Column: on a short viewport
       // (a small phone, or a keyboard eating half the screen) an unscrolled
       // Column here silently overflows in release builds — no debug banner,
@@ -83,17 +86,14 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              "We'll send a verification code by SMS.",
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(l10n.phoneEntrySubtitle, style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 24),
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText: '0712 345 678',
+              decoration: InputDecoration(
+                hintText: l10n.phoneNumberHint,
                 errorMaxLines: 2,
               ),
               onSubmitted: (_) => _submit(),
@@ -114,7 +114,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Send code'),
+                  : Text(l10n.sendCode),
             ),
           ],
         ),

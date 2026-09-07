@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Welcome Screen (AppFlow §1): "I'm a Customer" / "I'm a Transporter
 /// Company" — the only fork in the whole app between the two role shells.
@@ -12,6 +13,8 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -19,13 +22,10 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(flex: 2),
-              Text(
-                'Cargo Motives',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+              Text(l10n.appTitle, style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 8),
               Text(
-                'B2B container logistics for Tanzania',
+                l10n.appTagline,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: const Color(0xFF6B7280),
                 ),
@@ -34,7 +34,7 @@ class WelcomeScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () =>
                     context.push('/phone-entry', extra: AccountRole.customer),
-                child: const Text("I'm a Customer"),
+                child: Text(l10n.iAmCustomer),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
@@ -50,7 +50,7 @@ class WelcomeScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text("I'm a Transporter Company"),
+                child: Text(l10n.iAmTransporterCompany),
               ),
               const Spacer(),
             ],

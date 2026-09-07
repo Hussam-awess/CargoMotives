@@ -23,7 +23,11 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
-# Flutter/Dart/Pub related
+# Flutter/Dart/Pub related — AppLocalizations is generated from
+# lib/l10n/*.arb by `flutter gen-l10n` (runs automatically on pub get/run/
+# build since l10n.yaml + pubspec.yaml's generate:true are set); the
+# generated Dart is a build artifact, the .arb files are the real source.
+lib/l10n/generated/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/

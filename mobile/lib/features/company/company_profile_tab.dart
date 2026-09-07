@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
+import '../../core/localization/language_switcher_tile.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
 import 'data/company_repository.dart';
 import 'featured/featured_screen.dart';
@@ -52,7 +54,7 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.navProfile)),
       body: FutureBuilder<CompanyVerification?>(
         future: _future,
         builder: (context, snapshot) {
@@ -70,8 +72,10 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
                   'Verified transporter company',
                   style: TextStyle(color: Color(0xFF6B7280)),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
               ],
+              LanguageSwitcherTile(authRepository: widget.authRepository),
+              const SizedBox(height: 24),
               OutlinedButton(
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyFeaturedScreen())),
                 child: const Text('Upgrade to Featured'),

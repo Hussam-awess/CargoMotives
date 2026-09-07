@@ -3,6 +3,7 @@ import 'package:cargo_motives/core/network/api_exception.dart';
 import 'package:cargo_motives/features/auth/data/auth_repository.dart';
 import 'package:cargo_motives/features/auth/otp_screen.dart';
 import 'package:cargo_motives/features/auth/phone_entry_screen.dart';
+import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,7 +42,11 @@ Widget _appUnder({
     ],
   );
 
-  return MaterialApp.router(routerConfig: router);
+  return MaterialApp.router(
+    routerConfig: router,
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+  );
 }
 
 void main() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../jobs/data/job_repository.dart';
 import '../jobs/post_job_screen.dart';
 import 'customer_jobs_tab.dart';
@@ -51,6 +52,8 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: IndexedStack(index: _bodyIndex, children: _bodies),
       bottomNavigationBar: NavigationBar(
@@ -58,10 +61,10 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
         // one-shot action, not a body of its own.
         selectedIndex: _bodyIndex == 0 ? 0 : 2,
         onDestinationSelected: _onDestinationSelected,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.work_outline), label: 'Jobs'),
-          NavigationDestination(icon: Icon(Icons.add_circle_outline), label: 'Post'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+        destinations: [
+          NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navJobs),
+          NavigationDestination(icon: const Icon(Icons.add_circle_outline), label: l10n.navPost),
+          NavigationDestination(icon: const Icon(Icons.person_outline), label: l10n.navProfile),
         ],
       ),
     );

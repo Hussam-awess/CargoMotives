@@ -3,7 +3,9 @@
 namespace App\Livewire\Admin\Companies;
 
 use App\Models\TransporterCompany;
+use App\Services\Company\CompanyApprovalConflictException;
 use App\Services\Company\CompanyDuplicateDetector;
+use App\Services\Company\CompanyVerificationService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -40,12 +42,15 @@ class Show extends Component
 
     public function approve(): void
     {
-        $this->company->update([
-            'verification_status' => 'approved',
-            'verification_rejected_reason' => null,
-            'verified_at' => now(),
-        ]);
+        try {
+            app(CompanyVerificationService::class)->approve($this->company);
+        } catch (CompanyApprovalConflictException $e) {
+            $this->addError('approve', $e->getMessage());
 
+            return;
+        }
+
+        $this->company->refresh();
         $this->statusMessage = "{$this->company->company_name} approved.";
     }
 

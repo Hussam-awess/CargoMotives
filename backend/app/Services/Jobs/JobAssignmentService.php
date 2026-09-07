@@ -83,6 +83,11 @@ class JobAssignmentService
                 // what actually catches a feed going quiet later).
                 'gps_tracking_active' => $truck->isGpsConnected(),
                 'gps_signal_status' => $truck->isGpsConnected() ? 'ok' : 'not_applicable',
+                // The reference point CheckGpsSignalLoss uses to catch a
+                // truck that never sends a single real position at all —
+                // last_known_at itself stays NULL in that case, so there's
+                // nothing else to measure elapsed time against.
+                'gps_tracking_started_at' => $truck->isGpsConnected() ? now() : null,
             ]);
 
             // Any link still active for this job (a previous assignment)

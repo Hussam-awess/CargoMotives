@@ -55,6 +55,46 @@ class CommissionLedgerServiceTest extends TestCase
         $this->assertSame('on_hold', $company->fresh()->commission_standing);
     }
 
+    public function test_a_balance_landing_exactly_on_the_threshold_is_on_hold(): void
+    {
+        // syncCommissionStanding() uses >= — a balance sitting exactly at
+        // the threshold (not past it) must still flip to on_hold. The
+        // existing threshold test only ever overshoots it (70000 vs a
+        // 50000 threshold); this one lands precisely on it to prove the
+        // boundary itself is inclusive, not just "eventually past it."
+        PlatformSetting::create(['key' => 'commission_rate_default', 'value' => '30']);
+        PlatformSetting::create(['key' => 'commission_hold_threshold', 'value' => '50000']);
+
+        $company = TransporterCompany::factory()->create(['outstanding_balance' => 20000, 'commission_standing' => 'good_standing']);
+        $job = Job::factory()->create(['assigned_company_id' => $company->id, 'agreed_price' => 100000]);
+
+        $this->service()->chargeForCompletedJob($job);
+
+        // 20000 + 30000 = 50000 exactly.
+        $this->assertEquals(50000, $company->fresh()->outstanding_balance);
+        $this->assertSame('on_hold', $company->fresh()->commission_standing);
+    }
+
+    public function test_a_company_already_on_hold_stays_on_hold_after_another_charge(): void
+    {
+        // syncCommissionStanding() recomputes fresh from the balance every
+        // call, never a one-way flag (see the service's own docblock) —
+        // this proves a second charge while already on_hold doesn't do
+        // anything surprising (e.g. accidentally clearing the hold, or
+        // erroring) rather than just trusting the "recomputed fresh" claim.
+        PlatformSetting::create(['key' => 'commission_rate_default', 'value' => '30']);
+        PlatformSetting::create(['key' => 'commission_hold_threshold', 'value' => '50000']);
+
+        $company = TransporterCompany::factory()->create(['outstanding_balance' => 70000, 'commission_standing' => 'on_hold']);
+        $job = Job::factory()->create(['assigned_company_id' => $company->id, 'agreed_price' => 100000]);
+
+        $entry = $this->service()->chargeForCompletedJob($job);
+
+        $this->assertEquals(100000, $company->fresh()->outstanding_balance);
+        $this->assertSame('on_hold', $company->fresh()->commission_standing);
+        $this->assertSame('charge', $entry->entry_type);
+    }
+
     public function test_a_payment_reduces_the_balance_and_lifts_a_hold(): void
     {
         PlatformSetting::create(['key' => 'commission_hold_threshold', 'value' => '50000']);

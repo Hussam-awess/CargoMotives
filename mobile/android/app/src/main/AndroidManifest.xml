@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Phase 10 audit finding: this was present only in the debug/profile
+         manifests (Flutter's own scaffold default), never here in main —
+         a release build merges main + the release variant only, so a
+         real release APK/AAB would have shipped with every network call
+         silently failing. Every REST call, the WebSocket connection, and
+         Firebase all need this. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="cargo_motives"
+        android:label="Cargo Motives"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

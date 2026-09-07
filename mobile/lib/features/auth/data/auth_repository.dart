@@ -56,6 +56,15 @@ class AuthRepository {
     return _client.post('/auth/profile', data: {'full_name': fullName});
   }
 
+  /// Best-effort sync of the language switcher (Phase 10) to the backend's
+  /// User.language_preference — the on-device LocaleController is the
+  /// source of truth for what the app actually displays (it has to work
+  /// before/without a network round-trip), this just keeps the backend
+  /// record consistent with it for whichever account is signed in.
+  Future<void> updateLanguagePreference(String languageCode) {
+    return _client.post('/auth/profile/language', data: {'language_preference': languageCode});
+  }
+
   Future<void> logout() => _client.post('/auth/logout');
 
   String _accountTypeValue(AccountRole role) => switch (role) {

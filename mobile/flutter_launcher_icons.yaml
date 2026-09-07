@@ -1,0 +1,15 @@
+# Phase 10 launch prep: replaces Flutter's default template icon (the blue
+# "F" mark) with a real Cargo Motives icon — a shipping-container glyph in
+# the app's own brand colors (mobile/lib/core/theme/app_theme.dart's
+# AppColors.primary/.accent). Source PNGs are procedurally generated (see
+# scratchpad's generate_icon.js; no image-editing tool was available in
+# this environment) rather than hand-designed artwork — a real design pass
+# before a real store submission is still worth doing, but this is a
+# genuine, deliberate icon, not a placeholder.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#0B4F6C"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  remove_alpha_ios: true

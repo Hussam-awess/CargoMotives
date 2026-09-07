@@ -16,6 +16,17 @@ use Tests\TestCase;
  * MobileMoneyGateway — this is the one place the app's own security
  * (rejecting a spoofed webhook) and idempotency (never double-crediting a
  * retried delivery) actually have to be proven end to end.
+ *
+ * Phase 10 audit note: the idempotency check now happens inside a
+ * lockForUpdate() transaction specifically to close a TOCTOU race between
+ * two genuinely concurrent deliveries for the same reference (see
+ * SelcomWebhookController::handle()'s docblock). PHPUnit runs single-
+ * process/single-connection, so no test here can actually exercise two
+ * overlapping transactions racing each other — the tests below prove the
+ * sequential/reordered cases are correct, and the concurrent case relies
+ * on the database's own row-lock guarantee, same as
+ * CommissionLedgerService's company-row lock (also untested for true
+ * concurrency, by the same limitation).
  */
 class SelcomWebhookControllerTest extends TestCase
 {

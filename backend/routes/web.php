@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DriverLink\DriverLinkPageController;
+use App\Http\Controllers\LegalController;
 use App\Livewire\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -9,6 +10,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Public legal pages (Phase 10 launch prep) — the URL both app stores
+// require at submission.
+Route::get('/legal/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/legal/terms', [LegalController::class, 'terms'])->name('legal.terms');
 
 /**
  * The Admin tool (PRD §10, TRD §8) — a Laravel Livewire app, session-

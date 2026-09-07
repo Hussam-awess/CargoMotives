@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_exception.dart';
+import '../../l10n/generated/app_localizations.dart';
 import 'data/auth_repository.dart';
 
 /// Customer Profile Setup (AppFlow §1): "name, optional company name ->
@@ -39,7 +40,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _errorText = 'Enter your name.');
+      setState(() => _errorText = AppLocalizations.of(context)!.enterYourName);
       return;
     }
 
@@ -61,9 +62,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your details'),
+        title: Text(l10n.yourDetailsTitle),
         automaticallyImplyLeading: false,
       ),
       // See PhoneEntryScreen's build() comment — SingleChildScrollView
@@ -77,7 +80,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               controller: _nameController,
               autofocus: true,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(hintText: 'Full name'),
+              decoration: InputDecoration(hintText: l10n.fullNameHint),
               onSubmitted: (_) => _submit(),
             ),
             if (_errorText != null) ...[
@@ -96,7 +99,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Continue'),
+                  : Text(l10n.continueLabel),
             ),
           ],
         ),

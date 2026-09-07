@@ -4,6 +4,7 @@
     @if ($statusMessage)
         <div class="mt-2 rounded border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">{{ $statusMessage }}</div>
     @endif
+    @error('approve') <div class="mt-2 rounded border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800">{{ $message }}</div> @enderror
 
     <div class="flex items-start justify-between mt-2 mb-6">
         <div>

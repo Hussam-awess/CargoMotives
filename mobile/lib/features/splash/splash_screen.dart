@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Splash Screen (AppFlow §1): checks for a valid session and routes
 /// straight to that role's home, or to Welcome if there isn't one.
@@ -52,22 +53,22 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.primary,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Cargo Motives',
-              style: TextStyle(
+              AppLocalizations.of(context)!.appTitle,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            SizedBox(height: 16),
-            CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(color: Colors.white),
           ],
         ),
       ),
