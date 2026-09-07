@@ -31,8 +31,14 @@ class CompanyResource extends JsonResource
             // on the model, signed into a short-lived URL only here at
             // response time — see DocumentStorage's docblock for why.
             'logo_url' => $this->logo_url ? $storage->signedUrl($this->logo_url) : null,
+            // Most entries are a single storage key; 'other_documents' is
+            // the one that can be a list (Phase 10.7 — "other required
+            // transport/business documents" is explicitly plural) — signed
+            // per-item either way.
             'documents' => collect($this->documents ?? [])
-                ->map(fn (string $key) => $storage->signedUrl($key))
+                ->map(fn ($value) => is_array($value)
+                    ? collect($value)->map(fn (string $key) => $storage->signedUrl($key))->all()
+                    : $storage->signedUrl($value))
                 ->all(),
             'rep_full_name' => $this->rep_full_name,
             'rep_position' => $this->rep_position,

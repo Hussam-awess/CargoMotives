@@ -75,12 +75,12 @@
         </div>
     </div>
 
-    @if (!empty($company->documents))
+    @if (!empty($documents))
         <div class="bg-white border border-slate-200 rounded-lg p-4 mt-6">
             <h2 class="text-sm font-semibold text-slate-500 mb-3">Documents</h2>
             <ul class="text-sm space-y-1">
-                @foreach ($company->documents as $label => $url)
-                    <li><a href="{{ $url }}" target="_blank" class="text-slate-700 underline">{{ ucwords(str_replace('_', ' ', $label)) }}</a></li>
+                @foreach ($documents as $doc)
+                    <li><a href="{{ $doc['url'] }}" target="_blank" class="text-slate-700 underline">{{ $doc['label'] }}</a></li>
                 @endforeach
             </ul>
         </div>

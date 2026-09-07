@@ -43,7 +43,9 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
   final _repPosition = TextEditingController();
   final _repNationalIdNumber = TextEditingController();
 
-  PlatformFile? _businessLicense;
+  PlatformFile? _registrationCertificate;
+  PlatformFile? _tinCertificate;
+  List<PlatformFile> _otherDocuments = [];
   PlatformFile? _repIdDocument;
   PlatformFile? _repSelfie;
 
@@ -82,15 +84,29 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
     }
   }
 
+  Future<void> _pickOtherDocuments() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: _allowedExtensions,
+      withData: true,
+      allowMultiple: true,
+    );
+    final files = result?.files;
+    if (files != null && files.isNotEmpty) {
+      setState(() => _otherDocuments = files);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_businessLicense == null ||
+    if (_registrationCertificate == null ||
+        _tinCertificate == null ||
         _repIdDocument == null ||
         _repSelfie == null) {
       setState(
         () => _errorText =
-            'Please attach the business license, ID document, and selfie.',
+            'Please attach the company registration certificate, TIN certificate, ID document, and selfie.',
       );
       return;
     }
@@ -111,7 +127,9 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
           companyEmail: _companyEmail.text.trim().isEmpty
               ? null
               : _companyEmail.text.trim(),
-          businessLicense: _businessLicense!,
+          registrationCertificate: _registrationCertificate!,
+          tinCertificate: _tinCertificate!,
+          otherDocuments: _otherDocuments,
           repFullName: _repFullName.text.trim(),
           repPosition: _repPosition.text.trim(),
           repNationalIdNumber: _repNationalIdNumber.text.trim(),
@@ -216,9 +234,21 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
               ),
               const SizedBox(height: 12),
               _FilePickerTile(
-                label: 'Business license',
-                file: _businessLicense,
-                onTap: () => _pickFile((f) => _businessLicense = f),
+                label: 'Company registration certificate',
+                file: _registrationCertificate,
+                onTap: () => _pickFile((f) => _registrationCertificate = f),
+              ),
+              const SizedBox(height: 12),
+              _FilePickerTile(
+                label: 'TIN certificate',
+                file: _tinCertificate,
+                onTap: () => _pickFile((f) => _tinCertificate = f),
+              ),
+              const SizedBox(height: 12),
+              _FilePickerTile(
+                label: 'Other documents (optional)',
+                fileCount: _otherDocuments.length,
+                onTap: _pickOtherDocuments,
               ),
               const SizedBox(height: 32),
               Text(
@@ -288,13 +318,32 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
 class _FilePickerTile extends StatelessWidget {
   const _FilePickerTile({
     required this.label,
-    required this.file,
+    this.file,
+    this.fileCount = 0,
     required this.onTap,
   });
 
   final String label;
+
+  /// Single-file mode (registration certificate, TIN certificate, ID
+  /// document, selfie) — shows the picked file's name once selected.
   final PlatformFile? file;
+
+  /// Multi-file mode ("other documents") — shows a count instead, since
+  /// several filenames wouldn't fit one tile. 0 means nothing selected yet
+  /// in this mode.
+  final int fileCount;
+
   final VoidCallback onTap;
+
+  bool get _hasSelection => file != null || fileCount > 0;
+
+  String get _displayText {
+    if (file != null) return file!.name;
+    if (fileCount > 0) return '$fileCount file${fileCount == 1 ? '' : 's'} selected';
+
+    return label;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -310,14 +359,14 @@ class _FilePickerTile extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              file != null ? Icons.check_circle : Icons.attach_file,
-              color: file != null
+              _hasSelection ? Icons.check_circle : Icons.attach_file,
+              color: _hasSelection
                   ? AppColors.statusLive
                   : const Color(0xFF6B7280),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(file?.name ?? label, overflow: TextOverflow.ellipsis),
+              child: Text(_displayText, overflow: TextOverflow.ellipsis),
             ),
           ],
         ),

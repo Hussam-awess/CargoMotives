@@ -55,8 +55,14 @@ class CompanyVerificationController extends Controller
         $validated = $request->validated();
 
         $documents = [
-            'business_license' => $this->documents->store($request->file('business_license'), 'companies/documents'),
+            'registration_certificate' => $this->documents->store($request->file('registration_certificate'), 'companies/documents'),
+            'tin_certificate' => $this->documents->store($request->file('tin_certificate'), 'companies/documents'),
         ];
+        if ($request->hasFile('other_documents')) {
+            $documents['other_documents'] = collect($request->file('other_documents'))
+                ->map(fn ($file) => $this->documents->store($file, 'companies/documents'))
+                ->all();
+        }
         $logoKey = $request->hasFile('logo') ? $this->documents->store($request->file('logo'), 'companies/logos') : null;
         $repIdDocumentKey = $this->documents->store($request->file('rep_id_document'), 'companies/rep-documents');
         $repSelfieKey = $this->documents->store($request->file('rep_selfie'), 'companies/rep-selfies');
@@ -70,7 +76,7 @@ class CompanyVerificationController extends Controller
 
         $attributes = [
             ...collect($validated)->except([
-                'logo', 'business_license', 'rep_id_document', 'rep_selfie',
+                'logo', 'registration_certificate', 'tin_certificate', 'other_documents', 'rep_id_document', 'rep_selfie',
             ])->all(),
             'documents' => $documents,
             'logo_url' => $logoKey,

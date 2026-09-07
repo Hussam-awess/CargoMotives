@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart' show MultipartFile, FormData;
+import 'package:dio/dio.dart' show FormData, ListFormat, MultipartFile;
 import 'package:file_picker/file_picker.dart';
 
 import '../../../core/network/api_client.dart';
@@ -33,6 +33,12 @@ class CompanyVerification {
 /// The two-section verification form's fields (AppFlow §1), gathered as one
 /// object so the submit call reads as a single intent rather than a long
 /// positional parameter list.
+///
+/// Step 2's documents are the user's own explicit field list: a company
+/// registration certificate and a TIN certificate as two distinct required
+/// documents, plus an optional set of "other required transport/business
+/// documents" — replacing the earlier single generic "business license"
+/// upload.
 class CompanyVerificationSubmission {
   CompanyVerificationSubmission({
     required this.companyName,
@@ -41,7 +47,9 @@ class CompanyVerificationSubmission {
     required this.physicalAddress,
     required this.companyPhone,
     this.companyEmail,
-    required this.businessLicense,
+    required this.registrationCertificate,
+    required this.tinCertificate,
+    this.otherDocuments = const [],
     required this.repFullName,
     required this.repPosition,
     required this.repNationalIdNumber,
@@ -55,7 +63,9 @@ class CompanyVerificationSubmission {
   final String physicalAddress;
   final String companyPhone;
   final String? companyEmail;
-  final PlatformFile businessLicense;
+  final PlatformFile registrationCertificate;
+  final PlatformFile tinCertificate;
+  final List<PlatformFile> otherDocuments;
 
   final String repFullName;
   final String repPosition;
@@ -86,6 +96,10 @@ class CompanyRepository {
   Future<CompanyVerification> submit(
     CompanyVerificationSubmission submission,
   ) async {
+    final otherDocuments = await Future.wait(
+      submission.otherDocuments.map(_toMultipart),
+    );
+
     final formData = FormData.fromMap({
       'company_name': submission.companyName,
       'registration_number': submission.registrationNumber,
@@ -95,13 +109,22 @@ class CompanyRepository {
       if (submission.companyEmail != null &&
           submission.companyEmail!.isNotEmpty)
         'company_email': submission.companyEmail,
-      'business_license': await _toMultipart(submission.businessLicense),
+      'registration_certificate': await _toMultipart(
+        submission.registrationCertificate,
+      ),
+      'tin_certificate': await _toMultipart(submission.tinCertificate),
+      if (otherDocuments.isNotEmpty) 'other_documents': otherDocuments,
       'rep_full_name': submission.repFullName,
       'rep_position': submission.repPosition,
       'rep_national_id_number': submission.repNationalIdNumber,
       'rep_id_document': await _toMultipart(submission.repIdDocument),
       'rep_selfie': await _toMultipart(submission.repSelfie),
-    });
+      // Dio's default ListFormat.multi only brackets a list entry when the
+      // entry is a Map/List — a bare List<MultipartFile> like
+      // other_documents needs multiCompatible or every file lands under
+      // the exact same non-bracketed field name and Laravel keeps only the
+      // last one (Phase 3's TruckRepository regression).
+    }, ListFormat.multiCompatible);
 
     final body = await _client.postForm('/company/verification', formData);
 

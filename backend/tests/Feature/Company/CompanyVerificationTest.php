@@ -27,7 +27,8 @@ class CompanyVerificationTest extends TestCase
             'physical_address' => 'Plot 12, Nyerere Road, Dar es Salaam',
             'company_phone' => '+255712000001',
             'company_email' => 'ops@abclogistics.co.tz',
-            'business_license' => UploadedFile::fake()->create('license.pdf', 200, 'application/pdf'),
+            'registration_certificate' => UploadedFile::fake()->create('registration-certificate.pdf', 200, 'application/pdf'),
+            'tin_certificate' => UploadedFile::fake()->create('tin-certificate.pdf', 200, 'application/pdf'),
             'rep_full_name' => 'Juma Hassan',
             'rep_position' => 'Managing Director',
             'rep_national_id_number' => 'NIDA-300001',
@@ -71,7 +72,38 @@ class CompanyVerificationTest extends TestCase
         // parameter) — what actually protects it is the signature, which
         // DocumentAccessTest confirms is required to fetch the file.
         $this->assertStringContainsString('signature=', $response->json('data.rep_selfie_url'));
-        $this->assertStringContainsString('signature=', $response->json('data.documents.business_license'));
+        $this->assertStringContainsString('signature=', $response->json('data.documents.registration_certificate'));
+        $this->assertStringContainsString('signature=', $response->json('data.documents.tin_certificate'));
+    }
+
+    public function test_optional_other_documents_are_stored_and_signed(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+
+        $response = $this->actingAs($user)->postJson('/api/company/verification', $this->validPayload([
+            'other_documents' => [
+                UploadedFile::fake()->create('permit.pdf', 100, 'application/pdf'),
+                UploadedFile::fake()->create('license-extra.pdf', 100, 'application/pdf'),
+            ],
+        ]));
+
+        $response->assertCreated();
+        $otherDocuments = $response->json('data.documents.other_documents');
+        $this->assertCount(2, $otherDocuments);
+        $this->assertStringContainsString('signature=', $otherDocuments[0]);
+        $this->assertStringContainsString('signature=', $otherDocuments[1]);
+    }
+
+    public function test_other_documents_is_optional(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+
+        $response = $this->actingAs($user)->postJson('/api/company/verification', $this->validPayload());
+
+        $response->assertCreated();
+        $this->assertArrayNotHasKey('other_documents', $response->json('data.documents'));
     }
 
     public function test_duplicate_registration_number_is_flagged_not_rejected(): void

@@ -9,6 +9,12 @@ use Illuminate\Foundation\Http\FormRequest;
  * then Representative Info with a selfie) submitted in one request —
  * matching the TRD's "single multi-step form" on the frontend, one POST on
  * the backend.
+ *
+ * Company Step 2's documents are the user's own explicit field list
+ * (Phase 10.7): a company registration certificate and a TIN certificate as
+ * two distinct required documents, plus an optional set of "other required
+ * transport/business documents" — replacing the earlier single generic
+ * "business license" upload with the exact three-way split requested.
  */
 class SubmitCompanyVerificationRequest extends FormRequest
 {
@@ -31,7 +37,10 @@ class SubmitCompanyVerificationRequest extends FormRequest
             'company_phone' => ['required', 'string', 'max:20'],
             'company_email' => ['nullable', 'email', 'max:255'],
             'logo' => ['nullable', 'image', 'max:5120'],
-            'business_license' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'registration_certificate' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'tin_certificate' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'other_documents' => ['nullable', 'array'],
+            'other_documents.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
 
             // Representative info — phone is deliberately not collected
             // here; it's the already-OTP-verified owner account's own

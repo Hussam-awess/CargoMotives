@@ -6,6 +6,7 @@ use App\Models\TransporterCompany;
 use App\Services\Company\CompanyApprovalConflictException;
 use App\Services\Company\CompanyDuplicateDetector;
 use App\Services\Company\CompanyVerificationService;
+use App\Services\Documents\DocumentStorage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -80,6 +81,37 @@ class Show extends Component
             )
             : null;
 
-        return view('livewire.admin.companies.show', ['conflict' => $conflict]);
+        return view('livewire.admin.companies.show', [
+            'conflict' => $conflict,
+            'documents' => $this->signedDocuments(),
+        ]);
+    }
+
+    /**
+     * $company->documents stores private storage keys, never real URLs
+     * (DocumentStorage's docblock) — the Blade view previously rendered
+     * those raw keys directly as link hrefs, which never actually worked
+     * (found while extending this for Phase 10.7's 3-document split, not a
+     * regression it introduced). Most entries are a single key;
+     * 'other_documents' can be a list, numbered when there's more than one.
+     *
+     * @return list<array{label: string, url: string}>
+     */
+    private function signedDocuments(): array
+    {
+        $storage = app(DocumentStorage::class);
+
+        return collect($this->company->documents ?? [])
+            ->flatMap(function ($value, $label) use ($storage) {
+                $keys = is_array($value) ? $value : [$value];
+                $baseLabel = ucwords(str_replace('_', ' ', $label));
+
+                return collect($keys)->values()->map(fn (string $key, int $i) => [
+                    'label' => count($keys) > 1 ? "{$baseLabel} (".($i + 1).')' : $baseLabel,
+                    'url' => $storage->signedUrl($key),
+                ]);
+            })
+            ->values()
+            ->all();
     }
 }
