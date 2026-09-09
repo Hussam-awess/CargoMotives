@@ -7,6 +7,7 @@ import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_auth_repository.dart';
 import '../../support/fake_commission_repository.dart';
 import '../../support/fake_company_featured_repository.dart';
 import '../../support/fake_company_job_repository.dart';
@@ -21,6 +22,7 @@ Widget _appUnder(
   FakeCompanyJobRepository? companyJobRepository,
   FakeCommissionRepository? commissionRepository,
   FakeCompanyFeaturedRepository? featuredRepository,
+  FakeAuthRepository? authRepository,
 }) {
   // The Company Home shell's Profile tab (mounted alongside every other
   // tab by the shell's IndexedStack, not just whichever one is visible)
@@ -38,6 +40,7 @@ Widget _appUnder(
         companyJobRepository: companyJobRepository ?? FakeCompanyJobRepository(),
         commissionRepository: commissionRepository ?? FakeCommissionRepository(),
         featuredRepository: featuredRepository ?? FakeCompanyFeaturedRepository(),
+        authRepository: authRepository ?? FakeAuthRepository(),
       ),
     ),
   );

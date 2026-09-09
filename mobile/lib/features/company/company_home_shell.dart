@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
 import '../jobs/data/company_job_repository.dart';
+import 'company_home_tab.dart';
 import 'company_profile_tab.dart';
 import 'data/commission_repository.dart';
 import 'data/company_repository.dart';
@@ -13,6 +14,7 @@ import 'data/driver_repository.dart';
 import 'data/featured_repository.dart';
 import 'data/truck_repository.dart';
 import 'earnings/earnings_screen.dart';
+import 'fleet/add_truck_screen.dart';
 import 'fleet/fleet_screen.dart';
 import 'jobs/company_jobs_screen.dart';
 
@@ -27,6 +29,7 @@ import 'jobs/company_jobs_screen.dart';
 class CompanyHomeShell extends StatefulWidget {
   CompanyHomeShell({
     super.key,
+    required this.companyName,
     TruckRepository? truckRepository,
     DriverRepository? driverRepository,
     CompanyRepository? companyRepository,
@@ -44,6 +47,10 @@ class CompanyHomeShell extends StatefulWidget {
        authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
 
+  /// Already known by the time CompanyHomeGate reaches the approved branch
+  /// (it's how that branch was chosen) — passed straight through rather
+  /// than refetched here.
+  final String companyName;
   final TruckRepository truckRepository;
   final DriverRepository driverRepository;
   final CompanyRepository companyRepository;
@@ -60,6 +67,7 @@ class CompanyHomeShell extends StatefulWidget {
 class _CompanyHomeShellState extends State<CompanyHomeShell> {
   int _index = 0;
   bool _isOnHold = false;
+  final _homeTabKey = GlobalKey<CompanyHomeTabState>();
 
   @override
   void initState() {
@@ -83,11 +91,36 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
     }
   }
 
+  Future<void> _openJobsBoard() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CompanyJobsScreen(repository: widget.companyJobRepository, featuredRepository: widget.featuredRepository),
+      ),
+    );
+    _homeTabKey.currentState?.refresh();
+  }
+
+  Future<void> _openAddTruck() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTruckScreen(repository: widget.truckRepository)));
+    _homeTabKey.currentState?.refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final tabs = [
-      CompanyJobsScreen(repository: widget.companyJobRepository, featuredRepository: widget.featuredRepository),
+      CompanyHomeTab(
+        key: _homeTabKey,
+        companyName: widget.companyName,
+        companyJobRepository: widget.companyJobRepository,
+        truckRepository: widget.truckRepository,
+        driverRepository: widget.driverRepository,
+        isOnHold: _isOnHold,
+        onFindJobs: _openJobsBoard,
+        onManageFleet: () => setState(() => _index = 1),
+        onEarnings: () => setState(() => _index = 2),
+        onAddTruck: _openAddTruck,
+      ),
       FleetScreen(
         truckRepository: widget.truckRepository,
         driverRepository: widget.driverRepository,

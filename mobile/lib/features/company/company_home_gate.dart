@@ -127,6 +127,7 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
         }
 
         return CompanyHomeShell(
+          companyName: verification.companyName,
           truckRepository: widget.truckRepository,
           driverRepository: widget.driverRepository,
           companyRepository: widget.repository,

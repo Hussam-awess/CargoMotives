@@ -50,7 +50,7 @@ void main() {
         CustomerJobsTab(
           repository: FakeJobRepository(onList: () async => []),
           notificationRepository: FakeNotificationRepository(),
-          authRepository: FakeAuthRepository(onMe: () async => const UserProfile(fullName: 'Hussam Ali', isFeatured: false)),
+          authRepository: FakeAuthRepository(onMe: () async => const UserProfile(fullName: 'Hussam Ali', companyName: null, isFeatured: false)),
         ),
       ),
     );

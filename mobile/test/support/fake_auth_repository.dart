@@ -66,6 +66,6 @@ class FakeAuthRepository extends AuthRepository {
 
   @override
   Future<UserProfile> me() {
-    return onMe?.call() ?? Future.value(const UserProfile(fullName: 'Test User', isFeatured: false));
+    return onMe?.call() ?? Future.value(const UserProfile(fullName: 'Test User', companyName: null, isFeatured: false));
   }
 }

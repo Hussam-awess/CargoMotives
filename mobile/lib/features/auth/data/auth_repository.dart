@@ -8,18 +8,21 @@ class OtpVerifyResult {
 }
 
 /// The subset of UserResource the home dashboards actually render
-/// (greeting name + featured badge) — not a full profile-editing model.
+/// (greeting name, company name, featured badge) — not a full
+/// profile-editing model.
 class UserProfile {
-  const UserProfile({required this.fullName, required this.isFeatured});
+  const UserProfile({required this.fullName, required this.companyName, required this.isFeatured});
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       fullName: json['full_name'] as String?,
+      companyName: json['company_name'] as String?,
       isFeatured: json['is_featured'] as bool? ?? false,
     );
   }
 
   final String? fullName;
+  final String? companyName;
   final bool isFeatured;
 }
 
