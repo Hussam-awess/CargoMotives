@@ -7,6 +7,22 @@ class OtpVerifyResult {
   final String token;
 }
 
+/// The subset of UserResource the home dashboards actually render
+/// (greeting name + featured badge) — not a full profile-editing model.
+class UserProfile {
+  const UserProfile({required this.fullName, required this.isFeatured});
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      fullName: json['full_name'] as String?,
+      isFeatured: json['is_featured'] as bool? ?? false,
+    );
+  }
+
+  final String? fullName;
+  final bool isFeatured;
+}
+
 /// Wraps Transporter Company's phone+OTP endpoints (see backend
 /// routes/api.php `auth.*`) behind typed methods, so screens never
 /// construct request bodies or parse response maps themselves. Customer
@@ -83,6 +99,11 @@ class AuthRepository {
   /// record consistent with it for whichever account is signed in.
   Future<void> updateLanguagePreference(String languageCode) {
     return _client.post('/auth/profile/language', data: {'language_preference': languageCode});
+  }
+
+  Future<UserProfile> me() async {
+    final body = await _client.get('/auth/me');
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   Future<void> logout() => _client.post('/auth/logout');

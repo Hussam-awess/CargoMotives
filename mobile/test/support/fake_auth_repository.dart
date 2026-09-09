@@ -11,6 +11,7 @@ class FakeAuthRepository extends AuthRepository {
     this.onVerifyOtp,
     this.onLogin,
     this.onUpdateLanguagePreference,
+    this.onMe,
   });
 
   final Future<void> Function(
@@ -29,6 +30,7 @@ class FakeAuthRepository extends AuthRepository {
   onVerifyOtp;
   final Future<String> Function(String phoneNumber, String password)? onLogin;
   final Future<void> Function(String languageCode)? onUpdateLanguagePreference;
+  final Future<UserProfile> Function()? onMe;
 
   @override
   Future<void> requestOtp({
@@ -60,5 +62,10 @@ class FakeAuthRepository extends AuthRepository {
   @override
   Future<void> updateLanguagePreference(String languageCode) {
     return onUpdateLanguagePreference?.call(languageCode) ?? Future.value();
+  }
+
+  @override
+  Future<UserProfile> me() {
+    return onMe?.call() ?? Future.value(const UserProfile(fullName: 'Test User', isFeatured: false));
   }
 }

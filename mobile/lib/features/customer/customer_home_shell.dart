@@ -28,7 +28,7 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
   final _jobsTabKey = GlobalKey<CustomerJobsTabState>();
 
   late final _bodies = [
-    CustomerJobsTab(key: _jobsTabKey, repository: JobRepository()),
+    CustomerJobsTab(key: _jobsTabKey, repository: JobRepository(), onPostJob: _openPostJob),
     CustomerProfileTab(),
   ];
 
