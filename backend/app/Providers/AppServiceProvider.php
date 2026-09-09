@@ -99,6 +99,10 @@ class AppServiceProvider extends ServiceProvider
         // Same reasoning as admin-login.
         RateLimiter::for('customer-login', fn (Request $request) => Limit::perMinute(5)->by($request->input('email').'|'.$request->ip()));
 
+        // Same reasoning as customer-login, keyed by phone instead of email
+        // (design-import restyle — Transporter Company gained a password).
+        RateLimiter::for('company-login', fn (Request $request) => Limit::perMinute(5)->by($request->input('phone_number').'|'.$request->ip()));
+
         // Defense in depth on top of the token's own unguessability (48
         // random chars) — a driver legitimately reloading/submitting this
         // page a few times a minute is unaffected; a scripted token-guessing

@@ -44,7 +44,8 @@ class CompanyResource extends JsonResource
             'rep_position' => $this->rep_position,
             'rep_national_id_number' => $this->rep_national_id_number,
             'rep_id_document_url' => $storage->signedUrl($this->rep_id_document_url),
-            'rep_selfie_url' => $storage->signedUrl($this->rep_selfie_url),
+            // No longer collected (Phase 13) — nullable on existing rows too.
+            'rep_selfie_url' => $this->rep_selfie_url ? $storage->signedUrl($this->rep_selfie_url) : null,
             'verification_status' => $this->verification_status,
             'verification_rejected_reason' => $this->verification_rejected_reason,
             'verified_at' => $this->verified_at?->toIso8601String(),

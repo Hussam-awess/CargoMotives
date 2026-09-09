@@ -33,7 +33,6 @@ class CompanyVerificationTest extends TestCase
             'rep_position' => 'Managing Director',
             'rep_national_id_number' => 'NIDA-300001',
             'rep_id_document' => UploadedFile::fake()->create('id.pdf', 200, 'application/pdf'),
-            'rep_selfie' => UploadedFile::fake()->create('selfie.jpg', 100, 'image/jpeg'),
         ], $overrides);
     }
 
@@ -71,9 +70,20 @@ class CompanyVerificationTest extends TestCase
         // The storage path legitimately appears in the URL (it's a route
         // parameter) — what actually protects it is the signature, which
         // DocumentAccessTest confirms is required to fetch the file.
-        $this->assertStringContainsString('signature=', $response->json('data.rep_selfie_url'));
+        $this->assertStringContainsString('signature=', $response->json('data.rep_id_document_url'));
         $this->assertStringContainsString('signature=', $response->json('data.documents.registration_certificate'));
         $this->assertStringContainsString('signature=', $response->json('data.documents.tin_certificate'));
+    }
+
+    public function test_a_selfie_is_not_required(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+
+        $response = $this->actingAs($user)->postJson('/api/company/verification', $this->validPayload());
+
+        $response->assertCreated();
+        $this->assertNull($response->json('data.rep_selfie_url'));
     }
 
     public function test_optional_other_documents_are_stored_and_signed(): void

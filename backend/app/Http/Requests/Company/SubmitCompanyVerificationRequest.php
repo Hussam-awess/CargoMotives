@@ -6,15 +6,20 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Validates the two-section verification form (AppFlow §1: Company Info,
- * then Representative Info with a selfie) submitted in one request —
- * matching the TRD's "single multi-step form" on the frontend, one POST on
- * the backend.
+ * then Representative Info) submitted in one request — matching the TRD's
+ * "single multi-step form" on the frontend, one POST on the backend.
  *
  * Company Step 2's documents are the user's own explicit field list
- * (Phase 10.7): a company registration certificate and a TIN certificate as
+ * (Phase 13): a company registration certificate and a TIN certificate as
  * two distinct required documents, plus an optional set of "other required
  * transport/business documents" — replacing the earlier single generic
  * "business license" upload with the exact three-way split requested.
+ *
+ * The representative selfie was in AppFlow's original design but is not
+ * part of the user's own field list, restated twice without it — dropped
+ * entirely (not made optional in validation only) per that explicit
+ * instruction. rep_id_document + rep_national_id_number remain the
+ * representative's identity evidence.
  */
 class SubmitCompanyVerificationRequest extends FormRequest
 {
@@ -49,7 +54,6 @@ class SubmitCompanyVerificationRequest extends FormRequest
             'rep_position' => ['required', 'string', 'max:255'],
             'rep_national_id_number' => ['required', 'string', 'max:50'],
             'rep_id_document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-            'rep_selfie' => ['required', 'image', 'max:10240'],
         ];
     }
 }

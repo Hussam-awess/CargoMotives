@@ -67,7 +67,7 @@ void main() {
 
       expect(
         find.text(
-          'Please attach the company registration certificate, TIN certificate, ID document, and selfie.',
+          'Please attach the company registration certificate, TIN certificate, and ID document.',
         ),
         findsOneWidget,
       );

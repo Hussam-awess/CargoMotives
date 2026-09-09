@@ -47,6 +47,7 @@ Future<void> _fillValidForm(WidgetTester tester) async {
   await tester.enterText(fields.at(2), '0712345678');
   await tester.enterText(fields.at(4), 'password123');
   await tester.enterText(fields.at(5), 'password123');
+  await tester.tap(find.byType(Checkbox));
 }
 
 void main() {
@@ -70,6 +71,30 @@ void main() {
     await tester.pump();
 
     expect(find.text("Passwords don't match."), findsOneWidget);
+  });
+
+  testWidgets('shows a validation error when Terms are not accepted', (tester) async {
+    var registerCalled = false;
+    final repository = FakeCustomerAuthRepository(
+      onRegister: (registration) async => registerCalled = true,
+    );
+    await tester.pumpWidget(_appUnder(repository: repository));
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Amina Hassan');
+    await tester.enterText(fields.at(1), 'amina@example.com');
+    await tester.enterText(fields.at(2), '0712345678');
+    await tester.enterText(fields.at(4), 'password123');
+    await tester.enterText(fields.at(5), 'password123');
+    // Deliberately not tapping the Terms checkbox.
+    await tester.tap(find.text('Create account'));
+    await tester.pump();
+
+    expect(
+      find.text('Please accept the Terms and Conditions to continue.'),
+      findsOneWidget,
+    );
+    expect(registerCalled, isFalse);
   });
 
   testWidgets('registers and navigates to the email-OTP screen on success', (tester) async {
@@ -112,6 +137,7 @@ void main() {
     final repository = FakeCustomerAuthRepository();
     await tester.pumpWidget(_appUnder(repository: repository));
 
+    await tester.ensureVisible(find.textContaining('Log in'));
     await tester.tap(find.textContaining('Log in'));
     await tester.pumpAndSettle();
 

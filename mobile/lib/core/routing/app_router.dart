@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/otp_screen.dart';
 import '../../features/auth/phone_entry_screen.dart';
+import '../../features/company/auth/company_login_screen.dart';
 import '../../features/company/company_home_gate.dart';
 import '../../features/customer/auth/customer_login_screen.dart';
 import '../../features/customer/auth/customer_otp_screen.dart';
@@ -38,6 +39,10 @@ final appRouter = GoRouter(
       path: '/otp',
       builder: (context, state) =>
           OtpScreen(args: state.extra! as OtpScreenArgs),
+    ),
+    GoRoute(
+      path: '/company-login',
+      builder: (context, state) => CompanyLoginScreen(),
     ),
     GoRoute(
       path: '/customer-register',

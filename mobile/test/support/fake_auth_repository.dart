@@ -9,27 +9,37 @@ class FakeAuthRepository extends AuthRepository {
   FakeAuthRepository({
     this.onRequestOtp,
     this.onVerifyOtp,
+    this.onLogin,
     this.onUpdateLanguagePreference,
   });
 
-  final Future<void> Function(String phoneNumber, AccountRole role)?
+  final Future<void> Function(
+    String phoneNumber,
+    AccountRole role,
+    String fullName,
+    String email,
+    String password,
+  )?
   onRequestOtp;
   final Future<OtpVerifyResult> Function(
     String phoneNumber,
     AccountRole role,
     String code,
-    String fullName,
-    String email,
   )?
   onVerifyOtp;
+  final Future<String> Function(String phoneNumber, String password)? onLogin;
   final Future<void> Function(String languageCode)? onUpdateLanguagePreference;
 
   @override
   Future<void> requestOtp({
     required String phoneNumber,
     required AccountRole role,
+    required String fullName,
+    required String email,
+    required String password,
   }) {
-    return onRequestOtp?.call(phoneNumber, role) ?? Future.value();
+    return onRequestOtp?.call(phoneNumber, role, fullName, email, password) ??
+        Future.value();
   }
 
   @override
@@ -37,11 +47,14 @@ class FakeAuthRepository extends AuthRepository {
     required String phoneNumber,
     required AccountRole role,
     required String code,
-    required String fullName,
-    required String email,
   }) {
-    return onVerifyOtp?.call(phoneNumber, role, code, fullName, email) ??
+    return onVerifyOtp?.call(phoneNumber, role, code) ??
         Future.value(const OtpVerifyResult(token: 'test-token'));
+  }
+
+  @override
+  Future<String> login({required String phoneNumber, required String password}) {
+    return onLogin?.call(phoneNumber, password) ?? Future.value('test-token');
   }
 
   @override

@@ -14,8 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * The two-section verification flow (AppFlow §1): Company Info, then
- * Representative Info with a selfie, submitted as one request. Handles
- * both the first submission and resubmission after a rejection.
+ * Representative Info, submitted as one request. Handles both the first
+ * submission and resubmission after a rejection.
  */
 class CompanyVerificationController extends Controller
 {
@@ -65,7 +65,6 @@ class CompanyVerificationController extends Controller
         }
         $logoKey = $request->hasFile('logo') ? $this->documents->store($request->file('logo'), 'companies/logos') : null;
         $repIdDocumentKey = $this->documents->store($request->file('rep_id_document'), 'companies/rep-documents');
-        $repSelfieKey = $this->documents->store($request->file('rep_selfie'), 'companies/rep-selfies');
 
         $hasConflict = $this->duplicateDetector->hasConflict(
             $validated['registration_number'],
@@ -76,12 +75,15 @@ class CompanyVerificationController extends Controller
 
         $attributes = [
             ...collect($validated)->except([
-                'logo', 'registration_certificate', 'tin_certificate', 'other_documents', 'rep_id_document', 'rep_selfie',
+                'logo', 'registration_certificate', 'tin_certificate', 'other_documents', 'rep_id_document',
             ])->all(),
             'documents' => $documents,
             'logo_url' => $logoKey,
             'rep_id_document_url' => $repIdDocumentKey,
-            'rep_selfie_url' => $repSelfieKey,
+            // rep_selfie_url is deliberately absent: no longer collected
+            // (see this file's docblock) — omitted rather than set to null
+            // so a resubmission never wipes a selfie an earlier version of
+            // this form did collect for an existing company.
             // Implied by the owner account's phone already being
             // OTP-verified at signup (Phase 1) — not a second OTP step.
             'rep_phone_verified' => true,

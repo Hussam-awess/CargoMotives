@@ -77,17 +77,46 @@ class _SplashScreenState extends State<SplashScreen> {
                 opacity: value,
                 child: Transform.scale(scale: 0.9 + (0.1 * value), child: child),
               ),
-              child: Text(
-                AppLocalizations.of(context)!.appTitle,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 84,
+                    height: 84,
+                    decoration: BoxDecoration(
+                      color: AppColors.ctaBluePressed,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.local_shipping_rounded,
+                      color: AppColors.lightBlue,
+                      size: 40,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Text(
+                    AppLocalizations.of(context)!.appTitle,
+                    style: const TextStyle(
+                      fontFamily: 'Barlow Condensed',
+                      color: Colors.white,
+                      fontSize: 38,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    AppLocalizations.of(context)!.appTagline,
+                    style: const TextStyle(
+                      color: AppColors.lightBlue,
+                      fontSize: 14,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            const CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 32),
+            const CircularProgressIndicator(color: AppColors.lightBlue),
           ],
         ),
       ),

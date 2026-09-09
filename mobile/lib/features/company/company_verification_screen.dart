@@ -7,7 +7,8 @@ import '../../core/theme/app_theme.dart';
 import 'data/company_repository.dart';
 
 /// The two-section verification flow (AppFlow §1): Company Info, then
-/// Representative Info with a selfie. Implemented as one scrollable form
+/// Representative Info (no selfie — dropped from the user's own field
+/// list). Implemented as one scrollable form
 /// with two clearly labeled sections rather than a full paginated wizard —
 /// this is a one-time, sit-down form (not a frequent, on-the-go flow like
 /// Post a Job), so the simpler layout is a deliberate scope call, not an
@@ -47,7 +48,6 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
   PlatformFile? _tinCertificate;
   List<PlatformFile> _otherDocuments = [];
   PlatformFile? _repIdDocument;
-  PlatformFile? _repSelfie;
 
   bool _isSubmitting = false;
   String? _errorText;
@@ -102,14 +102,39 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
 
     if (_registrationCertificate == null ||
         _tinCertificate == null ||
-        _repIdDocument == null ||
-        _repSelfie == null) {
+        _repIdDocument == null) {
       setState(
         () => _errorText =
-            'Please attach the company registration certificate, TIN certificate, ID document, and selfie.',
+            'Please attach the company registration certificate, TIN certificate, and ID document.',
       );
       return;
     }
+
+    // A confirmation step, not a second validation pass — everything above
+    // already checked required fields/attachments are present; this just
+    // gives the company one last look before a submission that (per
+    // AppFlow §1) locks the form until Admin reviews it.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Submit for review?'),
+        content: const Text(
+          'Please confirm all the information and documents you provided are correct. You won\'t be able to edit this submission while it\'s under review.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() {
       _isSubmitting = true;
@@ -134,7 +159,6 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
           repPosition: _repPosition.text.trim(),
           repNationalIdNumber: _repNationalIdNumber.text.trim(),
           repIdDocument: _repIdDocument!,
-          repSelfie: _repSelfie!,
         ),
       );
       if (!mounted) return;
@@ -283,12 +307,6 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
                 file: _repIdDocument,
                 onTap: () => _pickFile((f) => _repIdDocument = f),
               ),
-              const SizedBox(height: 12),
-              _FilePickerTile(
-                label: 'Selfie',
-                file: _repSelfie,
-                onTap: () => _pickFile((f) => _repSelfie = f),
-              ),
               if (_errorText != null) ...[
                 const SizedBox(height: 16),
                 Text(_errorText!, style: const TextStyle(color: Colors.red)),
@@ -326,7 +344,7 @@ class _FilePickerTile extends StatelessWidget {
   final String label;
 
   /// Single-file mode (registration certificate, TIN certificate, ID
-  /// document, selfie) — shows the picked file's name once selected.
+  /// document) — shows the picked file's name once selected.
   final PlatformFile? file;
 
   /// Multi-file mode ("other documents") — shows a count instead, since
@@ -353,7 +371,7 @@ class _FilePickerTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFDDE1E6)),
+          border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -362,7 +380,7 @@ class _FilePickerTile extends StatelessWidget {
               _hasSelection ? Icons.check_circle : Icons.attach_file,
               color: _hasSelection
                   ? AppColors.statusLive
-                  : const Color(0xFF6B7280),
+                  : AppColors.textSecondary,
             ),
             const SizedBox(width: 12),
             Expanded(

@@ -54,7 +54,6 @@ class CompanyVerificationSubmission {
     required this.repPosition,
     required this.repNationalIdNumber,
     required this.repIdDocument,
-    required this.repSelfie,
   });
 
   final String companyName;
@@ -71,7 +70,6 @@ class CompanyVerificationSubmission {
   final String repPosition;
   final String repNationalIdNumber;
   final PlatformFile repIdDocument;
-  final PlatformFile repSelfie;
 }
 
 /// Wraps the Phase 2 company-verification endpoints. Reused by both the
@@ -118,7 +116,6 @@ class CompanyRepository {
       'rep_position': submission.repPosition,
       'rep_national_id_number': submission.repNationalIdNumber,
       'rep_id_document': await _toMultipart(submission.repIdDocument),
-      'rep_selfie': await _toMultipart(submission.repSelfie),
       // Dio's default ListFormat.multi only brackets a list entry when the
       // entry is a Map/List — a bare List<MultipartFile> like
       // other_documents needs multiCompatible or every file lands under

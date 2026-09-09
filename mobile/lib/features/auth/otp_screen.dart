@@ -11,11 +11,10 @@ import 'data/auth_repository.dart';
 import 'phone_entry_screen.dart';
 
 /// OTP entry for Transporter Company (AppFlow §1; Customer moved to
-/// email+password in Phase 11 — see CustomerOtpScreen). Also collects
-/// full_name + email here now (Phase 11's "Step 1 — Account
-/// authentication" groups these with phone+OTP, rather than deferring
-/// them the way Customer's old profile-setup step used to) — both are
-/// submitted together with the code in one verifyOtp() call.
+/// email+password in Phase 11 — see CustomerOtpScreen). Code-only now
+/// (design-import restyle) — full_name/email/password moved to
+/// PhoneEntryScreen ("Step 1 — Account"), matching the mockup's plain OTP
+/// screen; this step only submits the code.
 ///
 /// Mirrors the backend's OtpService rules so the UI doesn't surprise the
 /// user: a 60s resend cooldown (config/otp.php on the backend — kept in
@@ -42,8 +41,6 @@ class _OtpScreenState extends State<OtpScreen> {
   static const _resendCooldownSeconds = 60;
 
   final _codeController = TextEditingController();
-  final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
 
   bool _isVerifying = false;
   bool _isResending = false;
@@ -60,8 +57,6 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void dispose() {
     _codeController.dispose();
-    _fullNameController.dispose();
-    _emailController.dispose();
     _cooldownTimer?.cancel();
     super.dispose();
   }
@@ -89,6 +84,9 @@ class _OtpScreenState extends State<OtpScreen> {
       await widget.authRepository.requestOtp(
         phoneNumber: widget.args.phoneNumber,
         role: widget.args.role,
+        fullName: widget.args.fullName,
+        email: widget.args.email,
+        password: widget.args.password,
       );
       _startCooldown(_resendCooldownSeconds);
     } on ApiException catch (e) {
@@ -105,19 +103,9 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _verify() async {
     final l10n = AppLocalizations.of(context)!;
     final code = _codeController.text.trim();
-    final fullName = _fullNameController.text.trim();
-    final email = _emailController.text.trim();
 
     if (code.length != 6) {
       setState(() => _errorText = l10n.enterSixDigitCode);
-      return;
-    }
-    if (fullName.isEmpty) {
-      setState(() => _errorText = l10n.enterYourName);
-      return;
-    }
-    if (email.isEmpty) {
-      setState(() => _errorText = l10n.enterYourEmail);
       return;
     }
 
@@ -131,8 +119,6 @@ class _OtpScreenState extends State<OtpScreen> {
         phoneNumber: widget.args.phoneNumber,
         role: widget.args.role,
         code: code,
-        fullName: fullName,
-        email: email,
       );
 
       await widget.sessionStore.save(
@@ -146,7 +132,7 @@ class _OtpScreenState extends State<OtpScreen> {
       context.go('/company');
     } on ApiException catch (e) {
       setState(() {
-        _errorText = e.firstErrorFor('code') ?? e.firstErrorFor('email') ?? e.message;
+        _errorText = e.firstErrorFor('code') ?? e.message;
       });
     } finally {
       if (mounted) setState(() => _isVerifying = false);
@@ -179,18 +165,6 @@ class _OtpScreenState extends State<OtpScreen> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 24, letterSpacing: 8),
               decoration: const InputDecoration(counterText: ''),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _fullNameController,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(hintText: l10n.fullNameHint),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(hintText: l10n.emailHint),
               onSubmitted: (_) => _verify(),
             ),
             if (_errorText != null) ...[

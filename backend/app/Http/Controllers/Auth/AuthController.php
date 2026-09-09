@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\CompanyLoginRequest;
 use App\Http\Requests\Auth\RequestOtpRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\UserResource;
@@ -12,6 +13,8 @@ use App\Services\Auth\OtpService;
 use App\Services\Auth\PhoneNumberNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -19,9 +22,18 @@ use Illuminate\Validation\ValidationException;
  * originally; Customer moved to email+password in Phase 11 — see
  * CustomerAuthController). Admin uses a separate web login (Phase 9), and
  * Drivers never authenticate at all (Driver Link tokens, Phase 5).
+ *
+ * Design-import restyle: full_name/email/password are now collected at
+ * request-time (matching the mockup's "Step 1 — Account" screen) rather
+ * than at verify-time, and a password-based login() exists alongside the
+ * OTP flow — mirroring CustomerAuthController's pending-cache pattern
+ * exactly (hash immediately, stash pending, never a plaintext password
+ * anywhere, create the User only once the code verifies).
  */
 class AuthController extends Controller
 {
+    private const PENDING_REGISTRATION_PREFIX = 'transporter_registration:';
+
     public function __construct(private readonly OtpService $otp) {}
 
     public function requestOtp(RequestOtpRequest $request): JsonResponse
@@ -29,6 +41,17 @@ class AuthController extends Controller
         $phone = $this->normalizedPhoneOrFail($request->string('phone_number'));
 
         $this->assertAccountTypeConsistent($phone, $request->string('account_type'));
+
+        $pending = [
+            'full_name' => $request->string('full_name')->toString(),
+            'email' => $request->string('email')->toString(),
+            'phone_number' => $phone,
+            // Hashed immediately, same as CustomerAuthController::register()
+            // — never written to the cache in plaintext, even briefly.
+            'password_hash' => Hash::make($request->string('password')->toString()),
+        ];
+
+        Cache::put($this->pendingKey($phone), $pending, now()->addSeconds(config('otp.ttl_seconds')));
 
         try {
             $this->otp->issue($phone);
@@ -49,7 +72,6 @@ class AuthController extends Controller
     {
         $phone = $this->normalizedPhoneOrFail($request->string('phone_number'));
         $accountType = $request->string('account_type')->toString();
-        $email = $request->string('email')->toString();
 
         $this->assertAccountTypeConsistent($phone, $accountType);
 
@@ -61,24 +83,73 @@ class AuthController extends Controller
 
         $existing = User::where('phone_number', $phone)->first();
 
-        if ($existing === null && User::where('email', $email)->exists()) {
-            // Only a problem for a genuinely new account — an existing
-            // user re-verifying (e.g. re-requested a code) keeps whatever
-            // email it already has, firstOrCreate below won't touch it.
+        if ($existing !== null) {
+            // Already has an account (e.g. re-requested a code) — nothing
+            // left to create, just issue a fresh token. The pending cache
+            // entry (if any) is stale and can be discarded either way.
+            Cache::forget($this->pendingKey($phone));
+            $token = $existing->createToken('mobile-app')->plainTextToken;
+
+            return response()->json(['token' => $token, 'user' => new UserResource($existing)]);
+        }
+
+        $pending = Cache::get($this->pendingKey($phone));
+
+        if (! is_array($pending)) {
+            throw ValidationException::withMessages([
+                'phone_number' => ['Your registration session has expired. Please sign up again.'],
+            ]);
+        }
+
+        if (User::where('email', $pending['email'])->exists()) {
             throw ValidationException::withMessages([
                 'email' => ['This email is already registered.'],
             ]);
         }
 
-        $user = User::firstOrCreate(
-            ['phone_number' => $phone],
-            ['account_type' => $accountType, 'full_name' => $request->string('full_name'), 'email' => $email],
-        );
+        Cache::forget($this->pendingKey($phone));
+
+        $user = User::create([
+            'account_type' => $accountType,
+            'full_name' => $pending['full_name'],
+            'email' => $pending['email'],
+            'phone_number' => $pending['phone_number'],
+        ]);
+        // password_hash is deliberately excluded from #[Fillable] (see
+        // User's docblock) — set directly, same as CustomerAuthController.
+        $user->password_hash = $pending['password_hash'];
+        $user->save();
 
         $token = $user->createToken('mobile-app')->plainTextToken;
 
         return response()->json([
             'token' => $token,
+            'user' => new UserResource($user),
+        ], 201);
+    }
+
+    /**
+     * Password-based login for a Transporter Company that already
+     * completed phone+OTP signup — mirrors CustomerAuthController::login()
+     * exactly. OTP itself is a one-time signup-verification step, never
+     * asked again here.
+     */
+    public function login(CompanyLoginRequest $request): JsonResponse
+    {
+        $phone = $this->normalizedPhoneOrFail($request->string('phone_number'));
+
+        $user = User::where('account_type', 'transporter_company')
+            ->where('phone_number', $phone)
+            ->first();
+
+        if (! $user || ! Hash::check($request->string('password'), $user->password_hash ?? '')) {
+            // Same message either way — don't reveal whether the number
+            // belongs to an account (same reasoning as CustomerAuthController).
+            throw ValidationException::withMessages(['phone_number' => ['Invalid credentials.']]);
+        }
+
+        return response()->json([
+            'token' => $user->createToken('mobile-app')->plainTextToken,
             'user' => new UserResource($user),
         ]);
     }
@@ -119,6 +190,11 @@ class AuthController extends Controller
                 'account_type' => ["This number is already registered as a {$existing->account_type}. Choose that role instead."],
             ]);
         }
+    }
+
+    private function pendingKey(string $phone): string
+    {
+        return self::PENDING_REGISTRATION_PREFIX.$phone;
     }
 
     private function messageFor(?string $reason): string

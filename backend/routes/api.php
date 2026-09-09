@@ -42,6 +42,8 @@ Route::prefix('auth')->group(function () {
     // Transporter Company only (Phase 11) — Customer moved to email+password below.
     Route::post('/otp/request', [AuthController::class, 'requestOtp'])->middleware('throttle:otp-request');
     Route::post('/otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:otp-verify');
+    // Password-based login once OTP-signup is done (design-import restyle).
+    Route::post('/company/login', [AuthController::class, 'login'])->middleware('throttle:company-login');
 
     // Customer signup + login (Phase 11): email + password, verified once
     // via an emailed code — see CustomerAuthController's docblock.

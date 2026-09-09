@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session_store.dart';
+import '../../core/theme/app_theme.dart';
 import '../auth/data/auth_repository.dart';
 import '../jobs/data/company_job_repository.dart';
 import 'company_home_shell.dart';
@@ -166,7 +167,7 @@ class _PendingReviewScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.hourglass_top, size: 48, color: Color(0xFF9E9E9E)),
+            const Icon(Icons.hourglass_top, size: 48, color: AppColors.statusIdle),
             const SizedBox(height: 16),
             Text(
               '${verification.companyName} is under review',
@@ -175,7 +176,7 @@ class _PendingReviewScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'An admin will review your documents shortly. You can browse the app, but bidding unlocks once verification is approved.',
+              'Your verification is under review. You\'ll get access to your dashboard as soon as it\'s approved.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),

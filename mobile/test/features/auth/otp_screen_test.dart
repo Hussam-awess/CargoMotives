@@ -14,6 +14,14 @@ import 'package:go_router/go_router.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_secure_storage_platform.dart';
 
+const _args = OtpScreenArgs(
+  phoneNumber: '+255712345678',
+  role: AccountRole.transporterCompany,
+  fullName: 'Juma Ally',
+  email: 'juma@example.com',
+  password: 'password123',
+);
+
 Widget _appUnder({required FakeAuthRepository repository}) {
   final router = GoRouter(
     initialLocation: '/otp',
@@ -21,10 +29,7 @@ Widget _appUnder({required FakeAuthRepository repository}) {
       GoRoute(
         path: '/otp',
         builder: (context, state) => OtpScreen(
-          args: const OtpScreenArgs(
-            phoneNumber: '+255712345678',
-            role: AccountRole.transporterCompany,
-          ),
+          args: _args,
           authRepository: repository,
           sessionStore: SessionStore(),
         ),
@@ -48,21 +53,6 @@ Widget _appUnder({required FakeAuthRepository repository}) {
   );
 }
 
-/// The code, full_name, and email fields, in the order OtpScreen builds
-/// them — Phase 11 added full_name/email here (Transporter Company's
-/// "Step 1 — Account authentication" collects them alongside phone+OTP).
-Future<void> _fillForm(
-  WidgetTester tester, {
-  String code = '123456',
-  String fullName = 'Juma Ally',
-  String email = 'juma@example.com',
-}) async {
-  final fields = find.byType(TextField);
-  await tester.enterText(fields.at(0), code);
-  await tester.enterText(fields.at(1), fullName);
-  await tester.enterText(fields.at(2), email);
-}
-
 void main() {
   setUp(() {
     FlutterSecureStoragePlatform.instance = FakeSecureStoragePlatform();
@@ -73,14 +63,14 @@ void main() {
     (tester) async {
       var verifyCalled = false;
       final repository = FakeAuthRepository(
-        onVerifyOtp: (phone, role, code, fullName, email) async {
+        onVerifyOtp: (phone, role, code) async {
           verifyCalled = true;
           return const OtpVerifyResult(token: 't');
         },
       );
 
       await tester.pumpWidget(_appUnder(repository: repository));
-      await _fillForm(tester, code: '123');
+      await tester.enterText(find.byType(TextField), '123');
       await tester.tap(find.text('Verify'));
       await tester.pump();
 
@@ -89,62 +79,42 @@ void main() {
     },
   );
 
-  testWidgets(
-    'shows a validation error when full name is missing',
-    (tester) async {
-      final repository = FakeAuthRepository();
-
-      await tester.pumpWidget(_appUnder(repository: repository));
-      await _fillForm(tester, fullName: '');
-      await tester.tap(find.text('Verify'));
-      await tester.pump();
-
-      expect(find.text('Enter your name.'), findsOneWidget);
-    },
-  );
-
   testWidgets('a verified company lands on Company Home', (tester) async {
     final repository = FakeAuthRepository(
-      onVerifyOtp: (phone, role, code, fullName, email) async =>
+      onVerifyOtp: (phone, role, code) async =>
           const OtpVerifyResult(token: 'tok'),
     );
 
     await tester.pumpWidget(_appUnder(repository: repository));
-    await _fillForm(tester);
+    await tester.enterText(find.byType(TextField), '123456');
     await tester.tap(find.text('Verify'));
     await tester.pumpAndSettle();
 
     expect(find.text('COMPANY_HOME'), findsOneWidget);
   });
 
-  testWidgets(
-    'full_name and email are sent along with the code',
-    (tester) async {
-      String? capturedFullName;
-      String? capturedEmail;
-      final repository = FakeAuthRepository(
-        onVerifyOtp: (phone, role, code, fullName, email) async {
-          capturedFullName = fullName;
-          capturedEmail = email;
-          return const OtpVerifyResult(token: 'tok');
-        },
-      );
+  testWidgets('the code is sent to verifyOtp', (tester) async {
+    String? capturedCode;
+    final repository = FakeAuthRepository(
+      onVerifyOtp: (phone, role, code) async {
+        capturedCode = code;
+        return const OtpVerifyResult(token: 'tok');
+      },
+    );
 
-      await tester.pumpWidget(_appUnder(repository: repository));
-      await _fillForm(tester, fullName: 'Juma Ally', email: 'juma@example.com');
-      await tester.tap(find.text('Verify'));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(_appUnder(repository: repository));
+    await tester.enterText(find.byType(TextField), '123456');
+    await tester.tap(find.text('Verify'));
+    await tester.pumpAndSettle();
 
-      expect(capturedFullName, 'Juma Ally');
-      expect(capturedEmail, 'juma@example.com');
-    },
-  );
+    expect(capturedCode, '123456');
+  });
 
   testWidgets('wrong code shows the server error and stays on the OTP screen', (
     tester,
   ) async {
     final repository = FakeAuthRepository(
-      onVerifyOtp: (phone, role, code, fullName, email) async {
+      onVerifyOtp: (phone, role, code) async {
         throw ApiException(
           'That code is incorrect.',
           statusCode: 422,
@@ -156,7 +126,7 @@ void main() {
     );
 
     await tester.pumpWidget(_appUnder(repository: repository));
-    await _fillForm(tester, code: '000000');
+    await tester.enterText(find.byType(TextField), '000000');
     await tester.tap(find.text('Verify'));
     await tester.pumpAndSettle();
 
@@ -165,14 +135,17 @@ void main() {
   });
 
   testWidgets(
-    'resend is disabled during cooldown and becomes available once it elapses',
+    'resend is disabled during cooldown and becomes available once it elapses, '
+    'sending the same registration data again',
     (tester) async {
       var resendCount = 0;
+      String? resentFullName;
       final repository = FakeAuthRepository(
-        onRequestOtp: (phone, role) async {
+        onRequestOtp: (phone, role, fullName, email, password) async {
           resendCount++;
+          resentFullName = fullName;
         },
-        onVerifyOtp: (phone, role, code, fullName, email) async =>
+        onVerifyOtp: (phone, role, code) async =>
             const OtpVerifyResult(token: 't'),
       );
 
@@ -193,6 +166,7 @@ void main() {
       await tester.tap(find.text('Resend code'));
       await tester.pump();
       expect(resendCount, 1);
+      expect(resentFullName, 'Juma Ally');
     },
   );
 }

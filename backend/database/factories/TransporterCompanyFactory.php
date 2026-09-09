@@ -32,7 +32,6 @@ class TransporterCompanyFactory extends Factory
             'rep_position' => 'Operations Manager',
             'rep_national_id_number' => fake()->unique()->numerify('NIDA-##############'),
             'rep_id_document_url' => 'companies/rep-documents/fake-id.pdf',
-            'rep_selfie_url' => 'companies/rep-selfies/fake-selfie.jpg',
             'rep_phone_verified' => true,
             'rep_email_verified' => false,
             'verification_status' => 'pending',

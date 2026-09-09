@@ -33,6 +33,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   final _confirmPasswordController = TextEditingController();
 
   PlatformFile? _logo;
+  bool _acceptedTerms = false;
   bool _isSubmitting = false;
   String? _errorText;
 
@@ -83,6 +84,10 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
     }
     if (password != confirmPassword) {
       setState(() => _errorText = l10n.passwordsDoNotMatch);
+      return;
+    }
+    if (!_acceptedTerms) {
+      setState(() => _errorText = l10n.pleaseAcceptTerms);
       return;
     }
 
@@ -177,6 +182,29 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
               obscureText: true,
               decoration: InputDecoration(hintText: l10n.confirmPasswordHint),
               onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    value: _acceptedTerms,
+                    onChanged: (value) =>
+                        setState(() => _acceptedTerms = value ?? false),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 14),
+                      child: Text(
+                        l10n.agreeToTermsText,
+                        style: const TextStyle(fontSize: 12.5, height: 1.4),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             if (_errorText != null) ...[
               const SizedBox(height: 8),

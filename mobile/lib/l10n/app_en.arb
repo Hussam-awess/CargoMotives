@@ -4,14 +4,32 @@
   "appTitle": "Cargo Motives",
   "@appTitle": {"description": "The app's name, shown on Splash and as the window/task title."},
 
-  "appTagline": "B2B container logistics for Tanzania",
-  "@appTagline": {"description": "Shown under the app name on the Welcome screen."},
+  "appTagline": "Move cargo. Move business.",
+  "@appTagline": {"description": "Shown under the app name on Splash and the Welcome screen."},
 
   "iAmCustomer": "I'm a Customer",
   "@iAmCustomer": {"description": "Welcome screen: role-selection button."},
 
   "iAmTransporterCompany": "I'm a Transporter Company",
   "@iAmTransporterCompany": {"description": "Welcome screen: role-selection button."},
+
+  "welcomeToCargoMotives": "Welcome to Cargo Motives",
+  "@welcomeToCargoMotives": {"description": "Welcome/role-selection screen headline."},
+
+  "roleSelectionSubtitle": "How would you like to use Cargo Motives?",
+  "@roleSelectionSubtitle": {"description": "Welcome/role-selection screen subtitle."},
+
+  "customerRoleTitle": "Customer",
+  "@customerRoleTitle": {"description": "Short role-card title, Welcome screen."},
+
+  "customerRoleDescription": "Book transportation\nPost cargo requests\nTrack shipments",
+  "@customerRoleDescription": {"description": "Role-card description, Welcome screen (three short lines)."},
+
+  "transporterRoleTitle": "Transporter",
+  "@transporterRoleTitle": {"description": "Short role-card title, Welcome screen."},
+
+  "transporterRoleDescription": "Find cargo jobs\nManage trucks\nManage drivers",
+  "@transporterRoleDescription": {"description": "Role-card description, Welcome screen (three short lines)."},
 
   "phoneEntryTitle": "Phone number",
   "@phoneEntryTitle": {"description": "AppBar title on the Phone Entry screen."},
@@ -27,6 +45,36 @@
 
   "sendCode": "Send code",
   "@sendCode": {"description": "Phone Entry screen submit button."},
+
+  "transporterSignUpStepLabel": "Step 1 of 3 · Account",
+  "@transporterSignUpStepLabel": {"description": "Step indicator on the Transporter Company sign-up screen."},
+
+  "transporterSignUpTitle": "Create your account",
+  "@transporterSignUpTitle": {"description": "AppBar/headline title on the Transporter Company sign-up screen."},
+
+  "transporterSignUpSubtitle": "Your phone number is the login for this account.",
+  "@transporterSignUpSubtitle": {"description": "Transporter Company sign-up screen body copy."},
+
+  "phoneNumberHelperText": "We send a verification code to this number next.",
+  "@phoneNumberHelperText": {"description": "Helper text under the phone field on the Transporter Company sign-up screen."},
+
+  "passwordHelperText": "At least 8 characters, one number.",
+  "@passwordHelperText": {"description": "Helper text under a password field."},
+
+  "agreeToTermsText": "I agree to the Terms and Conditions and Privacy Policy.",
+  "@agreeToTermsText": {"description": "Required Terms & Conditions checkbox label on both sign-up screens."},
+
+  "pleaseAcceptTerms": "Please accept the Terms and Conditions to continue.",
+  "@pleaseAcceptTerms": {"description": "Validation error when submitting a sign-up form without accepting the Terms checkbox."},
+
+  "sendVerificationCode": "Send verification code",
+  "@sendVerificationCode": {"description": "Transporter Company sign-up screen submit button."},
+
+  "alreadyRegistered": "Already registered?",
+  "@alreadyRegistered": {"description": "Transporter Company sign-up screen — link to the login screen."},
+
+  "companyLoginTitle": "Log in",
+  "@companyLoginTitle": {"description": "AppBar title on the Transporter Company login screen."},
 
   "otpTitle": "Verification code",
   "@otpTitle": {"description": "AppBar title on the OTP screen."},
