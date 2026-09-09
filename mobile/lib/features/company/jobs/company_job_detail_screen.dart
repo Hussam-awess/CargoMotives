@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/realtime/job_location_channel.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../jobs/data/bid_repository.dart';
 import '../../jobs/data/company_job_repository.dart';
 import '../../jobs/data/job_repository.dart';
@@ -233,7 +234,7 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     if (_job!.assignedTruckRegistration != null)
                       Text('${_job!.assignedTruckRegistration} · ${_job!.assignedDriverName}')
                     else
-                      const Text('No truck/driver assigned yet.', style: TextStyle(color: Color(0xFF6B7280))),
+                      const Text('No truck/driver assigned yet.', style: TextStyle(color: AppColors.textSecondary)),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: _openAssignScreen,
@@ -266,14 +267,14 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                         ),
                     ],
                   ] else if (!_job!.isOpen)
-                    const Text('This job is no longer open for bidding.', style: TextStyle(color: Color(0xFF6B7280)))
+                    const Text('This job is no longer open for bidding.', style: TextStyle(color: AppColors.textSecondary))
                   else if (_placedBid != null)
                     Text('Bid placed: TZS ${_placedBid!.price.toStringAsFixed(0)} — pending review.', style: const TextStyle(fontWeight: FontWeight.w600))
                   else ...[
                     Text('Place a bid', style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 8),
                     if (_quotaRemaining != null)
-                      Text('$_quotaRemaining bid(s) remaining', style: const TextStyle(color: Color(0xFF6B7280))),
+                      Text('$_quotaRemaining bid(s) remaining', style: const TextStyle(color: AppColors.textSecondary)),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _priceController,

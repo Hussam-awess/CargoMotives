@@ -88,7 +88,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Commission due', style: TextStyle(color: Color(0xFF6B7280))),
+                          const Text('Commission due', style: TextStyle(color: AppColors.textSecondary)),
                           const SizedBox(height: 4),
                           Text(
                             'TZS ${_summary!.outstandingBalance.toStringAsFixed(0)}',
@@ -106,7 +106,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   const SizedBox(height: 24),
                   Text('History', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  if (_ledger.isEmpty) const Text('No commission activity yet.', style: TextStyle(color: Color(0xFF6B7280))),
+                  if (_ledger.isEmpty) const Text('No commission activity yet.', style: TextStyle(color: AppColors.textSecondary)),
                   for (final entry in _ledger) ...[
                     _LedgerRow(entry: entry),
                     const Divider(height: 1),
@@ -125,7 +125,7 @@ class _OnHoldBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: const Color(0xFFFDECEC), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: AppColors.statusError.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
       child: const Row(
         children: [
           Icon(Icons.warning_amber_rounded, color: AppColors.statusError),

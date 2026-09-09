@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
 import '../../core/localization/language_switcher_tile.dart';
+import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
 import 'data/company_repository.dart';
@@ -70,7 +71,7 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
                 const SizedBox(height: 4),
                 const Text(
                   'Verified transporter company',
-                  style: TextStyle(color: Color(0xFF6B7280)),
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 24),
               ],

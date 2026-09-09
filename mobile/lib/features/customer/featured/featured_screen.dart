@@ -81,7 +81,7 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Until ${_status!.featuredUntil!.toLocal().toString().split(' ').first}',
-                        style: const TextStyle(color: Color(0xFF6B7280)),
+                        style: const TextStyle(color: AppColors.textSecondary),
                         textAlign: TextAlign.center,
                       ),
                     ],

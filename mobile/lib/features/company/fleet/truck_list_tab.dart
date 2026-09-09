@@ -84,7 +84,7 @@ class TruckListTabState extends State<TruckListTab> {
                   Icon(
                     Icons.local_shipping_outlined,
                     size: 48,
-                    color: Color(0xFF9E9E9E),
+                    color: AppColors.textTertiary,
                   ),
                   SizedBox(height: 16),
                   Text(
@@ -150,7 +150,7 @@ class _TruckCard extends StatelessWidget {
                         color: const Color(0xFFF0F1F3),
                         child: const Icon(
                           Icons.local_shipping_outlined,
-                          color: Color(0xFF9E9E9E),
+                          color: AppColors.textTertiary,
                         ),
                       )
                     : Image.network(
@@ -164,7 +164,7 @@ class _TruckCard extends StatelessWidget {
                           color: const Color(0xFFF0F1F3),
                           child: const Icon(
                             Icons.broken_image_outlined,
-                            color: Color(0xFF9E9E9E),
+                            color: AppColors.textTertiary,
                           ),
                         ),
                       ),
@@ -180,7 +180,7 @@ class _TruckCard extends StatelessWidget {
                     ),
                     Text(
                       truck.makeModel,
-                      style: const TextStyle(color: Color(0xFF6B7280)),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 6),
                     _StatusDot(

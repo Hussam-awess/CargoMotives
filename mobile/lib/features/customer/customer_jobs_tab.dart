@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../jobs/data/job_repository.dart';
 import '../jobs/job_detail_screen.dart';
 import '../notifications/data/notification_repository.dart';
@@ -80,7 +81,7 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                 padding: const EdgeInsets.all(24),
                 children: const [
                   SizedBox(height: 80),
-                  Icon(Icons.local_shipping_outlined, size: 48, color: Color(0xFF9E9E9E)),
+                  Icon(Icons.local_shipping_outlined, size: 48, color: AppColors.textTertiary),
                   SizedBox(height: 16),
                   Text('No jobs yet. Tap Post to create one.', textAlign: TextAlign.center),
                 ],

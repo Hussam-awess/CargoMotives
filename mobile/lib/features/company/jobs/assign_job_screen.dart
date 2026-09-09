@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../jobs/data/job_repository.dart';
 import '../data/driver_repository.dart';
 import '../data/truck_repository.dart';
@@ -128,7 +129,7 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (_trucks.isEmpty)
-                    const Text('No idle, approved trucks available.', style: TextStyle(color: Color(0xFF6B7280)))
+                    const Text('No idle, approved trucks available.', style: TextStyle(color: AppColors.textSecondary))
                   else
                     DropdownButtonFormField<int>(
                       initialValue: _selectedTruckId,
@@ -140,7 +141,7 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
                     ),
                   const SizedBox(height: 16),
                   if (_drivers.isEmpty)
-                    const Text('No active drivers in your roster.', style: TextStyle(color: Color(0xFF6B7280)))
+                    const Text('No active drivers in your roster.', style: TextStyle(color: AppColors.textSecondary))
                   else
                     DropdownButtonFormField<int>(
                       initialValue: _selectedDriverId,
@@ -181,7 +182,7 @@ class _AssignedConfirmation extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.check_circle, color: Color(0xFF0F5C4A), size: 48),
+          const Icon(Icons.check_circle, color: AppColors.statusLive, size: 48),
           const SizedBox(height: 16),
           const Text('Assigned. The driver link has been texted to the driver.', textAlign: TextAlign.center),
           const SizedBox(height: 16),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import 'data/notification_repository.dart';
 
@@ -88,7 +89,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   const SizedBox(height: 80),
-                  const Icon(Icons.notifications_none, size: 48, color: Color(0xFF9E9E9E)),
+                  const Icon(Icons.notifications_none, size: 48, color: AppColors.textTertiary),
                   const SizedBox(height: 16),
                   Text(l10n.noNotificationsYet, textAlign: TextAlign.center),
                 ],

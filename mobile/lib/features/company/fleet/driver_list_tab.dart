@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../data/driver_repository.dart';
 import 'add_driver_screen.dart';
 
@@ -75,7 +76,7 @@ class _DriverListTabState extends State<DriverListTab> {
                   Icon(
                     Icons.badge_outlined,
                     size: 48,
-                    color: Color(0xFF9E9E9E),
+                    color: AppColors.textTertiary,
                   ),
                   SizedBox(height: 16),
                   Text(

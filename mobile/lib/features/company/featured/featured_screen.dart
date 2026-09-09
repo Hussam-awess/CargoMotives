@@ -89,7 +89,7 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Until ${_status!.featuredUntil!.toLocal().toString().split(' ').first}',
-                      style: const TextStyle(color: Color(0xFF6B7280)),
+                      style: const TextStyle(color: AppColors.textSecondary),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -97,7 +97,7 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                   Text('Preferred routes', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   if (_status!.preferredRoutes.isEmpty)
-                    const Text('No preferred routes set.', style: TextStyle(color: Color(0xFF6B7280)))
+                    const Text('No preferred routes set.', style: TextStyle(color: AppColors.textSecondary))
                   else
                     for (final route in _status!.preferredRoutes)
                       Padding(
@@ -296,7 +296,7 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
           children: [
             Expanded(
               child: _routes.isEmpty
-                  ? const Center(child: Text('No preferred routes yet.', style: TextStyle(color: Color(0xFF6B7280))))
+                  ? const Center(child: Text('No preferred routes yet.', style: TextStyle(color: AppColors.textSecondary)))
                   : ListView.separated(
                       itemCount: _routes.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 8),

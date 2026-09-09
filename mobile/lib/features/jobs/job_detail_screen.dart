@@ -182,7 +182,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   ],
                   Text('Bids (${_bids.length})', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  if (_bids.isEmpty) const Text('No bids yet.', style: TextStyle(color: Color(0xFF6B7280))),
+                  if (_bids.isEmpty) const Text('No bids yet.', style: TextStyle(color: AppColors.textSecondary)),
                   for (final bid in _bids) ...[
                     _BidCard(
                       bid: bid,
@@ -272,7 +272,7 @@ class _BidCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text('${company.truckCount} verified trucks', style: const TextStyle(color: Color(0xFF6B7280))),
+            Text('${company.truckCount} verified trucks', style: const TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -311,7 +311,7 @@ class _BidCard extends StatelessWidget {
             ] else if (bid.status != 'pending')
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(bid.status, style: const TextStyle(color: Color(0xFF6B7280))),
+                child: Text(bid.status, style: const TextStyle(color: AppColors.textSecondary)),
               ),
           ],
         ),
@@ -365,8 +365,8 @@ class _ProofOfDeliveryCard extends StatelessWidget {
                     errorBuilder: (context, error, stackTrace) => Container(
                       width: 100,
                       height: 100,
-                      color: const Color(0xFFF3F4F6),
-                      child: const Icon(Icons.broken_image_outlined, color: Color(0xFF9E9E9E)),
+                      color: AppColors.background,
+                      child: const Icon(Icons.broken_image_outlined, color: AppColors.textTertiary),
                     ),
                   ),
                 ),

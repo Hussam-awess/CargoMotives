@@ -114,7 +114,7 @@ class _TruckPositionCard extends StatelessWidget {
               Text('${truck.lastKnownLat!.toStringAsFixed(4)}, ${truck.lastKnownLng!.toStringAsFixed(4)}'),
               Text('Updated ${_relativeTime(truck.lastKnownAt!)}', style: Theme.of(context).textTheme.labelSmall),
             ] else
-              const Text('Waiting for the first position…', style: TextStyle(color: Color(0xFF6B7280))),
+              const Text('Waiting for the first position…', style: TextStyle(color: AppColors.textSecondary)),
           ],
         ),
       ),

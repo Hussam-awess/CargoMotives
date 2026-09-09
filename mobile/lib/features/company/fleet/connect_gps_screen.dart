@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_theme.dart';
 import '../data/gps_repository.dart';
 import '../data/truck_repository.dart';
 
@@ -187,7 +188,7 @@ class _ProviderTile extends StatelessWidget {
         color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
         child: ListTile(
           title: Text(name),
-          trailing: enabled ? null : const Text('Coming soon', style: TextStyle(color: Color(0xFF6B7280))),
+          trailing: enabled ? null : const Text('Coming soon', style: TextStyle(color: AppColors.textSecondary)),
         ),
       ),
     );
@@ -220,7 +221,7 @@ class _MatchUnitsForm extends StatelessWidget {
       children: [
         Text('✓ Wialon connected', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.green)),
         const SizedBox(height: 4),
-        Text('We found ${units.length} vehicle(s)', style: const TextStyle(color: Color(0xFF6B7280))),
+        Text('We found ${units.length} vehicle(s)', style: const TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 16),
         for (final unit in units) ...[
           Card(
@@ -235,7 +236,7 @@ class _MatchUnitsForm extends StatelessWidget {
                       children: [
                         Text(unit.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (!unit.hasPosition)
-                          const Text('No position reported yet', style: TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                          const Text('No position reported yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                       ],
                     ),
                   ),

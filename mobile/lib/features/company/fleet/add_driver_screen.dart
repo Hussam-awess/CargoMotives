@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_theme.dart';
 import '../data/driver_repository.dart';
 
 /// "Add a driver with name + phone (+ optional license photo)" — AppFlow
@@ -127,7 +128,7 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFDDE1E6)),
+                    border: Border.all(color: AppColors.border),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(

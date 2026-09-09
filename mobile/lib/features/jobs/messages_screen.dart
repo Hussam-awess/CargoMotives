@@ -149,7 +149,7 @@ class _MessageBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
-          color: message.isMine ? AppColors.accent : const Color(0xFFF0F1F3),
+          color: message.isMine ? AppColors.accent : AppColors.background,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Text(message.body, style: TextStyle(color: message.isMine ? Colors.white : Colors.black87)),

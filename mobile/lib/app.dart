@@ -29,6 +29,27 @@ class CargoMotivesApp extends StatelessWidget {
           locale: localeController.value,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
+          // Tablet support without a second, tablet-specific design: every
+          // screen is built phone-first (a single column sized for ~390px),
+          // so on a genuinely wider screen (a tablet — there's no desktop
+          // app) that column is capped at a phone-ish width and centered
+          // rather than stretching edge-to-edge or leaving it sparse. Has
+          // no effect at real phone widths, since the constraint only ever
+          // binds above 600 — a Material breakpoint (compact vs. medium),
+          // not an arbitrary number.
+          builder: (context, child) {
+            if (child == null) return const SizedBox.shrink();
+
+            return ColoredBox(
+              color: AppColors.background,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: child,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
