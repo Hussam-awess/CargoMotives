@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import 'data/message_repository.dart';
@@ -87,27 +88,41 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: [Text(_loadError!), const SizedBox(height: 12), OutlinedButton(onPressed: _load, child: const Text('Try again'))],
+                      children: [
+                        Text(_loadError!),
+                        const SizedBox(height: 12),
+                        OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                      ],
                     ),
                   )
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    child: _messages.isEmpty
-                        ? ListView(
-                            padding: const EdgeInsets.all(24),
-                            children: const [SizedBox(height: 80), Center(child: Text('No messages yet. Say hello!'))],
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
-                            itemBuilder: (context, index) => _MessageBubble(message: _messages[index]),
-                          ),
+                : ColoredBox(
+                    color: AppColors.surfaceSubtle,
+                    child: RefreshIndicator(
+                      onRefresh: _load,
+                      child: _messages.isEmpty
+                          ? ListView(
+                              padding: const EdgeInsets.all(24),
+                              children: const [
+                                SizedBox(height: 80),
+                                Center(child: Text('No messages yet. Say hello!')),
+                              ],
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _messages.length,
+                              itemBuilder: (context, index) => _MessageBubble(message: _messages[index]),
+                            ),
+                    ),
                   ),
           ),
           SafeArea(
             top: false,
-            child: Padding(
+            child: Container(
               padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: AppColors.background)),
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -119,11 +134,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _isSending ? null : _send,
-                    icon: _isSending
-                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.send),
+                  InkWell(
+                    onTap: _isSending ? null : _send,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(color: AppColors.ctaBlue, borderRadius: BorderRadius.circular(8)),
+                      alignment: Alignment.center,
+                      child: _isSending
+                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.send, color: Colors.white, size: 18),
+                    ),
                   ),
                 ],
               ),
@@ -146,13 +168,30 @@ class _MessageBubble extends StatelessWidget {
       alignment: message.isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.76),
         decoration: BoxDecoration(
-          color: message.isMine ? AppColors.accent : AppColors.background,
-          borderRadius: BorderRadius.circular(14),
+          color: message.isMine ? AppColors.ctaBlue : AppColors.surface,
+          border: message.isMine ? null : Border.all(color: const Color(0xFFE4E5E8)),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(12),
+            topRight: const Radius.circular(12),
+            bottomLeft: Radius.circular(message.isMine ? 12 : 3),
+            bottomRight: Radius.circular(message.isMine ? 3 : 12),
+          ),
         ),
-        child: Text(message.body, style: TextStyle(color: message.isMine ? Colors.white : Colors.black87)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message.body, style: TextStyle(fontSize: 14, height: 1.45, color: message.isMine ? Colors.white : AppColors.textPrimary)),
+            const SizedBox(height: 4),
+            Text(
+              DateFormat('HH:mm').format(message.createdAt.toLocal()),
+              style: TextStyle(fontSize: 10.5, color: message.isMine ? Colors.white.withValues(alpha: 0.75) : AppColors.textTertiary),
+            ),
+          ],
+        ),
       ),
     );
   }
