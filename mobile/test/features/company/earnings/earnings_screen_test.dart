@@ -14,7 +14,8 @@ void main() {
           repository: FakeCommissionRepository(
             onSummary: () async => const CommissionSummary(outstandingBalance: 150000, commissionStanding: 'good_standing', holdThreshold: 500000),
             onLedger: () async => [
-              CommissionLedgerEntry(id: 1, entryType: 'charge', amount: 150000, balanceAfter: 150000, relatedJobId: 5, paymentId: null, createdAt: DateTime(2026, 9, 10)),
+              CommissionLedgerEntry(id: 1, entryType: 'charge', amount: 200000, balanceAfter: 200000, relatedJobId: 5, paymentId: null, createdAt: DateTime(2026, 9, 10)),
+              CommissionLedgerEntry(id: 2, entryType: 'payment', amount: 50000, balanceAfter: 150000, relatedJobId: null, paymentId: 1, createdAt: DateTime(2026, 9, 11)),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
@@ -70,7 +71,11 @@ class _EarningsScreenState extends State<EarningsScreen> {
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [Text(_loadError!), const SizedBox(height: 12), OutlinedButton(onPressed: _load, child: const Text('Try again'))],
+                children: [
+                  Text(_loadError!),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                ],
               ),
             )
           : RefreshIndicator(
@@ -78,42 +83,103 @@ class _EarningsScreenState extends State<EarningsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  if (_summary!.isOnHold) ...[
-                    const _OnHoldBanner(),
-                    const SizedBox(height: 16),
-                  ],
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Commission due', style: TextStyle(color: AppColors.textSecondary)),
-                          const SizedBox(height: 4),
-                          Text(
-                            'TZS ${_summary!.outstandingBalance.toStringAsFixed(0)}',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _summary!.outstandingBalance > 0 ? _openPayForm : null,
-                            child: const Text('Pay via Mobile Money'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  if (_summary!.isOnHold) ...[const _OnHoldBanner(), const SizedBox(height: 16)],
+                  _CommissionCard(summary: _summary!, ledger: _ledger, onPay: _openPayForm),
                   const SizedBox(height: 24),
-                  Text('History', style: Theme.of(context).textTheme.titleLarge),
+                  const Text(
+                    'HISTORY',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                  ),
                   const SizedBox(height: 8),
                   if (_ledger.isEmpty) const Text('No commission activity yet.', style: TextStyle(color: AppColors.textSecondary)),
-                  for (final entry in _ledger) ...[
-                    _LedgerRow(entry: entry),
-                    const Divider(height: 1),
-                  ],
+                  for (final entry in _ledger) _LedgerRow(entry: entry),
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _CommissionCard extends StatelessWidget {
+  const _CommissionCard({required this.summary, required this.ledger, required this.onPay});
+
+  final CommissionSummary summary;
+  final List<CommissionLedgerEntry> ledger;
+  final VoidCallback onPay;
+
+  @override
+  Widget build(BuildContext context) {
+    final charged = ledger.where((e) => e.isCharge).fold<double>(0, (sum, e) => sum + e.amount);
+    final paid = ledger.where((e) => !e.isCharge).fold<double>(0, (sum, e) => sum + e.amount);
+    final trips = ledger.where((e) => e.isCharge).length;
+
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Commission due', style: TextStyle(fontSize: 12.5, color: AppColors.lightBlue, letterSpacing: 0.4)),
+          Text(
+            'TZS ${summary.outstandingBalance.toStringAsFixed(0)}',
+            style: const TextStyle(
+              fontFamily: 'Barlow Condensed',
+              fontSize: 34,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+              letterSpacing: 0.4,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Container(
+              padding: const EdgeInsets.only(top: 12),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.13))),
+              ),
+              child: Row(
+                children: [
+                  _Stat(label: 'Charged', value: 'TZS ${charged.toStringAsFixed(0)}'),
+                  const SizedBox(width: 22),
+                  _Stat(label: 'Paid', value: 'TZS ${paid.toStringAsFixed(0)}'),
+                  const SizedBox(width: 22),
+                  _Stat(label: 'Trips', value: '$trips'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: summary.outstandingBalance > 0 ? onPay : null,
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.ctaBlue, minimumSize: const Size.fromHeight(44)),
+              child: const Text('Pay via Mobile Money'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue)),
+        Text(
+          value,
+          style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+        ),
+      ],
     );
   }
 }
@@ -149,22 +215,34 @@ class _LedgerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F2))),
+      ),
       child: Row(
         children: [
-          Icon(
-            entry.isCharge ? Icons.arrow_upward : Icons.arrow_downward,
-            color: entry.isCharge ? AppColors.statusError : AppColors.statusLive,
-            size: 18,
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(7)),
+            alignment: Alignment.center,
+            child: Icon(
+              entry.isCharge ? Icons.arrow_upward : Icons.arrow_downward,
+              color: entry.isCharge ? AppColors.statusError : AppColors.statusLive,
+              size: 16,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(entry.isCharge ? 'Commission charge' : 'Payment', style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(entry.createdAt.toLocal().toString(), style: Theme.of(context).textTheme.labelSmall),
+                Text(entry.isCharge ? 'Commission charge' : 'Payment', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(
+                  DateFormat('d MMM, HH:mm').format(entry.createdAt.toLocal()),
+                  style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                ),
               ],
             ),
           ),
@@ -225,17 +303,11 @@ class _PayCommissionSheetState extends State<_PayCommissionSheet> {
     });
 
     try {
-      final payment = await widget.repository.payCommission(
-        amount: amount,
-        provider: _provider,
-        phoneNumber: _phoneController.text.trim(),
-      );
+      final payment = await widget.repository.payCommission(amount: amount, provider: _provider, phoneNumber: _phoneController.text.trim());
       if (!mounted) return;
       if (payment.isPending) {
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Check your phone to approve the payment.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check your phone to approve the payment.')));
       } else {
         setState(() => _error = 'The payment could not be started. Please try again.');
       }
@@ -279,10 +351,7 @@ class _PayCommissionSheetState extends State<_PayCommissionSheet> {
             decoration: const InputDecoration(labelText: 'Mobile money phone number'),
             keyboardType: TextInputType.phone,
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
-          ],
+          if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: const TextStyle(color: Colors.red))],
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submit,
