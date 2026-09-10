@@ -99,6 +99,36 @@ class AuthRepository {
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
+  /// Applies immediately — full_name isn't a login credential, unlike
+  /// email/phone below.
+  Future<UserProfile> updateFullName(String fullName) async {
+    final body = await _client.post('/auth/profile/name', data: {'full_name': fullName});
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Sends a confirmation code to [newEmail] — the email doesn't change
+  /// until [confirmEmailChange] verifies it (Phase 10.16: email is the
+  /// Customer's login credential).
+  Future<void> requestEmailChange(String newEmail) {
+    return _client.post('/auth/profile/email/request-change', data: {'new_email': newEmail});
+  }
+
+  Future<UserProfile> confirmEmailChange({required String newEmail, required String code}) async {
+    final body = await _client.post('/auth/profile/email/confirm-change', data: {'new_email': newEmail, 'code': code});
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Same shape as requestEmailChange/confirmEmailChange, for phone — the
+  /// Transporter Company's login credential.
+  Future<void> requestPhoneChange(String newPhone) {
+    return _client.post('/auth/profile/phone/request-change', data: {'new_phone': newPhone});
+  }
+
+  Future<UserProfile> confirmPhoneChange({required String newPhone, required String code}) async {
+    final body = await _client.post('/auth/profile/phone/confirm-change', data: {'new_phone': newPhone, 'code': code});
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
   Future<void> logout() => _client.post('/auth/logout');
 
   String _accountTypeValue(AccountRole role) => switch (role) {

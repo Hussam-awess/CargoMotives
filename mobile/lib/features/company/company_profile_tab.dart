@@ -5,6 +5,7 @@ import '../../core/auth/session_store.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
+import '../auth/edit_profile_screen.dart';
 import '../support/help_support_screen.dart';
 import 'data/company_repository.dart';
 import 'featured/featured_screen.dart';
@@ -52,6 +53,20 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
     }
   }
 
+  Future<void> _openEditProfile(UserProfile profile) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(
+          profile: profile,
+          credential: ProfileCredential.phone,
+          showName: false,
+          authRepository: widget.authRepository,
+        ),
+      ),
+    );
+    setState(() => _profileFuture = widget.authRepository.me());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,7 +78,11 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
             future: _verificationFuture,
             builder: (context, verificationSnapshot) => FutureBuilder<UserProfile>(
               future: _profileFuture,
-              builder: (context, profileSnapshot) => _CompanyCard(verification: verificationSnapshot.data, profile: profileSnapshot.data),
+              builder: (context, profileSnapshot) => _CompanyCard(
+                verification: verificationSnapshot.data,
+                profile: profileSnapshot.data,
+                onTap: profileSnapshot.data == null ? null : () => _openEditProfile(profileSnapshot.data!),
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -114,88 +133,93 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
 }
 
 class _CompanyCard extends StatelessWidget {
-  const _CompanyCard({required this.verification, required this.profile});
+  const _CompanyCard({required this.verification, required this.profile, this.onTap});
 
   final CompanyVerification? verification;
   final UserProfile? profile;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final name = verification?.companyName;
     final initial = (name == null || name.isEmpty) ? '?' : name[0].toUpperCase();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(10)),
-            alignment: Alignment.center,
-            child: Text(
-              initial,
-              style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(10)),
+              alignment: Alignment.center,
+              child: Text(
+                initial,
+                style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name ?? '—',
-                  style: const TextStyle(
-                    fontFamily: 'Barlow Condensed',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name ?? '—',
+                    style: const TextStyle(
+                      fontFamily: 'Barlow Condensed',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
                   ),
-                ),
-                if (profile?.phoneNumber != null)
-                  Text(profile!.phoneNumber!, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                if (verification != null) ...[
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      Icon(
-                        verification!.isApproved ? Icons.check_circle : Icons.pending_outlined,
-                        size: 14,
-                        color: verification!.isApproved ? AppColors.ctaBlue : AppColors.statusPending,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        verification!.isApproved ? 'Verified transporter company' : 'Verification pending',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
+                  if (profile?.phoneNumber != null)
+                    Text(profile!.phoneNumber!, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  if (verification != null) ...[
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(
+                          verification!.isApproved ? Icons.check_circle : Icons.pending_outlined,
+                          size: 14,
                           color: verification!.isApproved ? AppColors.ctaBlue : AppColors.statusPending,
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 5),
+                        Text(
+                          verification!.isApproved ? 'Verified transporter company' : 'Verification pending',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: verification!.isApproved ? AppColors.ctaBlue : AppColors.statusPending,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (profile?.isFeatured == true) ...[
+                    const SizedBox(height: 5),
+                    const Row(
+                      children: [
+                        Icon(Icons.workspace_premium_outlined, size: 14, color: AppColors.accent),
+                        SizedBox(width: 5),
+                        Text(
+                          'Cargo Motives Plus',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.accent),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
-                if (profile?.isFeatured == true) ...[
-                  const SizedBox(height: 5),
-                  const Row(
-                    children: [
-                      Icon(Icons.workspace_premium_outlined, size: 14, color: AppColors.accent),
-                      SizedBox(width: 5),
-                      Text(
-                        'Cargo Motives Plus',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.accent),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

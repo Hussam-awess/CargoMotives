@@ -8,6 +8,7 @@ import '../../../core/local/local_prefs.dart';
 import '../../../core/localization/language_switcher_tile.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../auth/edit_profile_screen.dart';
 import '../../support/change_password_screen.dart';
 import '../../support/how_it_works_screen.dart';
 import '../../support/settings_widgets.dart';
@@ -94,6 +95,22 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
     } catch (_) {
       // Non-critical.
     }
+  }
+
+  Future<void> _openEditProfile() async {
+    final profile = _profile;
+    if (profile == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(
+          profile: profile,
+          credential: ProfileCredential.phone,
+          showName: false,
+          authRepository: widget.authRepository,
+        ),
+      ),
+    );
+    _loadProfile();
   }
 
   Future<void> _loadFeaturedStatus() async {
@@ -245,7 +262,7 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
           const SettingsSectionLabel('Account'),
           SettingsCard(
             children: [
-              SettingsNavRow(title: 'Registered phone', value: _profile?.phoneNumber),
+              SettingsNavRow(title: 'Registered phone', value: _profile?.phoneNumber, onTap: _profile == null ? null : _openEditProfile),
               SettingsNavRow(
                 title: 'Change password',
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),

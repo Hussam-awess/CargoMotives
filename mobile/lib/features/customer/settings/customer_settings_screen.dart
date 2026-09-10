@@ -8,6 +8,7 @@ import '../../../core/local/local_prefs.dart';
 import '../../../core/localization/language_switcher_tile.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../auth/edit_profile_screen.dart';
 import '../../support/change_password_screen.dart';
 import '../../support/how_it_works_screen.dart';
 import '../../support/settings_widgets.dart';
@@ -76,6 +77,17 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
     } catch (_) {
       // Non-critical — the phone/email row just stays blank.
     }
+  }
+
+  Future<void> _openEditProfile() async {
+    final profile = _profile;
+    if (profile == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(profile: profile, credential: ProfileCredential.email, authRepository: _authRepository),
+      ),
+    );
+    _loadProfile();
   }
 
   Future<void> _setToggle(String key, bool value, VoidCallback apply) async {
@@ -192,7 +204,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
           SettingsCard(
             children: [
               SettingsNavRow(title: 'Registered phone', value: _profile?.phoneNumber),
-              SettingsNavRow(title: 'Email', value: _profile?.email),
+              SettingsNavRow(title: 'Email', value: _profile?.email, onTap: _profile == null ? null : _openEditProfile),
               SettingsNavRow(
                 title: 'Change password',
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),
