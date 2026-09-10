@@ -3,31 +3,27 @@ import 'package:cargo_motives/features/jobs/data/job_repository.dart';
 import 'package:cargo_motives/features/jobs/post_job_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../support/fake_job_repository.dart';
 
-/// PostJobScreen is pushed onto the app's real Navigator stack (see
-/// CustomerHomeShell) and calls `context.pop(true)` on success, so this
-/// wrapper gives it an actual GoRouter back-stack to pop — the same
-/// pattern ProfileSetupScreenTest uses for `context.go`.
+/// PostJobScreen is pushed onto the app's real Navigator stack via a plain
+/// `Navigator.push(MaterialPageRoute(...))` (see CustomerHomeShell), and on
+/// success push-replaces itself with ShipmentPostedScreen (which then pops
+/// back with the imperative Navigator API) — so this wrapper uses a plain
+/// Navigator, not GoRouter, matching real production wiring exactly.
 Widget _appUnder({required JobRepository repository}) {
-  final router = GoRouter(
-    initialLocation: '/',
-    routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => Scaffold(
-          body: Center(
-            child: ElevatedButton(onPressed: () => context.push('/post-job'), child: const Text('Open post job')),
+  return MaterialApp(
+    home: Builder(
+      builder: (context) => Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PostJobScreen(repository: repository))),
+            child: const Text('Open post job'),
           ),
         ),
       ),
-      GoRoute(path: '/post-job', builder: (context, state) => PostJobScreen(repository: repository)),
-    ],
+    ),
   );
-
-  return MaterialApp.router(routerConfig: router);
 }
 
 /// Step 1 (Route) — fills pickup/drop-off and taps CONTINUE.
@@ -210,6 +206,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(captured?.pickupAddress, 'Kariakoo, Dar es Salaam');
+    expect(find.text('Your shipment is live'), findsOneWidget);
+    expect(find.textContaining('CM-0001'), findsWidgets);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
     expect(find.text('Open post job'), findsOneWidget);
   });
 }

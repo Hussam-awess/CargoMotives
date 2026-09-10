@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
 import 'data/job_repository.dart';
 import 'job_geo.dart';
+import 'shipment_posted_screen.dart';
 
 const _cargoTypes = ['Container', 'General cargo', 'Machinery', 'Construction materials', 'Other'];
 const _containerSizes = ['20ft', '40ft', 'Other'];
@@ -128,7 +128,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
     });
 
     try {
-      await widget.repository.post(
+      final job = await widget.repository.post(
         JobSubmission(
           pickupAddress: _pickupAddress.text.trim(),
           pickupLat: double.parse(_pickupLat.text.trim()),
@@ -145,7 +145,11 @@ class _PostJobScreenState extends State<PostJobScreen> {
         ),
       );
       if (!mounted) return;
-      context.pop(true);
+      // A push-replace, not a pop: the caller's `await Navigator.push<bool>(...)`
+      // future resolves right now via `result: true` (so CustomerHomeShell
+      // refreshes Jobs immediately), while ShipmentPostedScreen takes this
+      // route's place in the stack — no separate confirmation dialog needed.
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ShipmentPostedScreen(job: job)), result: true);
     } on ApiException catch (e) {
       setState(() => _errorText = e.message);
     } finally {
