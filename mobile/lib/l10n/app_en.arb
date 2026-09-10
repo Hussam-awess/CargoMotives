@@ -169,17 +169,20 @@
     }
   },
 
-  "navJobs": "Jobs",
-  "@navJobs": {"description": "Bottom navigation label, both Customer and Company shells."},
+  "navHome": "Home",
+  "@navHome": {"description": "Customer bottom navigation label."},
 
-  "navPost": "Post",
-  "@navPost": {"description": "Customer bottom navigation label — posts a new job."},
+  "navShipments": "Shipments",
+  "@navShipments": {"description": "Customer bottom navigation label."},
 
-  "navFleet": "Fleet",
-  "@navFleet": {"description": "Company bottom navigation label."},
+  "navMessages": "Messages",
+  "@navMessages": {"description": "Bottom navigation label, both Customer and Company shells."},
 
-  "navEarnings": "Earnings",
-  "@navEarnings": {"description": "Company bottom navigation label."},
+  "navDashboard": "Dashboard",
+  "@navDashboard": {"description": "Company bottom navigation label."},
+
+  "navFindJobs": "Find Jobs",
+  "@navFindJobs": {"description": "Company bottom navigation label."},
 
   "navProfile": "Profile",
   "@navProfile": {"description": "Bottom navigation label, both Customer and Company shells."},

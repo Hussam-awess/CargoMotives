@@ -215,7 +215,6 @@ class _NotificationRow extends StatelessWidget {
     'proof_of_delivery_submitted' || 'delivery_confirmed' => (Icons.inventory_2_outlined, false),
     'company_approved' || 'truck_approved' => (Icons.verified_outlined, false),
     'company_rejected' || 'truck_rejected' || 'company_flagged_duplicate' => (Icons.report_gmailerrorred_outlined, false),
-    'commission_hold_applied' || 'commission_hold_lifted' => (Icons.account_balance_wallet_outlined, false),
     _ => (Icons.notifications_none, false),
   };
 

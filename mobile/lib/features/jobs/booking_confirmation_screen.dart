@@ -9,11 +9,11 @@ import 'data/job_repository.dart';
 /// "Confirm booking" (mockup) — a real confirmation step between tapping
 /// Accept on a bid and the actual accept API call, showing the job, the
 /// transporter, and the price one more time before it's final. Unlike the
-/// mockup, there's no separate "service fee" line here: this app's
-/// commission is charged to the transporter, never the customer, so the
-/// total is simply the agreed price — Cargo Motives never holds or takes
-/// a cut of the customer's payment (the info banner below states exactly
-/// that, and it's true regardless of which fee model is in place).
+/// mockup, there's no separate "service fee" line here: the platform takes
+/// no cut of the job price at all (revenue comes from Plus subscriptions,
+/// not commission — Phase 10.13), so the total is simply the agreed
+/// price, paid directly to the transporter (the info banner below states
+/// exactly that).
 class BookingConfirmationScreen extends StatefulWidget {
   const BookingConfirmationScreen({super.key, required this.job, required this.bid, required this.bidRepository});
 

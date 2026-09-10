@@ -50,7 +50,6 @@ void main() {
       _appUnder(
         CompanyHomeTab(
           companyName: 'ABC Logistics',
-          isOnHold: false,
           companyJobRepository: FakeCompanyJobRepository(),
           truckRepository: FakeTruckRepository(),
           driverRepository: FakeDriverRepository(),
@@ -65,29 +64,11 @@ void main() {
     expect(find.text('No open loads right now.'), findsOneWidget);
   });
 
-  testWidgets('shows On hold when the company is on hold', (tester) async {
-    await tester.pumpWidget(
-      _appUnder(
-        CompanyHomeTab(
-          companyName: 'ABC Logistics',
-          isOnHold: true,
-          companyJobRepository: FakeCompanyJobRepository(),
-          truckRepository: FakeTruckRepository(),
-          driverRepository: FakeDriverRepository(),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('On hold'), findsOneWidget);
-  });
-
   testWidgets('derives real stats and shows the active job', (tester) async {
     await tester.pumpWidget(
       _appUnder(
         CompanyHomeTab(
           companyName: 'ABC Logistics',
-          isOnHold: false,
           companyJobRepository: FakeCompanyJobRepository(
             onActive: () async => [_job(id: 7, status: 'in_transit')],
             onMyBids: () async => [_job(id: 8, status: 'open'), _job(id: 9, status: 'completed')],

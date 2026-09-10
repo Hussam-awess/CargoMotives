@@ -7,7 +7,6 @@ import '../jobs/data/job_repository.dart';
 import '../jobs/job_detail_screen.dart';
 import '../jobs/job_status.dart';
 import '../jobs/live_gps_tracking_screen.dart';
-import '../jobs/messages_inbox_screen.dart';
 import '../jobs/post_job_screen.dart';
 import '../notifications/data/notification_repository.dart';
 import '../notifications/notifications_screen.dart';
@@ -29,24 +28,14 @@ class _DashboardData {
 /// is derived from real data (jobs + notifications the customer already
 /// has) — nothing on this screen is a mockup placeholder value.
 class CustomerJobsTab extends StatefulWidget {
-  CustomerJobsTab({
-    super.key,
-    JobRepository? repository,
-    NotificationRepository? notificationRepository,
-    AuthRepository? authRepository,
-    this.onPostJob,
-  }) : repository = repository ?? JobRepository(),
-       notificationRepository = notificationRepository ?? NotificationRepository(),
-       authRepository = authRepository ?? AuthRepository();
+  CustomerJobsTab({super.key, JobRepository? repository, NotificationRepository? notificationRepository, AuthRepository? authRepository})
+    : repository = repository ?? JobRepository(),
+      notificationRepository = notificationRepository ?? NotificationRepository(),
+      authRepository = authRepository ?? AuthRepository();
 
   final JobRepository repository;
   final NotificationRepository notificationRepository;
   final AuthRepository authRepository;
-
-  /// CustomerHomeShell owns the Post-a-job navigation (it needs to refresh
-  /// this tab and switch the bottom-nav selection afterwards) — when unset
-  /// (e.g. in a standalone test), this tab pushes PostJobScreen itself.
-  final VoidCallback? onPostJob;
 
   @override
   State<CustomerJobsTab> createState() => CustomerJobsTabState();
@@ -86,10 +75,6 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
   }
 
   Future<void> _openPostJob() async {
-    if (widget.onPostJob != null) {
-      widget.onPostJob!();
-      return;
-    }
     final posted = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => PostJobScreen()));
     if (posted == true) refresh();
   }
@@ -114,15 +99,6 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
       ),
     );
     refresh();
-  }
-
-  void _openMessages() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            MessagesInboxScreen(fetchJobs: widget.repository.list, counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter'),
-      ),
-    );
   }
 
   @override
@@ -157,7 +133,6 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                   _Header(
                     profile: data.profile,
                     onBell: _openNotifications,
-                    onMessages: _openMessages,
                     unreadCount: data.notifications.where((n) => n.isUnread).length,
                   ),
                   const SizedBox(height: 14),
@@ -229,11 +204,10 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.profile, required this.onBell, required this.onMessages, required this.unreadCount});
+  const _Header({required this.profile, required this.onBell, required this.unreadCount});
 
   final UserProfile profile;
   final VoidCallback onBell;
-  final VoidCallback onMessages;
   final int unreadCount;
 
   @override
@@ -273,20 +247,6 @@ class _Header extends StatelessWidget {
                 const SizedBox(height: 1),
                 const Text('Tanzania', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
               ],
-            ),
-          ),
-          InkWell(
-            onTap: onMessages,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 38,
-              height: 38,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.border),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.chat_bubble_outline, size: 19, color: AppColors.primary),
             ),
           ),
           InkWell(

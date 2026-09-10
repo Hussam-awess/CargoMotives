@@ -6,26 +6,28 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
 import '../jobs/data/company_job_repository.dart';
+import '../jobs/messages_inbox_screen.dart';
 import 'company_home_tab.dart';
 import 'company_profile_tab.dart';
-import 'data/commission_repository.dart';
 import 'data/company_repository.dart';
 import 'data/driver_repository.dart';
 import 'data/featured_repository.dart';
 import 'data/truck_repository.dart';
-import 'earnings/earnings_screen.dart';
 import 'fleet/add_truck_screen.dart';
 import 'fleet/fleet_screen.dart';
 import 'jobs/company_jobs_screen.dart';
 
-/// Company Home (UI/UX Brief §3): Jobs / Fleet / Earnings / Profile — 4
-/// bottom-nav items, matching the brief's "3-4 items, not 6" rule. All
-/// four have real functionality as of Phase 7.
+/// Company Home (mockup footer): Dashboard / Find Jobs / Messages /
+/// Profile — 4 persistent bottom-nav tabs, matching the mockup's actual
+/// footer (Phase 10.14 — previously this shell had Jobs/Fleet/Earnings/
+/// Profile). Earnings is gone entirely: the platform no longer takes a
+/// commission (Phase 10.13), so there's no balance left to track. Fleet
+/// management stays fully reachable — Dashboard's own "Manage fleet"
+/// quick-action still opens it — it just isn't a top-level tab anymore.
 ///
 /// Repositories are accepted (not just constructed internally) so this
-/// whole shell — including the Fleet/Jobs tabs' network calls — is
-/// testable with fakes, the same pattern as every other screen since
-/// Phase 1.
+/// whole shell — including the Jobs tab's network calls — is testable
+/// with fakes, the same pattern as every other screen since Phase 1.
 class CompanyHomeShell extends StatefulWidget {
   CompanyHomeShell({
     super.key,
@@ -34,7 +36,6 @@ class CompanyHomeShell extends StatefulWidget {
     DriverRepository? driverRepository,
     CompanyRepository? companyRepository,
     CompanyJobRepository? companyJobRepository,
-    CommissionRepository? commissionRepository,
     CompanyFeaturedRepository? featuredRepository,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
@@ -42,7 +43,6 @@ class CompanyHomeShell extends StatefulWidget {
        driverRepository = driverRepository ?? DriverRepository(),
        companyRepository = companyRepository ?? CompanyRepository(),
        companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
-       commissionRepository = commissionRepository ?? CommissionRepository(),
        featuredRepository = featuredRepository ?? CompanyFeaturedRepository(),
        authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
@@ -55,7 +55,6 @@ class CompanyHomeShell extends StatefulWidget {
   final DriverRepository driverRepository;
   final CompanyRepository companyRepository;
   final CompanyJobRepository companyJobRepository;
-  final CommissionRepository commissionRepository;
   final CompanyFeaturedRepository featuredRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
@@ -66,42 +65,28 @@ class CompanyHomeShell extends StatefulWidget {
 
 class _CompanyHomeShellState extends State<CompanyHomeShell> {
   int _index = 0;
-  bool _isOnHold = false;
   final _homeTabKey = GlobalKey<CompanyHomeTabState>();
 
   @override
   void initState() {
     super.initState();
-    _checkHoldStatus();
-    // Same reasoning as CustomerHomeShell — reaching this shell means a
-    // session exists, fresh or resumed, either way the right moment to
-    // (re)register this device's FCM token.
+    // Reaching this shell means a session exists, fresh or resumed,
+    // either way the right moment to (re)register this device's FCM
+    // token.
     PushNotificationService().registerDeviceToken();
-  }
-
-  Future<void> _checkHoldStatus() async {
-    try {
-      final summary = await widget.commissionRepository.summary();
-      if (mounted) setState(() => _isOnHold = summary.isOnHold);
-    } catch (_) {
-      // Silently skip the banner on failure — this is a proactive nicety
-      // (AppFlow §2.1: "Status banners only when relevant"), not something
-      // that should ever block Company Home from rendering; bidding is
-      // still correctly blocked server-side regardless (BidController).
-    }
-  }
-
-  Future<void> _openJobsBoard() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CompanyJobsScreen(repository: widget.companyJobRepository, featuredRepository: widget.featuredRepository),
-      ),
-    );
-    _homeTabKey.currentState?.refresh();
   }
 
   Future<void> _openAddTruck() async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTruckScreen(repository: widget.truckRepository)));
+    _homeTabKey.currentState?.refresh();
+  }
+
+  Future<void> _openFleet() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FleetScreen(truckRepository: widget.truckRepository, driverRepository: widget.driverRepository),
+      ),
+    );
     _homeTabKey.currentState?.refresh();
   }
 
@@ -115,14 +100,15 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
         companyJobRepository: widget.companyJobRepository,
         truckRepository: widget.truckRepository,
         driverRepository: widget.driverRepository,
-        isOnHold: _isOnHold,
-        onFindJobs: _openJobsBoard,
-        onManageFleet: () => setState(() => _index = 1),
-        onEarnings: () => setState(() => _index = 2),
+        onManageFleet: _openFleet,
         onAddTruck: _openAddTruck,
       ),
-      FleetScreen(truckRepository: widget.truckRepository, driverRepository: widget.driverRepository),
-      EarningsScreen(repository: widget.commissionRepository),
+      CompanyJobsScreen(repository: widget.companyJobRepository, featuredRepository: widget.featuredRepository),
+      MessagesInboxScreen(
+        fetchJobs: widget.companyJobRepository.active,
+        enrichJob: widget.companyJobRepository.show,
+        counterpartyLabel: (job) => job.customerCompanyName ?? job.customerName ?? 'Customer',
+      ),
       CompanyProfileTab(
         companyRepository: widget.companyRepository,
         authRepository: widget.authRepository,
@@ -131,24 +117,7 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
     ];
 
     return Scaffold(
-      body: Column(
-        children: [
-          if (_isOnHold)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: AppColors.statusError,
-              child: const Text(
-                'Account on hold — pay your commission balance to resume bidding.',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          Expanded(
-            child: IndexedStack(index: _index, children: tabs),
-          ),
-        ],
-      ),
+      body: IndexedStack(index: _index, children: tabs),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border)),
@@ -157,9 +126,9 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
           selectedIndex: _index,
           onDestinationSelected: (index) => setState(() => _index = index),
           destinations: [
-            NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navJobs),
-            NavigationDestination(icon: const Icon(Icons.local_shipping_outlined), label: l10n.navFleet),
-            NavigationDestination(icon: const Icon(Icons.account_balance_wallet_outlined), label: l10n.navEarnings),
+            NavigationDestination(icon: const Icon(Icons.dashboard_outlined), label: l10n.navDashboard),
+            NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navFindJobs),
+            NavigationDestination(icon: const Icon(Icons.chat_bubble_outline), label: l10n.navMessages),
             NavigationDestination(icon: const Icon(Icons.person_outline), label: l10n.navProfile),
           ],
         ),

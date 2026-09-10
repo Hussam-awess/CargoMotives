@@ -6,7 +6,6 @@ import '../auth/data/auth_repository.dart';
 import '../jobs/data/company_job_repository.dart';
 import 'company_home_shell.dart';
 import 'company_verification_screen.dart';
-import 'data/commission_repository.dart';
 import 'data/company_repository.dart';
 import 'data/driver_repository.dart';
 import 'data/featured_repository.dart';
@@ -31,7 +30,6 @@ class CompanyHomeGate extends StatefulWidget {
     TruckRepository? truckRepository,
     DriverRepository? driverRepository,
     CompanyJobRepository? companyJobRepository,
-    CommissionRepository? commissionRepository,
     CompanyFeaturedRepository? featuredRepository,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
@@ -39,7 +37,6 @@ class CompanyHomeGate extends StatefulWidget {
        truckRepository = truckRepository ?? TruckRepository(),
        driverRepository = driverRepository ?? DriverRepository(),
        companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
-       commissionRepository = commissionRepository ?? CommissionRepository(),
        featuredRepository = featuredRepository ?? CompanyFeaturedRepository(),
        authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
@@ -48,7 +45,6 @@ class CompanyHomeGate extends StatefulWidget {
   final TruckRepository truckRepository;
   final DriverRepository driverRepository;
   final CompanyJobRepository companyJobRepository;
-  final CommissionRepository commissionRepository;
   final CompanyFeaturedRepository featuredRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
@@ -84,9 +80,7 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
         if (snapshot.hasError) {
@@ -99,10 +93,7 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
                   children: [
                     const Text('Could not load your verification status.'),
                     const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _refresh,
-                      child: const Text('Try again'),
-                    ),
+                    OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
                   ],
                 ),
               ),
@@ -113,17 +104,11 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
         final verification = snapshot.data;
 
         if (verification == null || verification.isRejected) {
-          return CompanyVerificationScreen(
-            repository: widget.repository,
-            rejectedReason: verification?.rejectedReason,
-          );
+          return CompanyVerificationScreen(repository: widget.repository, rejectedReason: verification?.rejectedReason);
         }
 
         if (verification.isUnderReview) {
-          return _PendingReviewScreen(
-            verification: verification,
-            onRefresh: _refresh,
-          );
+          return _PendingReviewScreen(verification: verification, onRefresh: _refresh);
         }
 
         return CompanyHomeShell(
@@ -132,7 +117,6 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
           driverRepository: widget.driverRepository,
           companyRepository: widget.repository,
           companyJobRepository: widget.companyJobRepository,
-          commissionRepository: widget.commissionRepository,
           featuredRepository: widget.featuredRepository,
           authRepository: widget.authRepository,
           sessionStore: widget.sessionStore,
@@ -148,10 +132,7 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
 /// deliberately unhurried, manual process, not something the TRD's
 /// WebSocket scoping covers.
 class _PendingReviewScreen extends StatelessWidget {
-  const _PendingReviewScreen({
-    required this.verification,
-    required this.onRefresh,
-  });
+  const _PendingReviewScreen({required this.verification, required this.onRefresh});
 
   final CompanyVerification verification;
   final VoidCallback onRefresh;
@@ -159,10 +140,7 @@ class _PendingReviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verification pending'),
-        automaticallyImplyLeading: false,
-      ),
+      appBar: AppBar(title: const Text('Verification pending'), automaticallyImplyLeading: false),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -170,21 +148,14 @@ class _PendingReviewScreen extends StatelessWidget {
           children: [
             const Icon(Icons.hourglass_top, size: 48, color: AppColors.statusIdle),
             const SizedBox(height: 16),
-            Text(
-              '${verification.companyName} is under review',
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
-            ),
+            Text('${verification.companyName} is under review', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
             const SizedBox(height: 8),
             const Text(
               'Your verification is under review. You\'ll get access to your dashboard as soon as it\'s approved.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            OutlinedButton(
-              onPressed: onRefresh,
-              child: const Text('Check again'),
-            ),
+            OutlinedButton(onPressed: onRefresh, child: const Text('Check again')),
           ],
         ),
       ),

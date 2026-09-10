@@ -5,7 +5,6 @@ import '../jobs/data/company_job_repository.dart';
 import '../jobs/data/job_repository.dart' show Job;
 import '../jobs/job_geo.dart';
 import '../jobs/job_status.dart';
-import '../jobs/messages_inbox_screen.dart';
 import '../notifications/data/notification_repository.dart';
 import '../notifications/notification_bell_button.dart';
 import 'data/driver_repository.dart';
@@ -42,10 +41,8 @@ class CompanyHomeTab extends StatefulWidget {
     TruckRepository? truckRepository,
     DriverRepository? driverRepository,
     NotificationRepository? notificationRepository,
-    required this.isOnHold,
     this.onFindJobs,
     this.onManageFleet,
-    this.onEarnings,
     this.onAddTruck,
   }) : companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
        truckRepository = truckRepository ?? TruckRepository(),
@@ -61,16 +58,11 @@ class CompanyHomeTab extends StatefulWidget {
   final DriverRepository driverRepository;
   final NotificationRepository notificationRepository;
 
-  /// Owned by CompanyHomeShell (it already fetches this for the on-hold
-  /// banner) — passed down rather than refetched here.
-  final bool isOnHold;
-
   /// CompanyHomeShell owns cross-tab navigation (switching the bottom-nav
   /// IndexedStack) and the Jobs-board push — when unset (e.g. a standalone
   /// test), each action falls back to pushing its screen directly.
   final VoidCallback? onFindJobs;
   final VoidCallback? onManageFleet;
-  final VoidCallback? onEarnings;
   final VoidCallback? onAddTruck;
 
   @override
@@ -120,18 +112,6 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: jobId))).then((_) => refresh());
   }
 
-  void _openMessages() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => MessagesInboxScreen(
-          fetchJobs: widget.companyJobRepository.active,
-          enrichJob: widget.companyJobRepository.show,
-          counterpartyLabel: (job) => job.customerCompanyName ?? job.customerName ?? 'Customer',
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -161,17 +141,11 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
-                  _Header(
-                    companyLabel: widget.companyName,
-                    isOnHold: widget.isOnHold,
-                    notificationRepository: widget.notificationRepository,
-                    onTapJob: _openJob,
-                    onMessages: _openMessages,
-                  ),
+                  _Header(companyLabel: widget.companyName, notificationRepository: widget.notificationRepository, onTapJob: _openJob),
                   const SizedBox(height: 14),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _ActivityCard(data: data, onEarnings: widget.onEarnings),
+                    child: _ActivityCard(data: data),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
@@ -189,17 +163,7 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _ActionButton(label: 'Earnings', filled: false, onTap: widget.onEarnings ?? () {}),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _ActionButton(label: 'Add truck', filled: false, icon: Icons.add, onTap: widget.onAddTruck ?? () {}),
-                        ),
-                      ],
-                    ),
+                    child: _ActionButton(label: 'Add truck', filled: false, icon: Icons.add, onTap: widget.onAddTruck ?? () {}),
                   ),
                   _SectionHeader(
                     title: 'Active Job',
@@ -226,19 +190,11 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.companyLabel,
-    required this.isOnHold,
-    required this.notificationRepository,
-    required this.onTapJob,
-    required this.onMessages,
-  });
+  const _Header({required this.companyLabel, required this.notificationRepository, required this.onTapJob});
 
   final String companyLabel;
-  final bool isOnHold;
   final NotificationRepository notificationRepository;
   final void Function(int jobId) onTapJob;
-  final VoidCallback onMessages;
 
   @override
   Widget build(BuildContext context) {
@@ -276,33 +232,21 @@ class _Header extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 1),
-                Row(
+                const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
+                    SizedBox(
                       width: 6,
                       height: 6,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: isOnHold ? AppColors.statusError : AppColors.statusLive),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.statusLive),
+                      ),
                     ),
-                    const SizedBox(width: 5),
-                    Text(isOnHold ? 'On hold' : 'Accepting loads', style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                    SizedBox(width: 5),
+                    Text('Accepting loads', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
                   ],
                 ),
               ],
-            ),
-          ),
-          InkWell(
-            onTap: onMessages,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 38,
-              height: 38,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.border),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.chat_bubble_outline, size: 19, color: AppColors.primary),
             ),
           ),
           NotificationBellButton(repository: notificationRepository, onTapJob: onTapJob),
@@ -313,10 +257,9 @@ class _Header extends StatelessWidget {
 }
 
 class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({required this.data, required this.onEarnings});
+  const _ActivityCard({required this.data});
 
   final _DashboardData data;
-  final VoidCallback? onEarnings;
 
   @override
   Widget build(BuildContext context) {
@@ -326,46 +269,29 @@ class _ActivityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              const Text('Activity', style: TextStyle(fontSize: 12.5, color: AppColors.lightBlue, letterSpacing: 0.4)),
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
                   children: [
-                    const Text('Activity', style: TextStyle(fontSize: 12.5, color: AppColors.lightBlue, letterSpacing: 0.4)),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 1),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            '${data.activeJobs.length}',
-                            style: const TextStyle(
-                              fontFamily: 'Barlow Condensed',
-                              fontSize: 34,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 9),
-                          const Text('trip(s) on the road', style: TextStyle(fontSize: 13, color: AppColors.lightBlue)),
-                        ],
+                    Text(
+                      '${data.activeJobs.length}',
+                      style: const TextStyle(
+                        fontFamily: 'Barlow Condensed',
+                        fontSize: 34,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
                     ),
+                    const SizedBox(width: 9),
+                    const Text('trip(s) on the road', style: TextStyle(fontSize: 13, color: AppColors.lightBlue)),
                   ],
                 ),
-              ),
-              OutlinedButton(
-                onPressed: onEarnings,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.26)),
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Earnings', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
