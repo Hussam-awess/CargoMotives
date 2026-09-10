@@ -13,6 +13,7 @@ import 'job_geo.dart';
 import 'job_status.dart';
 import 'live_gps_tracking_screen.dart';
 import 'messages_screen.dart';
+import 'truck_details_screen.dart';
 
 /// Job Detail (Customer) — AppFlow §3.3/§3.4: the job summary, its bid
 /// list (Featured pinned first, live-updated per TRD §4 while this screen
@@ -230,7 +231,17 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   const SizedBox(height: 8),
                   if (_bids.isEmpty) const Text('No bids yet.', style: TextStyle(color: AppColors.textSecondary)),
                   for (final bid in _bids) ...[
-                    _BidCard(bid: bid, canAccept: _job!.isOpen, onAccept: () => _accept(bid)),
+                    _BidCard(
+                      job: _job!,
+                      bid: bid,
+                      canAccept: _job!.isOpen,
+                      onAccept: () => _accept(bid),
+                      onOpenDetails: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => TruckDetailsScreen(job: _job!, bid: bid, onAccept: () => _accept(bid)),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                   ],
                 ],
@@ -548,99 +559,110 @@ class _CargoDetailsCard extends StatelessWidget {
 /// text label, not a heavy visual treatment (per the brief's "GPS is a
 /// badge, not a gate" / "one clean design system" direction).
 class _BidCard extends StatelessWidget {
-  const _BidCard({required this.bid, required this.canAccept, required this.onAccept});
+  const _BidCard({required this.job, required this.bid, required this.canAccept, required this.onAccept, required this.onOpenDetails});
 
+  final Job job;
   final Bid bid;
   final bool canAccept;
   final VoidCallback onAccept;
+  final VoidCallback onOpenDetails;
 
   @override
   Widget build(BuildContext context) {
     final company = bid.company;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (bid.isPriority) ...[
-            const Text(
-              'FEATURED',
-              style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 11, letterSpacing: 0.5),
-            ),
-            const SizedBox(height: 4),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: company.name,
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                      ),
-                      if (company.verified)
-                        const TextSpan(
-                          text: '  ✓',
-                          style: TextStyle(color: AppColors.statusLive),
+    return InkWell(
+      onTap: onOpenDetails,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (bid.isPriority) ...[
+              const Text(
+                'FEATURED',
+                style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 11, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 4),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: company.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                         ),
-                    ],
+                        if (company.verified)
+                          const TextSpan(
+                            text: '  ✓',
+                            style: TextStyle(color: AppColors.statusLive),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                'TZS ${bid.price.toStringAsFixed(0)}',
-                style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.accent),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text('${company.truckCount} verified trucks', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: company.gpsAvailable ? AppColors.statusLive : AppColors.statusIdle,
-                  shape: BoxShape.circle,
+                Text(
+                  'TZS ${bid.price.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontFamily: 'Barlow Condensed',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.accent,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                company.gpsAvailable ? 'Live GPS Available' : 'GPS Tracking Not Available',
-                style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-              ),
-              const Spacer(),
-              Text(
-                company.rating != null ? '⭐ ${company.rating!.toStringAsFixed(1)}' : 'New',
-                style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-              ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('${company.truckCount} verified trucks', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: company.gpsAvailable ? AppColors.statusLive : AppColors.statusIdle,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  company.gpsAvailable ? 'Live GPS Available' : 'GPS Tracking Not Available',
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                ),
+                const Spacer(),
+                Text(
+                  company.rating != null ? '⭐ ${company.rating!.toStringAsFixed(1)}' : 'New',
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+            if (bid.note != null && bid.note!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(bid.note!, style: const TextStyle(fontSize: 13)),
             ],
-          ),
-          if (bid.note != null && bid.note!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(bid.note!, style: const TextStyle(fontSize: 13)),
+            if (canAccept && bid.status == 'pending') ...[
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: onAccept,
+                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(42)),
+                child: const Text('Accept'),
+              ),
+            ] else if (bid.status != 'pending')
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(bid.status, style: const TextStyle(color: AppColors.textSecondary)),
+              ),
           ],
-          if (canAccept && bid.status == 'pending') ...[
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: onAccept,
-              style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(42)),
-              child: const Text('Accept'),
-            ),
-          ] else if (bid.status != 'pending')
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(bid.status, style: const TextStyle(color: AppColors.textSecondary)),
-            ),
-        ],
+        ),
       ),
     );
   }
