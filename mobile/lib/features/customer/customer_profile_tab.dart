@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
-import '../../core/localization/language_switcher_tile.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
+import '../support/help_support_screen.dart';
+import 'addresses/saved_addresses_screen.dart';
 import 'featured/featured_screen.dart';
+import 'payments/payment_history_screen.dart';
+import 'settings/customer_settings_screen.dart';
 import 'shipments/customer_shipments_screen.dart';
 
 /// A deliberately minimal Profile tab, same scope call as
@@ -70,15 +73,37 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CustomerShipmentsScreen())),
               ),
               _AccountRow(
+                icon: Icons.payments_outlined,
+                label: 'Payment history',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PaymentHistoryScreen())),
+              ),
+              _AccountRow(
+                icon: Icons.place_outlined,
+                label: 'Saved addresses',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SavedAddressesScreen())),
+              ),
+              _AccountRow(
+                icon: Icons.settings_outlined,
+                label: 'Settings',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CustomerSettingsScreen(authRepository: widget.authRepository, sessionStore: widget.sessionStore),
+                  ),
+                ),
+              ),
+              _AccountRow(
                 icon: Icons.workspace_premium_outlined,
                 label: 'Cargo Motives Plus',
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CustomerFeaturedScreen())),
                 highlighted: true,
               ),
+              _AccountRow(
+                icon: Icons.help_outline,
+                label: 'Help & support',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
-          LanguageSwitcherTile(authRepository: widget.authRepository),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -209,12 +234,10 @@ class _AccountList extends StatelessWidget {
               onTap: rows[i].onTap,
               child: Container(
                 padding: const EdgeInsets.all(13),
-                color: rows[i].highlighted ? const Color(0xFFFCF8EE) : null,
-                decoration: i == rows.length - 1
-                    ? null
-                    : const BoxDecoration(
-                        border: Border(bottom: BorderSide(color: AppColors.background)),
-                      ),
+                decoration: BoxDecoration(
+                  color: rows[i].highlighted ? const Color(0xFFFCF8EE) : null,
+                  border: i == rows.length - 1 ? null : const Border(bottom: BorderSide(color: AppColors.background)),
+                ),
                 child: Row(
                   children: [
                     Container(

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
-import '../../core/localization/language_switcher_tile.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
+import '../support/help_support_screen.dart';
 import 'data/company_repository.dart';
 import 'featured/featured_screen.dart';
+import 'settings/company_settings_screen.dart';
 
 /// A deliberately minimal Profile tab — a real screen, not a placeholder,
 /// since the pieces it needs (company name, logout) already exist from
@@ -71,15 +72,27 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
           _AccountList(
             rows: [
               _AccountRow(
+                icon: Icons.settings_outlined,
+                label: 'Settings',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CompanySettingsScreen(authRepository: widget.authRepository, sessionStore: widget.sessionStore),
+                  ),
+                ),
+              ),
+              _AccountRow(
                 icon: Icons.workspace_premium_outlined,
                 label: 'Cargo Motives Plus',
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyFeaturedScreen())),
                 highlighted: true,
               ),
+              _AccountRow(
+                icon: Icons.help_outline,
+                label: 'Help & support',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
-          LanguageSwitcherTile(authRepository: widget.authRepository),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -231,12 +244,10 @@ class _AccountList extends StatelessWidget {
               onTap: rows[i].onTap,
               child: Container(
                 padding: const EdgeInsets.all(13),
-                color: rows[i].highlighted ? const Color(0xFFFCF8EE) : null,
-                decoration: i == rows.length - 1
-                    ? null
-                    : const BoxDecoration(
-                        border: Border(bottom: BorderSide(color: AppColors.background)),
-                      ),
+                decoration: BoxDecoration(
+                  color: rows[i].highlighted ? const Color(0xFFFCF8EE) : null,
+                  border: i == rows.length - 1 ? null : const Border(bottom: BorderSide(color: AppColors.background)),
+                ),
                 child: Row(
                   children: [
                     Container(
