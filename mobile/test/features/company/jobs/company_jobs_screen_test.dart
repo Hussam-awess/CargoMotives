@@ -74,7 +74,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Dry Van · 40ft'), findsOneWidget);
+    expect(find.text('Dry Van · 40ft · 12 t'), findsOneWidget);
 
     await tester.tap(find.text('My Bids'));
     await tester.pumpAndSettle();
