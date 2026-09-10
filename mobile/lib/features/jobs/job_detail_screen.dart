@@ -5,6 +5,7 @@ import '../../core/network/api_exception.dart';
 import '../../core/realtime/job_bid_channel.dart';
 import '../../core/realtime/job_location_channel.dart';
 import '../../core/theme/app_theme.dart';
+import 'booking_confirmation_screen.dart';
 import 'data/bid_repository.dart';
 import 'data/job_repository.dart';
 import 'gps_status_card.dart';
@@ -46,7 +47,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   List<Bid> _bids = [];
   bool _isLoading = true;
   String? _loadError;
-  int? _acceptingBidId;
   bool _isConfirmingDelivery = false;
   bool _isReportingProblem = false;
   GpsLocation? _liveLocation;
@@ -112,17 +112,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _accept(Bid bid) async {
-    setState(() => _acceptingBidId = bid.id);
-    try {
-      await widget.bidRepository.accept(bid.id);
-      await _load();
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    } finally {
-      if (mounted) setState(() => _acceptingBidId = null);
-    }
+    final confirmed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => BookingConfirmationScreen(job: _job!, bid: bid, bidRepository: widget.bidRepository),
+      ),
+    );
+    if (confirmed == true) await _load();
   }
 
   Future<void> _confirmDelivery() async {
@@ -228,7 +223,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   const SizedBox(height: 8),
                   if (_bids.isEmpty) const Text('No bids yet.', style: TextStyle(color: AppColors.textSecondary)),
                   for (final bid in _bids) ...[
-                    _BidCard(bid: bid, canAccept: _job!.isOpen, isAccepting: _acceptingBidId == bid.id, onAccept: () => _accept(bid)),
+                    _BidCard(bid: bid, canAccept: _job!.isOpen, onAccept: () => _accept(bid)),
                     const SizedBox(height: 12),
                   ],
                 ],
@@ -546,11 +541,10 @@ class _CargoDetailsCard extends StatelessWidget {
 /// text label, not a heavy visual treatment (per the brief's "GPS is a
 /// badge, not a gate" / "one clean design system" direction).
 class _BidCard extends StatelessWidget {
-  const _BidCard({required this.bid, required this.canAccept, required this.isAccepting, required this.onAccept});
+  const _BidCard({required this.bid, required this.canAccept, required this.onAccept});
 
   final Bid bid;
   final bool canAccept;
-  final bool isAccepting;
   final VoidCallback onAccept;
 
   @override
@@ -630,11 +624,9 @@ class _BidCard extends StatelessWidget {
           if (canAccept && bid.status == 'pending') ...[
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: isAccepting ? null : onAccept,
+              onPressed: onAccept,
               style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(42)),
-              child: isAccepting
-                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Accept'),
+              child: const Text('Accept'),
             ),
           ] else if (bid.status != 'pending')
             Padding(

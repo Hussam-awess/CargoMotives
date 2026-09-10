@@ -127,6 +127,10 @@ void main() {
     await tester.tap(find.text('Accept'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Confirm booking'), findsOneWidget);
+    await tester.tap(find.text('CONFIRM BOOKING'));
+    await tester.pumpAndSettle();
+
     expect(acceptedBidId, 1);
   });
 
