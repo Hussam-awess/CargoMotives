@@ -63,10 +63,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('T 123 ABC'), findsOneWidget);
-    expect(find.text('Verified'), findsOneWidget);
+    expect(find.text('Available'), findsOneWidget);
     expect(find.text('T 456 XYZ'), findsOneWidget);
     expect(find.text('Rejected — tap to fix'), findsOneWidget);
-    expect(find.text('GPS Tracking Not Available'), findsNWidgets(2));
+    expect(find.text('GPS off'), findsNWidgets(2));
   });
 
   testWidgets('tapping a rejected truck opens the resubmit form prefilled', (

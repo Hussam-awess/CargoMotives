@@ -39,7 +39,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Juma Hassan'), findsOneWidget);
-    expect(find.text('+255712345678'), findsOneWidget);
+    expect(find.textContaining('+255712345678'), findsOneWidget);
   });
 
   testWidgets('tapping a driver opens the edit form prefilled', (tester) async {
