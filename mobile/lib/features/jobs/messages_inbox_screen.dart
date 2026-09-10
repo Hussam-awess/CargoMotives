@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../support/data/support_message_repository.dart';
+import '../support/support_thread_screen.dart';
 import 'data/job_repository.dart';
 import 'data/message_repository.dart';
 import 'messages_screen.dart';
@@ -32,12 +34,15 @@ class MessagesInboxScreen extends StatefulWidget {
     required this.counterpartyLabel,
     this.enrichJob,
     MessageRepository? messageRepository,
-  }) : messageRepository = messageRepository ?? MessageRepository();
+    SupportMessageRepository? supportMessageRepository,
+  }) : messageRepository = messageRepository ?? MessageRepository(),
+       supportMessageRepository = supportMessageRepository ?? SupportMessageRepository();
 
   final Future<List<Job>> Function() fetchJobs;
   final String Function(Job job) counterpartyLabel;
   final Future<Job> Function(int jobId)? enrichJob;
   final MessageRepository messageRepository;
+  final SupportMessageRepository supportMessageRepository;
 
   @override
   State<MessagesInboxScreen> createState() => _MessagesInboxScreenState();
@@ -96,41 +101,76 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
     if (mounted) _load();
   }
 
+  void _openSupport() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => SupportThreadScreen(repository: widget.supportMessageRepository)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Messages')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(_loadError!),
-                  const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: _conversations.isEmpty
-                  ? ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: const [
-                        SizedBox(height: 100),
-                        Center(child: Text('No conversations yet.')),
+      body: Column(
+        children: [
+          _SupportRow(onTap: _openSupport),
+          const Divider(height: 1, color: AppColors.background),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _loadError != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_loadError!),
+                        const SizedBox(height: 12),
+                        OutlinedButton(onPressed: _load, child: const Text('Try again')),
                       ],
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: _conversations.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.background),
-                      itemBuilder: (context, index) =>
-                          _ConversationTile(conversation: _conversations[index], onTap: () => _open(_conversations[index])),
                     ),
-            ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: _conversations.isEmpty
+                        ? ListView(
+                            padding: const EdgeInsets.all(24),
+                            children: const [
+                              SizedBox(height: 60),
+                              Center(child: Text('No conversations yet.')),
+                            ],
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: _conversations.length,
+                            separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.background),
+                            itemBuilder: (context, index) =>
+                                _ConversationTile(conversation: _conversations[index], onTap: () => _open(_conversations[index])),
+                          ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SupportRow extends StatelessWidget {
+  const _SupportRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+        alignment: Alignment.center,
+        child: const Icon(Icons.support_agent, color: Colors.white, size: 20),
+      ),
+      title: const Text('Cargo Motives Support', style: TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: const Text('Get help from our team'),
+      trailing: const Icon(Icons.chevron_right, color: AppColors.textTertiary),
     );
   }
 }

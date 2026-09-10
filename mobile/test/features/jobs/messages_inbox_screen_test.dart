@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_message_repository.dart';
+import '../../support/fake_support_message_repository.dart';
 
 Job _job(int id, {required String status, String? assignedCompanyName}) => Job(
   id: id,
@@ -71,6 +72,39 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No conversations yet.'), findsOneWidget);
+  });
+
+  testWidgets('always shows the pinned Cargo Motives Support row, even before jobs load', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MessagesInboxScreen(fetchJobs: () async => [], counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter'),
+      ),
+    );
+
+    // Before the async job fetch settles, the pinned Support row should
+    // already be visible — it doesn't depend on the conversation list.
+    expect(find.text('Cargo Motives Support'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.text('Cargo Motives Support'), findsOneWidget);
+  });
+
+  testWidgets('tapping the Support row opens the Support thread', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MessagesInboxScreen(
+          fetchJobs: () async => [],
+          counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter',
+          supportMessageRepository: FakeSupportMessageRepository(onList: () async => []),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Cargo Motives Support'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No messages yet. Ask us anything.'), findsOneWidget);
   });
 
   testWidgets('a load failure shows a retry option', (tester) async {

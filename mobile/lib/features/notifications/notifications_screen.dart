@@ -207,6 +207,7 @@ class _NotificationRow extends StatelessWidget {
 
   (IconData, bool) _iconFor(String type) => switch (type) {
     'new_message' => (Icons.chat_bubble_outline, true),
+    'support_message' => (Icons.support_agent, true),
     'gps_signal_lost' => (Icons.location_off_outlined, true),
     'job_status_changed' => (Icons.local_shipping_outlined, true),
     'new_bid' || 'bid_placed' => (Icons.gavel_outlined, false),
