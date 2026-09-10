@@ -15,7 +15,11 @@ return [
     |
     | The "log" driver writes the message to the application log instead of
     | sending it, so local dev and CI never depend on a live SMS account or
-    | incur real cost. Swap this to a real provider once one is chosen.
+    | incur real cost. "beem" is a real, implemented driver
+    | (App\Services\Sms\Drivers\BeemSmsDriver) — set SMS_DRIVER=beem and the
+    | BEEM_* env vars below once a real Beem Africa account exists.
+    | "africastalking" has no driver class yet (SmsManager throws if
+    | selected).
     |
     | Supported: "log", "beem", "africastalking"
     |
