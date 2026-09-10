@@ -91,7 +91,9 @@ class FeaturedTest extends TestCase
     public function test_the_preferred_routes_filter_is_ignored_for_a_non_featured_company(): void
     {
         $company = $this->approvedCompanyUser(['is_featured' => false]);
-        $job = Job::factory()->create(['status' => 'open']);
+        // Backdated past the "early visibility" window (Phase 10.19) —
+        // this test is about the preferred-routes filter, not that gate.
+        $job = Job::factory()->create(['status' => 'open', 'created_at' => now()->subMinutes(5)]);
 
         $response = $this->actingAs($company)->getJson('/api/company/jobs/open?use_preferred_routes=1');
 

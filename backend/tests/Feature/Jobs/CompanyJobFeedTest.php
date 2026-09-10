@@ -24,7 +24,10 @@ class CompanyJobFeedTest extends TestCase
     public function test_open_feed_shows_only_open_jobs(): void
     {
         $company = $this->approvedCompanyUser();
-        Job::factory()->create(['status' => 'open']);
+        // Backdated past the "early visibility" window (Phase 10.19) —
+        // this test is about status filtering, not the Plus-benefit
+        // timing gate, which has its own dedicated tests below.
+        Job::factory()->create(['status' => 'open', 'created_at' => now()->subMinutes(5)]);
         Job::factory()->assigned()->create();
 
         $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
@@ -40,13 +43,71 @@ class CompanyJobFeedTest extends TestCase
         // customer themselves — see JobResource/users.company_name.
         $company = $this->approvedCompanyUser();
         $customer = User::factory()->create(['full_name' => 'Amina Hassan', 'company_name' => 'Amina Textiles Ltd']);
-        Job::factory()->create(['status' => 'open', 'customer_id' => $customer->id]);
+        Job::factory()->create(['status' => 'open', 'customer_id' => $customer->id, 'created_at' => now()->subMinutes(5)]);
 
         $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
 
         $response->assertOk()
             ->assertJsonPath('data.0.customer_name', 'Amina Hassan')
             ->assertJsonPath('data.0.customer_company_name', 'Amina Textiles Ltd');
+    }
+
+    public function test_a_non_featured_company_does_not_see_a_job_posted_less_than_2_minutes_ago(): void
+    {
+        $company = $this->approvedCompanyUser();
+        Job::factory()->create(['status' => 'open', 'created_at' => now()]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk();
+        $this->assertCount(0, $response->json('data'));
+    }
+
+    public function test_a_featured_company_sees_a_job_posted_seconds_ago(): void
+    {
+        $user = User::factory()->transporterCompany()->create();
+        TransporterCompany::factory()->approved()->for($user, 'owner')->create(['is_featured' => true]);
+        Job::factory()->create(['status' => 'open', 'created_at' => now()]);
+
+        $response = $this->actingAs($user)->getJson('/api/company/jobs/open');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+    }
+
+    public function test_a_featured_customers_job_sorts_above_a_standard_customers_job(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $standardCustomer = User::factory()->create(['is_featured' => false]);
+        $featuredCustomer = User::factory()->create(['is_featured' => true]);
+        $olderFromFeatured = Job::factory()->create([
+            'status' => 'open',
+            'customer_id' => $featuredCustomer->id,
+            'created_at' => now()->subMinutes(10),
+        ]);
+        $newerFromStandard = Job::factory()->create([
+            'status' => 'open',
+            'customer_id' => $standardCustomer->id,
+            'created_at' => now()->subMinutes(5),
+        ]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertSame([$olderFromFeatured->id, $newerFromStandard->id], $ids);
+    }
+
+    public function test_open_feed_includes_the_posting_customers_real_completed_shipment_count(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $customer = User::factory()->create();
+        Job::factory()->count(2)->create(['customer_id' => $customer->id, 'status' => 'completed']);
+        Job::factory()->create(['customer_id' => $customer->id, 'status' => 'open', 'created_at' => now()->subMinutes(5)]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk()->assertJsonPath('data.0.customer_completed_jobs_count', 2);
     }
 
     public function test_my_bids_shows_only_jobs_this_company_bid_on(): void

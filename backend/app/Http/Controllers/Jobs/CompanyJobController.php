@@ -29,13 +29,37 @@ class CompanyJobController extends Controller
      * free-text route descriptions, not coordinates. Ignored entirely for
      * a non-Featured company or one with no saved routes, rather than
      * erroring — this is a convenience filter, not a permission.
+     *
+     * Phase 10.19 adds two Plus benefits to this same feed: (1) "early
+     * visibility" — a non-Featured *viewing* company only sees a job once
+     * it's at least 2 minutes old, giving Featured companies a real head
+     * start, not a fabricated one; (2) "priority job visibility" — a
+     * Featured *customer's* own jobs sort above everyone else's. Both are
+     * query-level, not post-filtered, so pagination stays correct.
      */
     public function open(Request $request): AnonymousResourceCollection
     {
-        $query = Job::withCoordinates()->where('status', 'open')->with('customer')->withCount('bids')->latest();
+        $company = $request->user()->transporterCompany;
+
+        $query = Job::withCoordinates()
+            ->join('users', 'jobs.customer_id', '=', 'users.id')
+            ->where('jobs.status', 'open')
+            ->with('customer')
+            ->withCount('bids')
+            ->addSelect([
+                'customer_completed_jobs_count' => Job::selectRaw('count(*)')
+                    ->whereColumn('customer_id', 'jobs.customer_id')
+                    ->where('status', 'completed'),
+            ]);
+
+        if (! $company->is_featured) {
+            $query->where('jobs.created_at', '<=', now()->subMinutes(2));
+        }
+
+        $query->orderByDesc('users.is_featured')->orderByDesc('jobs.created_at');
 
         if ($request->boolean('use_preferred_routes')) {
-            $this->applyPreferredRoutesFilter($query, $request->user()->transporterCompany);
+            $this->applyPreferredRoutesFilter($query, $company);
         }
 
         return JobResource::collection($query->paginate(20));

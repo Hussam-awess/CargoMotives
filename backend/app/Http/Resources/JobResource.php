@@ -76,6 +76,16 @@ class JobResource extends JsonResource
                 ];
             }),
             'bids_count' => $this->when(isset($this->bids_count), fn () => (int) $this->bids_count),
+            // Company Plus benefit (Phase 10.19): the posting customer's
+            // real completed-shipment count, a trust signal shown to a
+            // Featured company browsing Open Jobs — only present on
+            // CompanyJobController::open()'s query, which is the only
+            // place that selects it; the UI decides whether to display it
+            // (gated to Featured viewers), same pattern as is_priority.
+            'customer_completed_jobs_count' => $this->when(
+                isset($this->customer_completed_jobs_count),
+                fn () => (int) $this->customer_completed_jobs_count,
+            ),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
