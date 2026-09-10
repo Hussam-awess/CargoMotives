@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/realtime/job_location_channel.dart';
@@ -8,13 +9,20 @@ import '../../jobs/data/bid_repository.dart';
 import '../../jobs/data/company_job_repository.dart';
 import '../../jobs/data/job_repository.dart';
 import '../../jobs/gps_status_card.dart';
+import '../../jobs/job_geo.dart';
+import '../../jobs/job_status.dart';
 import '../../jobs/messages_screen.dart';
 import 'assign_job_screen.dart';
 import 'data/job_assignment_repository.dart';
 
 /// Company's Job Detail + Place Bid (AppFlow §2.4): "Tap a job -> details
 /// -> Place Bid (price, ETA, note) -> quota check (shows remaining bids/
-/// reset time if close to the limit) -> submit."
+/// reset time if close to the limit) -> submit." Restyled to the mockup's
+/// two states — "Submit a Bid" (open, not yet assigned) and "Active Job"
+/// (assigned to this company). Note: a company never sees competitors'
+/// bid prices (BidController::index() is Customer-only, to keep the
+/// bidding sealed) — only its own bid count, unlike the mockup's "5 ·
+/// lowest 720,000" line.
 class CompanyJobDetailScreen extends StatefulWidget {
   CompanyJobDetailScreen({
     super.key,
@@ -148,7 +156,9 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
 
   Future<void> _openAssignScreen() async {
     final assigned = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => AssignJobScreen(job: _job!, assignmentRepository: widget.assignmentRepository)),
+      MaterialPageRoute(
+        builder: (_) => AssignJobScreen(job: _job!, assignmentRepository: widget.assignmentRepository),
+      ),
     );
     if (assigned == true) _load();
   }
@@ -185,11 +195,14 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final job = _job;
+    final isActiveJob = job != null && job.isAssignedToViewer && job.isAssignable;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Job detail'),
+        title: Text(isActiveJob ? 'Active Job' : (job != null && job.isOpen ? 'Submit a Bid' : 'Job Detail')),
         actions: [
-          if (_job?.isAssignedToViewer == true)
+          if (job?.isAssignedToViewer == true)
             IconButton(
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: 'Messages',
@@ -203,7 +216,11 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [Text(_loadError!), const SizedBox(height: 12), OutlinedButton(onPressed: _load, child: const Text('Try again'))],
+                children: [
+                  Text(_loadError!),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                ],
               ),
             )
           : SingleChildScrollView(
@@ -211,97 +228,420 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  if (isActiveJob) _ActiveJobCard(job: job, liveLocation: _liveLocation) else _JobInfoCard(job: job!),
+                  const SizedBox(height: 16),
+                  if (job.isAssignable && job.isAssignedToViewer) ...[
+                    const _SectionLabel('Assignment'),
+                    const SizedBox(height: 8),
+                    _AssignmentCard(
+                      job: job,
+                      onAssign: _openAssignScreen,
+                      onViewDriverLink: job.assignedTruckRegistration != null ? _viewDriverLink : null,
+                    ),
+                    if (job.assignedTruckRegistration != null) ...[
+                      const SizedBox(height: 16),
+                      GpsStatusCard(trackingActive: job.gpsTrackingActive, signalStatus: job.gpsSignalStatus, location: _liveLocation),
+                    ],
+                    if (_returnLoadSuggestions.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      const _SectionLabel('Find a return load'),
+                      const SizedBox(height: 8),
+                      for (final suggestion in _returnLoadSuggestions)
+                        _ReturnLoadTile(
+                          job: suggestion,
+                          onTap: () =>
+                              Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: suggestion.id))),
+                        ),
+                    ],
+                  ] else if (!job.isOpen)
+                    const Text('This job is no longer open for bidding.', style: TextStyle(color: AppColors.textSecondary))
+                  else if (_placedBid != null)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(10)),
+                      child: Text(
+                        'Bid placed: TZS ${_placedBid!.price.toStringAsFixed(0)} — pending review.',
+                        style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                      ),
+                    )
+                  else ...[
+                    Text(
+                      'Your price',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
+                    ),
+                    const SizedBox(height: 5),
+                    Container(
+                      height: 56,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.ctaBlue, width: 1.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
                         children: [
-                          Text('${_job!.containerType} · ${_job!.containerSize}', style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(height: 8),
-                          Text('Pickup: ${_job!.pickupAddress}'),
-                          Text('Drop-off: ${_job!.dropoffAddress}'),
-                          if (_job!.approxWeightTons != null) Text('Approx. weight: ${_job!.approxWeightTons} tons'),
-                          if (_job!.cargoDescription != null) Text(_job!.cargoDescription!),
+                          const Text('TZS', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              key: const Key('bidPriceField'),
+                              controller: _priceController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontFamily: 'Barlow Condensed',
+                                fontSize: 26,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                filled: false,
+                                contentPadding: EdgeInsets.zero,
+                                hintText: '0',
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_job!.isAssignable && _job!.isAssignedToViewer) ...[
-                    Text('Assignment', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 8),
-                    if (_job!.assignedTruckRegistration != null)
-                      Text('${_job!.assignedTruckRegistration} · ${_job!.assignedDriverName}')
-                    else
-                      const Text('No truck/driver assigned yet.', style: TextStyle(color: AppColors.textSecondary)),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: _openAssignScreen,
-                      child: Text(_job!.assignedTruckRegistration != null ? 'Reassign truck & driver' : 'Assign truck & driver'),
-                    ),
-                    if (_job!.assignedTruckRegistration != null) ...[
-                      const SizedBox(height: 8),
-                      OutlinedButton(onPressed: _viewDriverLink, child: const Text('View driver link')),
-                      const SizedBox(height: 16),
-                      GpsStatusCard(
-                        trackingActive: _job!.gpsTrackingActive,
-                        signalStatus: _job!.gpsSignalStatus,
-                        location: _liveLocation,
-                      ),
+                    if (_quotaRemaining != null) ...[
+                      const SizedBox(height: 6),
+                      Text('$_quotaRemaining bid(s) remaining', style: const TextStyle(fontSize: 11.5, color: AppColors.textTertiary)),
                     ],
-                    if (_returnLoadSuggestions.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Text('Find a return load', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      for (final suggestion in _returnLoadSuggestions)
-                        Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            title: Text('${suggestion.containerType} · ${suggestion.containerSize}'),
-                            subtitle: Text('${suggestion.pickupAddress} → ${suggestion.dropoffAddress}'),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: suggestion.id)),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ] else if (!_job!.isOpen)
-                    const Text('This job is no longer open for bidding.', style: TextStyle(color: AppColors.textSecondary))
-                  else if (_placedBid != null)
-                    Text('Bid placed: TZS ${_placedBid!.price.toStringAsFixed(0)} — pending review.', style: const TextStyle(fontWeight: FontWeight.w600))
-                  else ...[
-                    Text('Place a bid', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 8),
-                    if (_quotaRemaining != null)
-                      Text('$_quotaRemaining bid(s) remaining', style: const TextStyle(color: AppColors.textSecondary)),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _priceController,
-                      decoration: const InputDecoration(labelText: 'Price (TZS)'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Note to customer',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 5),
                     TextField(
                       controller: _noteController,
-                      decoration: const InputDecoration(labelText: 'Note (optional)'),
+                      decoration: const InputDecoration(hintText: 'Optional'),
                       maxLines: 2,
                     ),
                     if (_submitError != null) ...[
                       const SizedBox(height: 12),
                       Text(_submitError!, style: const TextStyle(color: Colors.red)),
                     ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     ElevatedButton(
                       onPressed: (_isSubmitting || _quotaRemaining == 0) ? null : _placeBid,
                       child: _isSubmitting
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('Place bid'),
+                          : const Text('SUBMIT BID'),
                     ),
                   ],
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+    );
+  }
+}
+
+/// The bidding-stage summary — mockup's light "Submit a Bid" header card.
+class _JobInfoCard extends StatelessWidget {
+  const _JobInfoCard({required this.job});
+
+  final Job job;
+
+  @override
+  Widget build(BuildContext context) {
+    final distance = (job.pickupLat != null && job.pickupLng != null && job.dropoffLat != null && job.dropoffLng != null)
+        ? kmBetween(job.pickupLat!, job.pickupLng!, job.dropoffLat!, job.dropoffLng!)
+        : null;
+
+    final rows = <(String, String)>[
+      ('Pickup window', DateFormat('d MMM, HH:mm').format(job.preferredPickupWindowStart)),
+      if (job.bidsCount != null) ('Current bids', '${job.bidsCount}'),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(13),
+            color: AppColors.surfaceSubtle,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CM-${job.id.toString().padLeft(4, '0')}',
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5, color: AppColors.textSecondary),
+                ),
+                Text(
+                  '${job.pickupAddress} → ${job.dropoffAddress}',
+                  style: const TextStyle(
+                    fontFamily: 'Barlow Condensed',
+                    fontSize: 21,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+                Text(
+                  '${job.containerType} · ${job.containerSize}'
+                  '${job.approxWeightTons != null ? ' · ${job.approxWeightTons!.toStringAsFixed(0)} t' : ''}'
+                  '${distance != null ? ' · ${distance.toStringAsFixed(0)} km' : ''}',
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          for (var i = 0; i < rows.length; i++)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+              decoration: i == rows.length - 1
+                  ? null
+                  : const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: AppColors.background)),
+                    ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(rows[i].$1, style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+                  Text(
+                    rows[i].$2,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                  ),
+                ],
+              ),
+            ),
+          if (job.cargoDescription != null && job.cargoDescription!.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(13, 0, 13, 13),
+              child: Text(job.cargoDescription!, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The assigned-and-in-progress state — mockup's navy "Active Job" hero
+/// card. "You earn" is the company's own accepted bid price (agreedPrice);
+/// "Remaining" is a real great-circle distance from the truck's live
+/// position to drop-off, not a fabricated ETA.
+class _ActiveJobCard extends StatelessWidget {
+  const _ActiveJobCard({required this.job, required this.liveLocation});
+
+  final Job job;
+  final GpsLocation? liveLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = (liveLocation != null && job.dropoffLat != null && job.dropoffLng != null)
+        ? kmBetween(liveLocation!.lat, liveLocation!.lng, job.dropoffLat!, job.dropoffLng!)
+        : null;
+    final customer = job.customerCompanyName ?? job.customerName;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'CM-${job.id.toString().padLeft(4, '0')}',
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: AppColors.lightBlue),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.lightBlue),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      jobStatusLabel(job.status),
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '${job.pickupAddress} → ${job.dropoffAddress}',
+            style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+          if (customer != null) Text(customer, style: const TextStyle(fontSize: 12.5, color: AppColors.lightBlue)),
+          Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child: Container(
+              padding: const EdgeInsets.only(top: 13),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.13))),
+              ),
+              child: Row(
+                children: [
+                  if (job.agreedPrice != null) _SummaryStat(label: 'You earn', value: job.agreedPrice!.toStringAsFixed(0)),
+                  if (remaining != null) ...[
+                    const SizedBox(width: 20),
+                    _SummaryStat(label: 'Remaining', value: '${remaining.toStringAsFixed(0)} km'),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryStat extends StatelessWidget {
+  const _SummaryStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue)),
+        Text(
+          value,
+          style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+        ),
+      ],
+    );
+  }
+}
+
+class _AssignmentCard extends StatelessWidget {
+  const _AssignmentCard({required this.job, required this.onAssign, required this.onViewDriverLink});
+
+  final Job job;
+  final VoidCallback onAssign;
+  final VoidCallback? onViewDriverLink;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (job.assignedTruckRegistration != null)
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(6)),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.local_shipping_outlined, size: 17, color: AppColors.ctaBlue),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(job.assignedTruckRegistration!, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                      Text(job.assignedDriverName ?? '', style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            const Text('No truck/driver assigned yet.', style: TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: onAssign,
+            child: Text(job.assignedTruckRegistration != null ? 'Reassign truck & driver' : 'Assign truck & driver'),
+          ),
+          if (onViewDriverLink != null) ...[
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: onViewDriverLink, child: const Text('View driver link')),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReturnLoadTile extends StatelessWidget {
+  const _ReturnLoadTile({required this.job, required this.onTap});
+
+  final Job job;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${job.pickupAddress} → ${job.dropoffAddress}',
+                      style: const TextStyle(
+                        fontFamily: 'Barlow Condensed',
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    Text(
+                      '${job.containerType} · ${job.containerSize}',
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

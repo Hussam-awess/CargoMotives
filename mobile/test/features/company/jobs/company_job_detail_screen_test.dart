@@ -48,7 +48,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Dry Van · 40ft'), findsOneWidget);
+    expect(find.textContaining('Dry Van · 40ft'), findsOneWidget);
     expect(find.text('3 bid(s) remaining'), findsOneWidget);
   });
 
@@ -81,8 +81,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextField, 'Price (TZS)'), '750000');
-    await tester.tap(find.text('Place bid'));
+    await tester.enterText(find.byKey(const Key('bidPriceField')), '750000');
+    await tester.tap(find.text('SUBMIT BID'));
     await tester.pumpAndSettle();
 
     expect(capturedPrice, 750000);
@@ -109,7 +109,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Place bid'));
+    await tester.tap(find.text('SUBMIT BID'));
     await tester.pump();
 
     expect(find.text('Enter a valid price.'), findsOneWidget);
@@ -134,8 +134,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextField, 'Price (TZS)'), '500000');
-    await tester.tap(find.text('Place bid'));
+    await tester.enterText(find.byKey(const Key('bidPriceField')), '500000');
+    await tester.tap(find.text('SUBMIT BID'));
     await tester.pumpAndSettle();
 
     expect(find.text('Bid limit reached. Try again in 10 min.'), findsOneWidget);
@@ -179,7 +179,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('This job is no longer open for bidding.'), findsOneWidget);
-    expect(find.text('Place bid'), findsNothing);
+    expect(find.text('SUBMIT BID'), findsNothing);
   });
 
   testWidgets('the assigned company sees the assignment section, not the bid form', (tester) async {
@@ -222,7 +222,7 @@ void main() {
 
     expect(find.text('No truck/driver assigned yet.'), findsOneWidget);
     expect(find.text('Assign truck & driver'), findsOneWidget);
-    expect(find.text('Place bid'), findsNothing);
+    expect(find.text('SUBMIT BID'), findsNothing);
     expect(find.text('This job is no longer open for bidding.'), findsNothing);
   });
 
@@ -265,7 +265,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('T 123 ABC · Ali Juma'), findsOneWidget);
+    expect(find.text('T 123 ABC'), findsOneWidget);
+    expect(find.text('Ali Juma'), findsOneWidget);
     expect(find.text('Reassign truck & driver'), findsOneWidget);
     expect(find.text('View driver link'), findsOneWidget);
     expect(find.text('GPS Tracking Not Available'), findsOneWidget);

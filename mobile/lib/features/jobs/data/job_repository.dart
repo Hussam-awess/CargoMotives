@@ -3,21 +3,14 @@ import '../../../core/network/api_client.dart';
 /// A driver's delivery submission (Backend Schema §2.10), embedded on a
 /// [Job] once its driver has submitted one via the Driver Link.
 class ProofOfDelivery {
-  const ProofOfDelivery({
-    required this.photoUrls,
-    required this.recipientName,
-    required this.notes,
-    required this.confirmedByCustomerAt,
-  });
+  const ProofOfDelivery({required this.photoUrls, required this.recipientName, required this.notes, required this.confirmedByCustomerAt});
 
   factory ProofOfDelivery.fromJson(Map<String, dynamic> json) {
     return ProofOfDelivery(
       photoUrls: (json['photo_urls'] as List).cast<String>(),
       recipientName: json['recipient_name'] as String?,
       notes: json['notes'] as String?,
-      confirmedByCustomerAt: json['confirmed_by_customer_at'] == null
-          ? null
-          : DateTime.parse(json['confirmed_by_customer_at'] as String),
+      confirmedByCustomerAt: json['confirmed_by_customer_at'] == null ? null : DateTime.parse(json['confirmed_by_customer_at'] as String),
     );
   }
 
@@ -77,6 +70,8 @@ class Job {
     this.gpsTrackingActive = false,
     this.gpsSignalStatus = 'not_applicable',
     this.lastKnownLocation,
+    this.customerName,
+    this.customerCompanyName,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -110,6 +105,8 @@ class Job {
       lastKnownLocation: json['last_known_location'] == null
           ? null
           : GpsLocation.fromJson(json['last_known_location'] as Map<String, dynamic>),
+      customerName: json['customer_name'] as String?,
+      customerCompanyName: json['customer_company_name'] as String?,
     );
   }
 
@@ -156,6 +153,12 @@ class Job {
   /// job is actually assigned to may act on truck/driver assignment.
   /// Defaults to false (customer-side responses never set this key).
   final bool isAssignedToViewer;
+
+  /// Only present on a company-side fetch of a single job
+  /// (CompanyJobController::show() eager-loads the customer relation) —
+  /// null on list endpoints and on the customer's own view of their job.
+  final String? customerName;
+  final String? customerCompanyName;
 
   bool get isOpen => status == 'open';
 
