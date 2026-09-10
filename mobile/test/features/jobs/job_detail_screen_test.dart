@@ -1,9 +1,12 @@
+import 'package:cargo_motives/features/auth/data/auth_repository.dart';
 import 'package:cargo_motives/features/jobs/data/bid_repository.dart';
 import 'package:cargo_motives/features/jobs/data/job_repository.dart';
 import 'package:cargo_motives/features/jobs/job_detail_screen.dart';
+import 'package:cargo_motives/features/jobs/post_job_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_auth_repository.dart';
 import '../../support/fake_bid_repository.dart';
 import '../../support/fake_job_bid_channel.dart';
 import '../../support/fake_job_location_channel.dart';
@@ -94,7 +97,15 @@ void main() {
       'note': null,
       'status': 'pending',
       'is_priority': false,
-      'company': {'id': 2, 'name': 'XYZ Transport', 'verified': true, 'truck_count': 3, 'gps_available': false, 'rating': null, 'rating_count': 0},
+      'company': {
+        'id': 2,
+        'name': 'XYZ Transport',
+        'verified': true,
+        'truck_count': 3,
+        'gps_available': false,
+        'rating': null,
+        'rating_count': 0,
+      },
     });
     await tester.pump();
 
@@ -301,7 +312,12 @@ void main() {
             onShow: (_) async => trackableJob(
               gpsTrackingActive: true,
               gpsSignalStatus: 'lost',
-              lastKnownLocation: GpsLocation(lat: -6.8161, lng: 39.2803, heading: 90, recordedAt: DateTime.now().subtract(const Duration(minutes: 20))),
+              lastKnownLocation: GpsLocation(
+                lat: -6.8161,
+                lng: 39.2803,
+                heading: 90,
+                recordedAt: DateTime.now().subtract(const Duration(minutes: 20)),
+              ),
             ),
           ),
           bidRepository: FakeBidRepository(onForJob: (_) async => []),
@@ -342,5 +358,82 @@ void main() {
     await tester.pump();
 
     expect(find.text('-6.8500, 39.2500'), findsOneWidget);
+  });
+
+  Job completedJobForReturn() => Job(
+    id: 10,
+    status: 'completed',
+    pickupAddress: _openJob.pickupAddress,
+    pickupLat: _openJob.pickupLat,
+    pickupLng: _openJob.pickupLng,
+    dropoffAddress: _openJob.dropoffAddress,
+    dropoffLat: _openJob.dropoffLat,
+    dropoffLng: _openJob.dropoffLng,
+    containerType: _openJob.containerType,
+    containerSize: _openJob.containerSize,
+    approxWeightTons: _openJob.approxWeightTons,
+    cargoDescription: _openJob.cargoDescription,
+    preferredPickupWindowStart: _openJob.preferredPickupWindowStart,
+    customerNotes: null,
+    agreedPrice: 750000,
+    currency: 'TZS',
+    assignedCompanyName: 'ABC Logistics',
+    assignedTruckRegistration: 'T 123 ABC',
+    assignedDriverName: 'Ali Juma',
+    proofOfDelivery: ProofOfDelivery(
+      photoUrls: const ['https://example.test/photo1.jpg'],
+      recipientName: 'Asha Mwinyi',
+      notes: null,
+      confirmedByCustomerAt: DateTime(2026, 9, 6),
+    ),
+    bidsCount: 1,
+  );
+
+  testWidgets('a Plus customer sees "Post return shipment" on a completed job and it opens Post Job pre-filled', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobDetailScreen(
+          jobId: 10,
+          jobRepository: FakeJobRepository(onShow: (_) async => completedJobForReturn()),
+          bidRepository: FakeBidRepository(onForJob: (_) async => []),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: FakeJobLocationChannel(jobId: 10),
+          authRepository: FakeAuthRepository(
+            onMe: () async => const UserProfile(fullName: 'Test User', companyName: null, isFeatured: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Post return shipment'), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Post return shipment'), findsOneWidget);
+
+    await tester.tap(find.text('Post return shipment'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PostJobScreen), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, _openJob.dropoffAddress), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, _openJob.pickupAddress), findsOneWidget);
+  });
+
+  testWidgets('a standard customer does not see "Post return shipment" on a completed job', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JobDetailScreen(
+          jobId: 10,
+          jobRepository: FakeJobRepository(onShow: (_) async => completedJobForReturn()),
+          bidRepository: FakeBidRepository(onForJob: (_) async => []),
+          bidChannel: FakeJobBidChannel(jobId: 10),
+          locationChannel: FakeJobLocationChannel(jobId: 10),
+          authRepository: FakeAuthRepository(
+            onMe: () async => const UserProfile(fullName: 'Test User', companyName: null, isFeatured: false),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Post return shipment'), findsNothing);
   });
 }

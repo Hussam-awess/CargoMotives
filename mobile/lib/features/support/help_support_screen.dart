@@ -14,7 +14,13 @@ import 'how_it_works_screen.dart';
 /// Report a Problem on a delivered shipment), there is no listing
 /// endpoint yet, so nothing fabricated is shown here.
 class HelpSupportScreen extends StatelessWidget {
-  const HelpSupportScreen({super.key});
+  const HelpSupportScreen({super.key, this.isFeatured = false});
+
+  /// Plus benefit (Phase 10.19): a Featured account (Customer or Company)
+  /// gets a visible "Priority" tag here — cosmetic only, since there's no
+  /// real ticketing/queue-priority backend to actually fast-track against,
+  /// same honest-placeholder pattern as the rest of this screen.
+  final bool isFeatured;
 
   static const _faqs = [
     (
@@ -52,9 +58,24 @@ class HelpSupportScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Need help with a shipment?',
-                  style: TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Need help with a shipment?',
+                        style: TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
+                      ),
+                    ),
+                    if (isFeatured)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(5)),
+                        child: const Text(
+                          'PRIORITY',
+                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.accent, letterSpacing: 0.5),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 const Text(

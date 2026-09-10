@@ -55,6 +55,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.textContaining('GET PLUS'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.textContaining('GET PLUS'));
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('GET PLUS'));
     await tester.pumpAndSettle();
 

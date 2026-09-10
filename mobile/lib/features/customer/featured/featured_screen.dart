@@ -160,6 +160,31 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                               title: 'A higher daily posting quota',
                               body: 'Standard accounts have a limited number of new shipments per day — Plus raises that cap.',
                             ),
+                            const SizedBox(height: 10),
+                            const _BenefitCard(
+                              icon: Icons.trending_up,
+                              title: 'Priority visibility for your jobs',
+                              body:
+                                  'Your posted jobs are shown to transporters ahead of standard customers\' jobs, so you get bids sooner.',
+                            ),
+                            const SizedBox(height: 10),
+                            const _BenefitCard(
+                              icon: Icons.swap_horiz,
+                              title: 'One-tap return shipments',
+                              body: 'Once a shipment is completed, post the return leg in one tap — the route comes pre-filled, reversed.',
+                            ),
+                            const SizedBox(height: 10),
+                            const _BenefitCard(
+                              icon: Icons.place_outlined,
+                              title: 'Unlimited saved addresses',
+                              body: 'Standard accounts can save up to 3 addresses for quick re-use — Plus removes the limit.',
+                            ),
+                            const SizedBox(height: 10),
+                            const _BenefitCard(
+                              icon: Icons.support_agent,
+                              title: 'Priority support',
+                              body: 'Your Help & Support requests are flagged for faster handling by our team.',
+                            ),
                             const SizedBox(height: 24),
                             ElevatedButton(
                               onPressed: _openPurchaseForm,

@@ -26,14 +26,22 @@ class SavedAddress {
 /// time; wiring a saved address into that form as a quick-fill shortcut
 /// is a natural next step once this list has something in it worth
 /// reusing.
+///
+/// Customer Plus benefit (Phase 10.19): a standard customer is capped at
+/// [_freeAddressCap] entries; Plus removes the cap — a real, on-device
+/// limit rather than a cosmetic one, since this feature already has no
+/// backend to gate against instead.
 class SavedAddressesScreen extends StatefulWidget {
-  const SavedAddressesScreen({super.key, this.prefs = const LocalPrefs()});
+  const SavedAddressesScreen({super.key, this.isFeatured = false, this.prefs = const LocalPrefs()});
 
+  final bool isFeatured;
   final LocalPrefs prefs;
 
   @override
   State<SavedAddressesScreen> createState() => _SavedAddressesScreenState();
 }
+
+const _freeAddressCap = 3;
 
 class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   List<SavedAddress> _addresses = [];
@@ -59,6 +67,13 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   }
 
   Future<void> _addAddress() async {
+    if (!widget.isFeatured && _addresses.length >= _freeAddressCap) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Standard accounts can save up to 3 addresses. Get Cargo Motives Plus to save more.')));
+      return;
+    }
+
     final added = await showDialog<SavedAddress>(context: context, builder: (_) => const _AddAddressDialog());
     if (added == null) return;
     setState(() => _addresses = [..._addresses, added]);
@@ -73,7 +88,21 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Saved Addresses')),
+      appBar: AppBar(
+        title: const Text('Saved Addresses'),
+        bottom: widget.isFeatured
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(22),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '${_addresses.length} of $_freeAddressCap · Plus removes the limit',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ),
+              ),
+      ),
       floatingActionButton: FloatingActionButton(onPressed: _addAddress, child: const Icon(Icons.add)),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

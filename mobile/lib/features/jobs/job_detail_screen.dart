@@ -5,6 +5,7 @@ import '../../core/network/api_exception.dart';
 import '../../core/realtime/job_bid_channel.dart';
 import '../../core/realtime/job_location_channel.dart';
 import '../../core/theme/app_theme.dart';
+import '../auth/data/auth_repository.dart';
 import 'booking_confirmation_screen.dart';
 import 'data/bid_repository.dart';
 import 'data/job_repository.dart';
@@ -13,6 +14,7 @@ import 'job_geo.dart';
 import 'job_status.dart';
 import 'live_gps_tracking_screen.dart';
 import 'messages_screen.dart';
+import 'post_job_screen.dart';
 import 'truck_details_screen.dart';
 
 /// Job Detail (Customer) — AppFlow §3.3/§3.4: the job summary, its bid
@@ -29,16 +31,19 @@ class JobDetailScreen extends StatefulWidget {
     BidRepository? bidRepository,
     JobBidChannel? bidChannel,
     JobLocationChannel? locationChannel,
+    AuthRepository? authRepository,
   }) : jobRepository = jobRepository ?? JobRepository(),
        bidRepository = bidRepository ?? BidRepository(),
        bidChannel = bidChannel ?? JobBidChannel(jobId: jobId),
-       locationChannel = locationChannel ?? JobLocationChannel(jobId: jobId);
+       locationChannel = locationChannel ?? JobLocationChannel(jobId: jobId),
+       authRepository = authRepository ?? AuthRepository();
 
   final int jobId;
   final JobRepository jobRepository;
   final BidRepository bidRepository;
   final JobBidChannel bidChannel;
   final JobLocationChannel locationChannel;
+  final AuthRepository authRepository;
 
   @override
   State<JobDetailScreen> createState() => _JobDetailScreenState();
@@ -52,17 +57,36 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   bool _isConfirmingDelivery = false;
   bool _isReportingProblem = false;
   GpsLocation? _liveLocation;
+  bool _isFeatured = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadFeaturedStatus();
     widget.bidChannel
       ..onBidPlaced = _handleLiveBid
       ..connect();
     widget.locationChannel
       ..onLocationUpdated = _handleLiveLocation
       ..connect();
+  }
+
+  /// Only powers the "Post return shipment" Plus benefit below — a failed
+  /// fetch just leaves that button hidden rather than blocking the rest
+  /// of this screen, which doesn't otherwise need the customer's own
+  /// profile at all.
+  Future<void> _loadFeaturedStatus() async {
+    try {
+      final profile = await widget.authRepository.me();
+      if (mounted) setState(() => _isFeatured = profile.isFeatured);
+    } catch (_) {
+      // Non-critical — see docblock above.
+    }
+  }
+
+  void _openReturnShipment() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => PostJobScreen(prefillReturnFrom: _job!)));
   }
 
   @override
@@ -224,6 +248,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       isReportingProblem: _isReportingProblem,
                       onConfirm: _confirmDelivery,
                       onReportProblem: _reportProblem,
+                    ),
+                  ],
+                  if (_job!.status == 'completed' && _isFeatured) ...[
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _openReturnShipment,
+                      icon: const Icon(Icons.swap_horiz, size: 18),
+                      label: const Text('Post return shipment'),
                     ),
                   ],
                   const SizedBox(height: 24),

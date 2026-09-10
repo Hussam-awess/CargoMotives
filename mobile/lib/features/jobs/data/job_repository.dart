@@ -72,6 +72,7 @@ class Job {
     this.lastKnownLocation,
     this.customerName,
     this.customerCompanyName,
+    this.customerCompletedJobsCount,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -107,6 +108,7 @@ class Job {
           : GpsLocation.fromJson(json['last_known_location'] as Map<String, dynamic>),
       customerName: json['customer_name'] as String?,
       customerCompanyName: json['customer_company_name'] as String?,
+      customerCompletedJobsCount: json['customer_completed_jobs_count'] as int?,
     );
   }
 
@@ -159,6 +161,12 @@ class Job {
   /// null on list endpoints and on the customer's own view of their job.
   final String? customerName;
   final String? customerCompanyName;
+
+  /// The posting customer's real completed-shipment count — a Company
+  /// Plus trust signal (Phase 10.19), present only on
+  /// CompanyJobRepository.open()'s response (CompanyJobController::open()
+  /// is the only query that selects it).
+  final int? customerCompletedJobsCount;
 
   bool get isOpen => status == 'open';
 

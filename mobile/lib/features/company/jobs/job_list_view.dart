@@ -15,10 +15,16 @@ import 'company_job_detail_screen.dart';
 /// agreed price before a bid is accepted; showing the bid count instead is
 /// the real number a transporter cares about here).
 class JobListView extends StatefulWidget {
-  const JobListView({super.key, required this.loader, required this.emptyMessage});
+  const JobListView({super.key, required this.loader, required this.emptyMessage, this.showCustomerTrustSignal = false});
 
   final Future<List<Job>> Function() loader;
   final String emptyMessage;
+
+  /// Company Plus benefit (Phase 10.19): shows the posting customer's real
+  /// completed-shipment count on each card — only meaningful (and only
+  /// populated by the backend) on the Open tab, and only worth showing to
+  /// a Featured company, per CompanyJobsScreen's own _isFeatured check.
+  final bool showCustomerTrustSignal;
 
   @override
   State<JobListView> createState() => _JobListViewState();
@@ -87,6 +93,7 @@ class _JobListViewState extends State<JobListView> {
 
               return _JobBoardCard(
                 job: job,
+                showCustomerTrustSignal: widget.showCustomerTrustSignal,
                 onTap: () async {
                   await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: job.id)));
                   _refresh();
@@ -101,10 +108,11 @@ class _JobListViewState extends State<JobListView> {
 }
 
 class _JobBoardCard extends StatelessWidget {
-  const _JobBoardCard({required this.job, required this.onTap});
+  const _JobBoardCard({required this.job, required this.onTap, this.showCustomerTrustSignal = false});
 
   final Job job;
   final VoidCallback onTap;
+  final bool showCustomerTrustSignal;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +147,12 @@ class _JobBoardCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${job.pickupAddress} → ${job.dropoffAddress}',
-                        style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        style: const TextStyle(
+                          fontFamily: 'Barlow Condensed',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
                       ),
                       Text(
                         '${job.containerType} · ${job.containerSize}${job.approxWeightTons != null ? ' · ${job.approxWeightTons!.toStringAsFixed(0)} t' : ''}',
@@ -155,7 +168,12 @@ class _JobBoardCard extends StatelessWidget {
                     children: [
                       Text(
                         job.agreedPrice!.toStringAsFixed(0),
-                        style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        style: const TextStyle(
+                          fontFamily: 'Barlow Condensed',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
                       ),
                       Text(job.currency, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                     ],
@@ -166,17 +184,37 @@ class _JobBoardCard extends StatelessWidget {
                     children: [
                       Text(
                         '${job.bidsCount ?? 0}',
-                        style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        style: const TextStyle(
+                          fontFamily: 'Barlow Condensed',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
                       ),
                       const Text('bids so far', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                     ],
                   ),
               ],
             ),
+            if (showCustomerTrustSignal && job.customerCompletedJobsCount != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.verified_outlined, size: 13, color: AppColors.accent),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${job.customerCompletedJobsCount} completed shipment${job.customerCompletedJobsCount == 1 ? '' : 's'} on Cargo Motives',
+                    style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ],
             Container(
               margin: const EdgeInsets.only(top: 11),
               padding: const EdgeInsets.only(top: 11),
-              decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFF2F2F3)))),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: Color(0xFFF2F2F3))),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -187,7 +225,11 @@ class _JobBoardCard extends StatelessWidget {
                   ),
                   Text(
                     job.isOpen ? 'Place bid' : jobStatusLabel(job.status),
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: job.isOpen ? AppColors.ctaBlue : jobStatusColor(job.status)),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: job.isOpen ? AppColors.ctaBlue : jobStatusColor(job.status),
+                    ),
                   ),
                 ],
               ),

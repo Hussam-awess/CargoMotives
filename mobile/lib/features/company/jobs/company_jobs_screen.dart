@@ -91,6 +91,7 @@ class _CompanyJobsScreenState extends State<CompanyJobsScreen> {
                     key: ValueKey(_usePreferredRoutes),
                     loader: () => widget.repository.open(usePreferredRoutes: _usePreferredRoutes),
                     emptyMessage: _usePreferredRoutes ? 'No open jobs on your preferred routes right now.' : 'No open jobs right now.',
+                    showCustomerTrustSignal: _isFeatured,
                   ),
                 ),
               ],

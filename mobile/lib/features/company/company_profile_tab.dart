@@ -8,6 +8,7 @@ import '../auth/data/auth_repository.dart';
 import '../auth/edit_profile_screen.dart';
 import '../support/help_support_screen.dart';
 import 'data/company_repository.dart';
+import 'data/featured_repository.dart';
 import 'featured/featured_screen.dart';
 import 'settings/company_settings_screen.dart';
 
@@ -18,14 +19,21 @@ import 'settings/company_settings_screen.dart';
 /// speculatively. Restyled to the mockup's Profile screen using only real
 /// data (CompanyRepository.getStatus() + AuthRepository.me()).
 class CompanyProfileTab extends StatefulWidget {
-  CompanyProfileTab({super.key, CompanyRepository? companyRepository, AuthRepository? authRepository, SessionStore? sessionStore})
-    : companyRepository = companyRepository ?? CompanyRepository(),
-      authRepository = authRepository ?? AuthRepository(),
-      sessionStore = sessionStore ?? SessionStore();
+  CompanyProfileTab({
+    super.key,
+    CompanyRepository? companyRepository,
+    AuthRepository? authRepository,
+    SessionStore? sessionStore,
+    CompanyFeaturedRepository? featuredRepository,
+  }) : companyRepository = companyRepository ?? CompanyRepository(),
+       authRepository = authRepository ?? AuthRepository(),
+       sessionStore = sessionStore ?? SessionStore(),
+       featuredRepository = featuredRepository ?? CompanyFeaturedRepository();
 
   final CompanyRepository companyRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
+  final CompanyFeaturedRepository featuredRepository;
 
   @override
   State<CompanyProfileTab> createState() => _CompanyProfileTabState();
@@ -34,6 +42,7 @@ class CompanyProfileTab extends StatefulWidget {
 class _CompanyProfileTabState extends State<CompanyProfileTab> {
   late Future<CompanyVerification?> _verificationFuture;
   late Future<UserProfile> _profileFuture;
+  late Future<CompanyFeaturedStatus> _featuredFuture;
   bool _isLoggingOut = false;
 
   @override
@@ -41,6 +50,7 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
     super.initState();
     _verificationFuture = widget.companyRepository.getStatus();
     _profileFuture = widget.authRepository.me();
+    _featuredFuture = widget.featuredRepository.status();
   }
 
   Future<void> _logout() async {
@@ -78,10 +88,14 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
             future: _verificationFuture,
             builder: (context, verificationSnapshot) => FutureBuilder<UserProfile>(
               future: _profileFuture,
-              builder: (context, profileSnapshot) => _CompanyCard(
-                verification: verificationSnapshot.data,
-                profile: profileSnapshot.data,
-                onTap: profileSnapshot.data == null ? null : () => _openEditProfile(profileSnapshot.data!),
+              builder: (context, profileSnapshot) => FutureBuilder<CompanyFeaturedStatus>(
+                future: _featuredFuture,
+                builder: (context, featuredSnapshot) => _CompanyCard(
+                  verification: verificationSnapshot.data,
+                  profile: profileSnapshot.data,
+                  isFeatured: featuredSnapshot.data?.isFeatured ?? false,
+                  onTap: profileSnapshot.data == null ? null : () => _openEditProfile(profileSnapshot.data!),
+                ),
               ),
             ),
           ),
@@ -108,7 +122,11 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
               _AccountRow(
                 icon: Icons.help_outline,
                 label: 'Help & support',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
+                onTap: () async {
+                  final status = await _featuredFuture;
+                  if (!context.mounted) return;
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => HelpSupportScreen(isFeatured: status.isFeatured)));
+                },
               ),
             ],
           ),
@@ -133,10 +151,18 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
 }
 
 class _CompanyCard extends StatelessWidget {
-  const _CompanyCard({required this.verification, required this.profile, this.onTap});
+  const _CompanyCard({required this.verification, required this.profile, required this.isFeatured, this.onTap});
 
   final CompanyVerification? verification;
   final UserProfile? profile;
+
+  /// Company Plus status lives on TransporterCompany, never
+  /// User.is_featured (that column is Customer Plus only — Phase 10.19
+  /// fix: this card previously checked profile?.isFeatured here, which is
+  /// always false for a transporter_company account, so the "Cargo
+  /// Motives Plus" badge below could never actually show for a real
+  /// subscribed company).
+  final bool isFeatured;
   final VoidCallback? onTap;
 
   @override
@@ -202,7 +228,7 @@ class _CompanyCard extends StatelessWidget {
                       ],
                     ),
                   ],
-                  if (profile?.isFeatured == true) ...[
+                  if (isFeatured) ...[
                     const SizedBox(height: 5),
                     const Row(
                       children: [

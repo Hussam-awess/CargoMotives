@@ -54,6 +54,13 @@ class TruckDetailsScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                if (bid.isPriority) ...[
+                  const Text(
+                    'FEATURED',
+                    style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 11, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 4),
+                ],
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [

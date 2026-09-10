@@ -95,7 +95,11 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
               _AccountRow(
                 icon: Icons.place_outlined,
                 label: 'Saved addresses',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SavedAddressesScreen())),
+                onTap: () async {
+                  final profile = await _profileFuture;
+                  if (!context.mounted) return;
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => SavedAddressesScreen(isFeatured: profile.isFeatured)));
+                },
               ),
               _AccountRow(
                 icon: Icons.settings_outlined,
@@ -115,7 +119,11 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
               _AccountRow(
                 icon: Icons.help_outline,
                 label: 'Help & support',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
+                onTap: () async {
+                  final profile = await _profileFuture;
+                  if (!context.mounted) return;
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => HelpSupportScreen(isFeatured: profile.isFeatured)));
+                },
               ),
             ],
           ),

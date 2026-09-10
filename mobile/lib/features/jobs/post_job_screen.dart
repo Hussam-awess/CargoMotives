@@ -25,9 +25,17 @@ const _containerSizes = ['20ft', '40ft', 'Other'];
 /// based picker later, once a key exists, only touches this screen's input
 /// widgets, not the data layer or backend.
 class PostJobScreen extends StatefulWidget {
-  PostJobScreen({super.key, JobRepository? repository}) : repository = repository ?? JobRepository();
+  PostJobScreen({super.key, JobRepository? repository, this.prefillReturnFrom}) : repository = repository ?? JobRepository();
 
   final JobRepository repository;
+
+  /// Customer Plus benefit (Phase 10.19): "Post return shipment" on a
+  /// completed job opens this screen with the route reversed (the
+  /// original dropoff becomes the new pickup, and vice versa) and the
+  /// same container type/size carried over — real data already on hand
+  /// from that job, not fabricated. Weight/cargo description are left
+  /// blank since the return cargo is genuinely different.
+  final Job? prefillReturnFrom;
 
   @override
   State<PostJobScreen> createState() => _PostJobScreenState();
@@ -58,6 +66,18 @@ class _PostJobScreenState extends State<PostJobScreen> {
     super.initState();
     for (final c in [_pickupLat, _pickupLng, _dropoffLat, _dropoffLng]) {
       c.addListener(() => setState(() {}));
+    }
+
+    final returnFrom = widget.prefillReturnFrom;
+    if (returnFrom != null) {
+      _pickupAddress.text = returnFrom.dropoffAddress;
+      _pickupLat.text = returnFrom.dropoffLat?.toString() ?? '';
+      _pickupLng.text = returnFrom.dropoffLng?.toString() ?? '';
+      _dropoffAddress.text = returnFrom.pickupAddress;
+      _dropoffLat.text = returnFrom.pickupLat?.toString() ?? '';
+      _dropoffLng.text = returnFrom.pickupLng?.toString() ?? '';
+      _containerType.text = returnFrom.containerType;
+      _containerSize.text = returnFrom.containerSize;
     }
   }
 

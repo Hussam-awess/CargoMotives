@@ -11,13 +11,17 @@ import '../../support/fake_job_repository.dart';
 /// success push-replaces itself with ShipmentPostedScreen (which then pops
 /// back with the imperative Navigator API) — so this wrapper uses a plain
 /// Navigator, not GoRouter, matching real production wiring exactly.
-Widget _appUnder({required JobRepository repository}) {
+Widget _appUnder({required JobRepository repository, Job? prefillReturnFrom}) {
   return MaterialApp(
     home: Builder(
       builder: (context) => Scaffold(
         body: Center(
           child: ElevatedButton(
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PostJobScreen(repository: repository))),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PostJobScreen(repository: repository, prefillReturnFrom: prefillReturnFrom),
+              ),
+            ),
             child: const Text('Open post job'),
           ),
         ),
@@ -58,10 +62,14 @@ void main() {
   testWidgets('shows required-field validation and does not submit', (tester) async {
     var postCalled = false;
     await tester.pumpWidget(
-      _appUnder(repository: FakeJobRepository(onPost: (s) async {
-        postCalled = true;
-        throw StateError('should not be called');
-      })),
+      _appUnder(
+        repository: FakeJobRepository(
+          onPost: (s) async {
+            postCalled = true;
+            throw StateError('should not be called');
+          },
+        ),
+      ),
     );
     await tester.tap(find.text('Open post job'));
     await tester.pumpAndSettle();
@@ -118,11 +126,7 @@ void main() {
 
   testWidgets('shows the server error message on failure', (tester) async {
     await tester.pumpWidget(
-      _appUnder(
-        repository: FakeJobRepository(
-          onPost: (s) async => throw ApiException('Post-quota reached for today.'),
-        ),
-      ),
+      _appUnder(repository: FakeJobRepository(onPost: (s) async => throw ApiException('Post-quota reached for today.'))),
     );
     await tester.tap(find.text('Open post job'));
     await tester.pumpAndSettle();
@@ -213,5 +217,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Open post job'), findsOneWidget);
+  });
+
+  testWidgets('prefillReturnFrom reverses the route and carries over the container details', (tester) async {
+    final completedJob = Job(
+      id: 7,
+      status: 'completed',
+      pickupAddress: 'Kariakoo, Dar es Salaam',
+      pickupLat: -6.8161,
+      pickupLng: 39.2803,
+      dropoffAddress: 'Mbezi Beach, Dar es Salaam',
+      dropoffLat: -6.7,
+      dropoffLng: 39.2,
+      containerType: 'Dry Van',
+      containerSize: '40ft',
+      approxWeightTons: 12,
+      cargoDescription: 'Cement bags',
+      preferredPickupWindowStart: DateTime(2026, 1, 1, 9),
+      customerNotes: null,
+      agreedPrice: null,
+      currency: 'TZS',
+      assignedCompanyName: null,
+      assignedTruckRegistration: null,
+      assignedDriverName: null,
+      proofOfDelivery: null,
+      bidsCount: 0,
+    );
+
+    await tester.pumpWidget(_appUnder(repository: FakeJobRepository(), prefillReturnFrom: completedJob));
+    await tester.tap(find.text('Open post job'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextFormField, 'Mbezi Beach, Dar es Salaam'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Kariakoo, Dar es Salaam'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('CONTINUE'));
+    await tester.tap(find.text('CONTINUE'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextFormField, 'Dry Van'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '40ft'), findsOneWidget);
   });
 }

@@ -229,6 +229,30 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                               title: 'Return-load suggestions',
                               body: 'After a delivery, see other open jobs near where you just dropped off.',
                             ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.workspace_premium_outlined,
+                              title: 'Plus badge on your bids',
+                              body: 'Customers see a Cargo Motives Plus badge next to your company name on every bid you place.',
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.bolt_outlined,
+                              title: 'Early visibility on new jobs',
+                              body: 'See newly posted jobs immediately — standard accounts see them a couple of minutes later.',
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.verified_user_outlined,
+                              title: 'Customer trust signal',
+                              body: "See a customer's completed-shipment count on the platform before you bid.",
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.support_agent,
+                              title: 'Priority support',
+                              body: 'Your Help & Support requests are flagged for faster handling by our team.',
+                            ),
                             const SizedBox(height: 24),
                             ElevatedButton(
                               onPressed: _openPurchaseForm,
