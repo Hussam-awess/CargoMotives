@@ -30,15 +30,32 @@ Widget _appUnder({required JobRepository repository}) {
   return MaterialApp.router(routerConfig: router);
 }
 
-Future<void> _fillRequiredFields(WidgetTester tester) async {
+/// Step 1 (Route) — fills pickup/drop-off and taps CONTINUE.
+Future<void> _fillRouteStep(WidgetTester tester, {String pickupLat = '-6.8161'}) async {
   await tester.enterText(find.widgetWithText(TextFormField, 'Pickup address'), 'Kariakoo, Dar es Salaam');
-  await tester.enterText(find.widgetWithText(TextFormField, 'Latitude').first, '-6.8161');
+  await tester.enterText(find.widgetWithText(TextFormField, 'Latitude').first, pickupLat);
   await tester.enterText(find.widgetWithText(TextFormField, 'Longitude').first, '39.2803');
   await tester.enterText(find.widgetWithText(TextFormField, 'Drop-off address'), 'Mbezi Beach, Dar es Salaam');
   await tester.enterText(find.widgetWithText(TextFormField, 'Latitude').last, '-6.7');
   await tester.enterText(find.widgetWithText(TextFormField, 'Longitude').last, '39.2');
+  await tester.ensureVisible(find.text('CONTINUE'));
+  await tester.tap(find.text('CONTINUE'));
+  await tester.pumpAndSettle();
+}
+
+/// Step 2 (Cargo) — fills container type/size and taps CONTINUE.
+Future<void> _fillCargoStep(WidgetTester tester) async {
   await tester.enterText(find.widgetWithText(TextFormField, 'Container type (e.g. Dry Van, Reefer)'), 'Dry Van');
   await tester.enterText(find.widgetWithText(TextFormField, 'Container size (e.g. 20ft, 40ft)'), '40ft');
+  await tester.ensureVisible(find.text('CONTINUE'));
+  await tester.tap(find.text('CONTINUE'));
+  await tester.pumpAndSettle();
+}
+
+/// Fills all three steps up to (but not including) the final submit tap.
+Future<void> _fillRequiredFields(WidgetTester tester) async {
+  await _fillRouteStep(tester);
+  await _fillCargoStep(tester);
 }
 
 void main() {
@@ -53,8 +70,8 @@ void main() {
     await tester.tap(find.text('Open post job'));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Post job'));
-    await tester.tap(find.text('Post job'));
+    await tester.ensureVisible(find.text('CONTINUE'));
+    await tester.tap(find.text('CONTINUE'));
     await tester.pump();
 
     expect(find.text('Required'), findsWidgets);
@@ -66,11 +83,15 @@ void main() {
     await tester.tap(find.text('Open post job'));
     await tester.pumpAndSettle();
 
-    await _fillRequiredFields(tester);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Pickup address'), 'Kariakoo, Dar es Salaam');
     await tester.enterText(find.widgetWithText(TextFormField, 'Latitude').first, 'not-a-number');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Longitude').first, '39.2803');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Drop-off address'), 'Mbezi Beach, Dar es Salaam');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Latitude').last, '-6.7');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Longitude').last, '39.2');
 
-    await tester.ensureVisible(find.text('Post job'));
-    await tester.tap(find.text('Post job'));
+    await tester.ensureVisible(find.text('CONTINUE'));
+    await tester.tap(find.text('CONTINUE'));
     await tester.pump();
 
     expect(find.text('Enter a number'), findsOneWidget);
@@ -82,8 +103,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await _fillRequiredFields(tester);
-    await tester.ensureVisible(find.text('Post job'));
-    await tester.tap(find.text('Post job'));
+    await tester.ensureVisible(find.text('POST SHIPMENT'));
+    await tester.tap(find.text('POST SHIPMENT'));
     await tester.pump();
 
     expect(find.text('Please choose a preferred pickup date and time.'), findsOneWidget);
@@ -113,11 +134,35 @@ void main() {
     await _fillRequiredFields(tester);
     await pickWindowStart(tester);
 
-    await tester.ensureVisible(find.text('Post job'));
-    await tester.tap(find.text('Post job'));
+    await tester.ensureVisible(find.text('POST SHIPMENT'));
+    await tester.tap(find.text('POST SHIPMENT'));
     await tester.pumpAndSettle();
 
     expect(find.text('Post-quota reached for today.'), findsOneWidget);
+  });
+
+  testWidgets('a cargo type chip fills the container type field', (tester) async {
+    await tester.pumpWidget(_appUnder(repository: FakeJobRepository()));
+    await tester.tap(find.text('Open post job'));
+    await tester.pumpAndSettle();
+
+    await _fillRouteStep(tester);
+    await tester.tap(find.text('Machinery'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextFormField, 'Machinery'), findsOneWidget);
+  });
+
+  testWidgets('BACK returns to the previous step without losing entered data', (tester) async {
+    await tester.pumpWidget(_appUnder(repository: FakeJobRepository()));
+    await tester.tap(find.text('Open post job'));
+    await tester.pumpAndSettle();
+
+    await _fillRouteStep(tester);
+    await tester.tap(find.text('BACK'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextFormField, 'Kariakoo, Dar es Salaam'), findsOneWidget);
   });
 
   testWidgets('posts the job and returns to the previous screen', (tester) async {
@@ -160,8 +205,8 @@ void main() {
     await _fillRequiredFields(tester);
     await pickWindowStart(tester);
 
-    await tester.ensureVisible(find.text('Post job'));
-    await tester.tap(find.text('Post job'));
+    await tester.ensureVisible(find.text('POST SHIPMENT'));
+    await tester.tap(find.text('POST SHIPMENT'));
     await tester.pumpAndSettle();
 
     expect(captured?.pickupAddress, 'Kariakoo, Dar es Salaam');
