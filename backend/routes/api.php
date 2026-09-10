@@ -6,7 +6,6 @@ use App\Http\Controllers\Admin\AdminTruckController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\ProfileController;
-use App\Http\Controllers\Company\CommissionController;
 use App\Http\Controllers\Company\CompanyVerificationController;
 use App\Http\Controllers\Company\DriverController;
 use App\Http\Controllers\Company\FeaturedController as CompanyFeaturedController;
@@ -21,6 +20,7 @@ use App\Http\Controllers\Jobs\JobAssignmentController;
 use App\Http\Controllers\Jobs\JobController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\SupportMessageController;
 use App\Http\Controllers\Webhooks\SelcomWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -86,6 +86,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/jobs/{job}/messages', [MessageController::class, 'store']);
 });
 
+// A user's standalone Support thread with Admin (Phase 10.15) — distinct
+// from the per-job thread above: always the caller's own thread, never
+// another user's, so no participant check is needed beyond auth:sanctum.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/support-messages', [SupportMessageController::class, 'index']);
+    Route::post('/support-messages', [SupportMessageController::class, 'store']);
+});
+
 // In-app notifications + FCM device tokens (Backend Schema §2.18, AppFlow
 // §6) — shared across both roles, same reasoning as messages above.
 Route::middleware('auth:sanctum')->group(function () {
@@ -134,11 +142,6 @@ Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_
         Route::get('/gps-connections', [GpsConnectionController::class, 'index']);
         Route::post('/gps-connections', [GpsConnectionController::class, 'connect']);
         Route::post('/gps-connections/{connection}/import', [GpsConnectionController::class, 'import']);
-
-        // Commission balance, history, and paying it down (AppFlow §2.6/§2.7).
-        Route::get('/commission/summary', [CommissionController::class, 'summary']);
-        Route::get('/commission/ledger', [CommissionController::class, 'ledger']);
-        Route::post('/commission/payments', [CommissionController::class, 'initiatePayment']);
 
         // Featured (Company) — AppFlow §2.7.
         Route::get('/featured/status', [CompanyFeaturedController::class, 'status']);

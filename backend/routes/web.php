@@ -53,6 +53,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/disputes', Admin\Disputes\Index::class)->name('disputes.index');
         Route::get('/disputes/{dispute}', Admin\Disputes\Show::class)->name('disputes.show');
 
+        Route::get('/messages', Admin\Messages\Index::class)->name('messages.index');
+
         Route::get('/activity-log', Admin\ActivityLog\Index::class)->name('activity-log.index');
 
         Route::get('/gps', Admin\Gps\Index::class)->name('gps.index');

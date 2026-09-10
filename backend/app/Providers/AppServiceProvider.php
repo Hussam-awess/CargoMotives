@@ -7,6 +7,7 @@ use App\Models\Dispute;
 use App\Models\Job;
 use App\Models\Message;
 use App\Models\Payment;
+use App\Models\SupportMessage;
 use App\Models\TransporterCompany;
 use App\Models\Truck;
 use App\Observers\BidObserver;
@@ -14,6 +15,7 @@ use App\Observers\DisputeObserver;
 use App\Observers\JobObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentObserver;
+use App\Observers\SupportMessageObserver;
 use App\Observers\TransporterCompanyObserver;
 use App\Observers\TruckObserver;
 use App\Services\Gps\GpsProvider;
@@ -125,5 +127,6 @@ class AppServiceProvider extends ServiceProvider
         // it's registered separately from the activity-log comment above
         // since it doesn't share that motivation.
         Message::observe(MessageObserver::class);
+        SupportMessage::observe(SupportMessageObserver::class);
     }
 }

@@ -32,6 +32,7 @@
                                 ['admin.search.index', 'Search'],
                                 ['admin.jobs.index', 'Jobs'],
                                 ['admin.disputes.index', 'Disputes'],
+                                ['admin.messages.index', 'Messages'],
                                 ['admin.activity-log.index', 'Activity Log'],
                                 ['admin.gps.index', 'Live GPS'],
                                 ['admin.settings.edit', 'Settings'],

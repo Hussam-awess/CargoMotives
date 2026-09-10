@@ -6,6 +6,7 @@ use App\Models\Bid;
 use App\Models\Job;
 use App\Models\Message;
 use App\Models\Notification;
+use App\Models\SupportMessage;
 use App\Models\TransporterCompany;
 use App\Models\Truck;
 use App\Models\User;
@@ -196,6 +197,28 @@ class NotificationTriggersTest extends TestCase
             'user_id' => $customer->id,
             'type' => 'new_message',
         ]);
+    }
+
+    public function test_an_admin_support_message_notifies_the_user(): void
+    {
+        $customer = User::factory()->create();
+        $admin = User::factory()->admin()->create();
+
+        SupportMessage::factory()->fromAdmin()->create(['user_id' => $customer->id, 'admin_id' => $admin->id]);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $customer->id,
+            'type' => 'support_message',
+        ]);
+    }
+
+    public function test_a_users_own_support_reply_does_not_notify_anyone(): void
+    {
+        $customer = User::factory()->create();
+
+        SupportMessage::factory()->create(['user_id' => $customer->id, 'author' => 'user']);
+
+        $this->assertDatabaseMissing('notifications', ['user_id' => $customer->id, 'type' => 'support_message']);
     }
 
     public function test_a_notification_never_blocks_the_underlying_action_even_with_the_firebase_driver_misconfigured(): void
