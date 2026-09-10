@@ -12,8 +12,8 @@ use InvalidArgumentException;
  * The write side of Featured purchases (AppFlow §2.7/§3.6: "pay via
  * mobile money → unlocks immediately"). Called only once a payment is
  * confirmed successful (SelcomWebhookController), never from the
- * initiate-purchase response — same "confirmation is asynchronous, never
- * assumed" rule as CommissionLedgerService::applyPayment().
+ * initiate-purchase response — "confirmation is asynchronous, never
+ * assumed."
  *
  * Every other Featured-gated behavior already reads `is_featured` off
  * TransporterCompany/User directly (BidQuotaService, JobPostQuotaService,

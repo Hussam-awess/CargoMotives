@@ -15,8 +15,8 @@
             <div class="text-2xl font-semibold mt-1">{{ number_format($activeCompanies) }}</div>
         </div>
         <div class="bg-white border border-amber-200 bg-amber-50 rounded-lg p-4">
-            <div class="text-sm text-amber-700">Commission collected</div>
-            <div class="text-2xl font-semibold mt-1 text-amber-900">TZS {{ number_format($commissionCollected, 0) }}</div>
+            <div class="text-sm text-amber-700">Plus subscribers</div>
+            <div class="text-2xl font-semibold mt-1 text-amber-900">{{ number_format($plusSubscribers) }}</div>
         </div>
     </div>
 </div>

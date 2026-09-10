@@ -170,27 +170,6 @@ class NotificationTriggersTest extends TestCase
         $this->assertDatabaseHas('notifications', ['user_id' => $company->owner_user_id, 'type' => 'delivery_confirmed']);
     }
 
-    public function test_crossing_the_commission_hold_threshold_notifies_the_company(): void
-    {
-        $company = TransporterCompany::factory()->approved()->create(['commission_standing' => 'good_standing']);
-
-        $company->update(['commission_standing' => 'on_hold']);
-
-        $this->assertDatabaseHas('notifications', [
-            'user_id' => $company->owner_user_id,
-            'type' => 'commission_hold_applied',
-        ]);
-    }
-
-    public function test_lifting_the_hold_does_not_notify(): void
-    {
-        $company = TransporterCompany::factory()->approved()->create(['commission_standing' => 'on_hold']);
-
-        $company->update(['commission_standing' => 'good_standing']);
-
-        $this->assertDatabaseMissing('notifications', ['type' => 'commission_hold_applied']);
-    }
-
     public function test_a_new_message_from_the_customer_notifies_the_company_owner(): void
     {
         $customer = User::factory()->create();

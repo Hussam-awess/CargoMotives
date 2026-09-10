@@ -20,7 +20,7 @@ class SettingsTest extends TestCase
         $this->seed(PlatformSettingsSeeder::class);
 
         Livewire::actingAs($admin)->test(Edit::class)
-            ->assertSet('values.commission_rate_default', '30');
+            ->assertSet('values.standard_bid_quota', '5');
     }
 
     public function test_saving_updates_the_database_and_records_the_admin(): void
@@ -33,11 +33,11 @@ class SettingsTest extends TestCase
         $this->seed(PlatformSettingsSeeder::class);
 
         Livewire::actingAs($admin)->test(Edit::class)
-            ->set('values.commission_rate_default', '25')
+            ->set('values.standard_bid_quota', '7')
             ->call('save');
 
         $this->assertDatabaseHas('platform_settings', [
-            'key' => 'commission_rate_default', 'value' => '25', 'updated_by_admin_id' => $admin->id,
+            'key' => 'standard_bid_quota', 'value' => '7', 'updated_by_admin_id' => $admin->id,
         ]);
     }
 
@@ -46,13 +46,13 @@ class SettingsTest extends TestCase
         $admin = User::factory()->admin()->create();
         $this->seed(PlatformSettingsSeeder::class);
         // Prime the cache the same way a real request would.
-        app(PlatformSettings::class)->getInt('commission_rate_default', 30);
+        app(PlatformSettings::class)->getInt('standard_bid_quota', 5);
 
         Livewire::actingAs($admin)->test(Edit::class)
-            ->set('values.commission_rate_default', '25')
+            ->set('values.standard_bid_quota', '7')
             ->call('save');
 
-        $this->assertSame(25, app(PlatformSettings::class)->getInt('commission_rate_default', 30));
+        $this->assertSame(7, app(PlatformSettings::class)->getInt('standard_bid_quota', 5));
     }
 
     public function test_a_non_numeric_value_fails_validation(): void
@@ -61,8 +61,8 @@ class SettingsTest extends TestCase
         $this->seed(PlatformSettingsSeeder::class);
 
         Livewire::actingAs($admin)->test(Edit::class)
-            ->set('values.commission_rate_default', 'not-a-number')
+            ->set('values.standard_bid_quota', 'not-a-number')
             ->call('save')
-            ->assertHasErrors('values.commission_rate_default');
+            ->assertHasErrors('values.standard_bid_quota');
     }
 }

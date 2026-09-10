@@ -55,15 +55,6 @@ class BidController extends Controller
             throw ValidationException::withMessages(['status' => ['This job is no longer open for bidding.']]);
         }
 
-        // company.approved (route middleware) already confirms
-        // verification_status='approved'; commission_standing is Phase 7
-        // territory but checked here now so nothing needs revisiting once
-        // that phase actually starts flipping it to 'on_hold' (Backend
-        // Schema §4.2).
-        if ($company->commission_standing !== 'good_standing') {
-            throw ValidationException::withMessages(['status' => ['Your account is on hold and cannot place new bids until the balance is paid down.']]);
-        }
-
         if (Bid::where('job_id', $job->id)->where('transporter_company_id', $company->id)->where('status', 'pending')->exists()) {
             throw ValidationException::withMessages(['job_id' => ['You already have a pending bid on this job.']]);
         }

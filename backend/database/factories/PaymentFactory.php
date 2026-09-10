@@ -19,7 +19,7 @@ class PaymentFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'purpose' => 'commission_payment',
+            'purpose' => 'featured_customer',
             'amount' => fake()->randomFloat(2, 5000, 500000),
             'mobile_money_provider' => fake()->randomElement(['mpesa', 'tigopesa', 'airtelmoney']),
             'gateway_reference' => (string) Str::uuid(),

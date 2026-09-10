@@ -9,7 +9,6 @@ use App\Http\Resources\JobResource;
 use App\Models\Dispute;
 use App\Models\Job;
 use App\Models\Truck;
-use App\Services\Commission\CommissionLedgerService;
 use App\Services\Documents\DocumentStorage;
 use App\Services\Geo\GeoPoint;
 use App\Services\Jobs\JobPostQuotaService;
@@ -31,7 +30,6 @@ class JobController extends Controller
     public function __construct(
         private readonly JobPostQuotaService $postQuota,
         private readonly DocumentStorage $documents,
-        private readonly CommissionLedgerService $commissionLedger,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -118,13 +116,9 @@ class JobController extends Controller
 
     /**
      * Customer confirms receipt after a driver submits proof of delivery
-     * (AppFlow §3.5). On reaching 'completed', writes a commission charge
-     * (TRD §6, Backend Schema business rule §7) — see
-     * App\Services\Commission\CommissionLedgerService for the actual
-     * balance/hold-threshold logic; this controller just triggers it.
-     *
-     * "Report a Problem" (the AppFlow alternative to confirming) is
-     * reportProblem() below, routing to the disputes table Phase 9 added.
+     * (AppFlow §3.5). "Report a Problem" (the AppFlow alternative to
+     * confirming) is reportProblem() below, routing to the disputes table
+     * Phase 9 added.
      */
     public function confirmDelivery(Request $request, Job $job): JobResource
     {
@@ -143,8 +137,6 @@ class JobController extends Controller
             if ($job->assigned_truck_id !== null) {
                 Truck::whereKey($job->assigned_truck_id)->update(['current_status' => 'idle']);
             }
-
-            $this->commissionLedger->chargeForCompletedJob($job);
         });
 
         return new JobResource(

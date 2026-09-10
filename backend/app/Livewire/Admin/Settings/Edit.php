@@ -43,8 +43,6 @@ class Edit extends Component
      * @var array<string, string>
      */
     private const LABELS = [
-        'commission_rate_default' => 'Commission rate (%)',
-        'commission_hold_threshold' => 'Commission hold threshold (TZS)',
         'standard_bid_quota' => 'Standard bid quota',
         'standard_bid_window_hours' => 'Standard bid window (hours)',
         'featured_bid_quota' => 'Featured bid quota',

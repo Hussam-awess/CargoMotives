@@ -38,11 +38,6 @@ class ConfirmDeliveryTest extends TestCase
         $this->assertSame('completed', $job->status);
         $this->assertSame('idle', $truck->fresh()->current_status);
         $this->assertNotNull($job->proofOfDelivery->confirmed_by_customer_at);
-        // The commission charge (Phase 7) fires as a side effect of
-        // reaching 'completed' — see CommissionLedgerServiceTest for the
-        // actual balance/hold-threshold behavior; this just confirms the
-        // trigger wiring didn't get lost.
-        $this->assertDatabaseHas('commission_ledger', ['related_job_id' => $job->id, 'entry_type' => 'charge']);
     }
 
     public function test_cannot_confirm_a_job_that_is_not_yet_delivered(): void

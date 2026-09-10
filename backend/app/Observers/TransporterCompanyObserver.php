@@ -49,27 +49,5 @@ class TransporterCompanyObserver
                 );
             }
         }
-
-        if ($company->wasChanged('commission_standing')) {
-            $this->activityLogger->record(
-                $company->commission_standing === 'on_hold' ? 'commission_hold_applied' : 'commission_hold_lifted',
-                $company,
-                $this->currentActorId(),
-                ['outstanding_balance' => (string) $company->outstanding_balance],
-            );
-
-            // AppFlow §6: "Commission balance nearing/over hold threshold"
-            // -> Company, Push. Only the on_hold transition fires a push —
-            // there's no clean "nearing" signal without extra
-            // threshold-fraction logic this phase doesn't add.
-            if ($company->commission_standing === 'on_hold') {
-                $this->notifications->send(
-                    $company->owner,
-                    'commission_hold_applied',
-                    'Account on hold',
-                    "Your outstanding balance of {$company->outstanding_balance} TZS has crossed the hold threshold. Pay it down to resume bidding.",
-                );
-            }
-        }
     }
 }

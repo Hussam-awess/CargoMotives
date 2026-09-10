@@ -69,16 +69,6 @@ class BidTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_a_company_on_hold_cannot_bid(): void
-    {
-        $company = $this->approvedCompanyUser(['commission_standing' => 'on_hold']);
-        $job = Job::factory()->create(['status' => 'open']);
-
-        $this->actingAs($company)
-            ->postJson("/api/company/jobs/{$job->id}/bids", ['price' => 500000])
-            ->assertUnprocessable();
-    }
-
     public function test_a_standard_company_is_limited_to_5_bids_per_rolling_window(): void
     {
         $company = $this->approvedCompanyUser();

@@ -25,8 +25,8 @@ use Throwable;
  * approach (signed fields, an idempotent order/reference id, an
  * asynchronous webhook confirming the actual payment outcome) reflects
  * how Tanzanian mobile money gateways generally work and is what the
- * domain logic around it (Payment/CommissionLedger, idempotency,
- * graceful degradation) is built and tested against — but the *exact*
+ * domain logic around it (Payment, idempotency, graceful degradation) is
+ * built and tested against — but the *exact*
  * endpoint path, field names, and header names here should be confirmed
  * against Selcom's current merchant API documentation before this is
  * ever pointed at a real account. No sandbox credentials exist in this

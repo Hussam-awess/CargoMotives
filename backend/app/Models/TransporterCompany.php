@@ -19,7 +19,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'logo_url', 'documents', 'rep_full_name', 'rep_position', 'rep_national_id_number',
     'rep_id_document_url', 'rep_selfie_url', 'rep_phone_verified', 'rep_email_verified',
     'verification_status', 'verification_rejected_reason', 'verified_at',
-    'outstanding_balance', 'commission_standing',
     'is_featured', 'featured_until', 'home_region', 'preferred_routes',
 ])]
 class TransporterCompany extends Model
@@ -40,8 +39,6 @@ class TransporterCompany extends Model
         'verification_status' => 'pending',
         'is_featured' => false,
         'rating_count' => 0,
-        'outstanding_balance' => 0,
-        'commission_standing' => 'good_standing',
     ];
 
     /**
@@ -58,7 +55,6 @@ class TransporterCompany extends Model
             'featured_until' => 'datetime',
             'verified_at' => 'datetime',
             'average_rating' => 'decimal:1',
-            'outstanding_balance' => 'decimal:2',
         ];
     }
 
@@ -85,11 +81,6 @@ class TransporterCompany extends Model
     public function gpsConnections(): HasMany
     {
         return $this->hasMany(GpsConnection::class, 'transporter_company_id');
-    }
-
-    public function commissionLedgerEntries(): HasMany
-    {
-        return $this->hasMany(CommissionLedger::class, 'transporter_company_id');
     }
 
     /**

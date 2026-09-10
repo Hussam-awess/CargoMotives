@@ -24,17 +24,16 @@
     <p>To keep the marketplace fair and responsive, Customers and Companies are subject to daily posting and
         bidding limits, which may be higher for a Featured account. We may adjust these limits from time to time.</p>
 
-    <h2>4. Commission and payment</h2>
-    <p>A Transporter Company owes a commission (a percentage of the agreed price, set by us and shown in the app)
-        on every job it completes. This amount accrues to a running balance, payable via mobile money at the
-        company's convenience. If a company's balance crosses a configured threshold, its account is placed on
-        hold and it cannot bid on new jobs until the balance is paid down. Featured-tier upgrades are a one-time
-        paid purchase for a fixed period, also via mobile money.</p>
+    <h2>4. Payment</h2>
+    <p>Cargo Motives does not collect, hold, or take any share of the payment for a job — the Customer and the
+        Transporter Company settle payment between themselves, directly, outside the app. Cargo Motives Plus is a
+        separate, optional subscription (for either a Customer or a Transporter Company) purchased directly from
+        us for a fixed period via mobile money.</p>
 
     <h2>5. Conduct</h2>
     <p>You agree not to: submit false or fraudulent verification information; use the platform for any cargo
-        prohibited by Tanzanian law; attempt to circumvent bidding limits, commission, or verification; or harass
-        or abuse other users.</p>
+        prohibited by Tanzanian law; attempt to circumvent bidding limits or verification; or harass or abuse
+        other users.</p>
 
     <h2>6. Disputes</h2>
     <p>If something goes wrong with a delivery, a Customer can report a problem instead of confirming receipt. We

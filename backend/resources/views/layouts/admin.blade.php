@@ -31,7 +31,6 @@
                                 ['admin.trucks.index', 'Trucks'],
                                 ['admin.search.index', 'Search'],
                                 ['admin.jobs.index', 'Jobs'],
-                                ['admin.commission.index', 'Commission'],
                                 ['admin.disputes.index', 'Disputes'],
                                 ['admin.activity-log.index', 'Activity Log'],
                                 ['admin.gps.index', 'Live GPS'],

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
-use App\Services\Commission\CommissionLedgerService;
 use App\Services\Featured\FeaturedTierService;
 use App\Services\MobileMoney\MobileMoneyGateway;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +27,6 @@ class SelcomWebhookController extends Controller
 {
     public function __construct(
         private readonly MobileMoneyGateway $gateway,
-        private readonly CommissionLedgerService $ledger,
         private readonly FeaturedTierService $featuredTier,
     ) {}
 
@@ -82,13 +80,10 @@ class SelcomWebhookController extends Controller
             if ($paymentStatus === 'COMPLETED') {
                 $locked->update(['status' => 'succeeded', 'raw_gateway_payload' => $payload]);
 
-                // What "succeeding" actually does depends on what was being
-                // paid for — a commission paydown credits the ledger, a
-                // Featured purchase flips is_featured (AppFlow: "unlocks
+                // A Featured purchase flips is_featured (AppFlow: "unlocks
                 // immediately," meaning the instant this webhook lands, not
                 // the initiate-purchase response).
                 match ($locked->purpose) {
-                    'commission_payment' => $this->ledger->applyPayment($locked->fresh()),
                     'featured_company', 'featured_customer' => $this->featuredTier->activateFromPayment($locked->fresh()),
                 };
             } elseif ($paymentStatus === 'FAILED' || $paymentStatus === 'CANCELLED') {

@@ -37,7 +37,7 @@ class JobObserver
 
             // AppFlow §6: "Delivery confirmed" -> Company, Push.
             if ($job->status === 'completed') {
-                $this->notifyAssignedCompanyOwner($job, 'delivery_confirmed', 'Delivery confirmed', "The customer confirmed receipt for Job #{$job->id}. Commission has been added to your balance.");
+                $this->notifyAssignedCompanyOwner($job, 'delivery_confirmed', 'Delivery confirmed', "The customer confirmed receipt for Job #{$job->id}.");
             }
         }
 

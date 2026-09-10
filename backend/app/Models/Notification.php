@@ -17,8 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * naming collision beyond a coincidental table name matching the schema
  * doc's own choice.
  *
- * Append-only apart from read_at/sent_via_fcm — no updated_at (same
- * reasoning as Phase 7's CommissionLedger).
+ * Append-only apart from read_at/sent_via_fcm — no updated_at.
  */
 #[Fillable(['user_id', 'type', 'title', 'body', 'related_job_id', 'sent_via_fcm', 'read_at'])]
 class Notification extends Model

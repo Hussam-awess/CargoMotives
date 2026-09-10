@@ -50,9 +50,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/jobs', Admin\Jobs\Index::class)->name('jobs.index');
         Route::get('/jobs/{job}', Admin\Jobs\Show::class)->name('jobs.show');
 
-        Route::get('/commission', Admin\Commission\Index::class)->name('commission.index');
-        Route::get('/commission/{company}', Admin\Commission\Show::class)->name('commission.show');
-
         Route::get('/disputes', Admin\Disputes\Index::class)->name('disputes.index');
         Route::get('/disputes/{dispute}', Admin\Disputes\Show::class)->name('disputes.show');
 
