@@ -36,7 +36,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('T 123 ABC'), findsOneWidget);
-    expect(find.text('-6.8161, 39.2803'), findsOneWidget);
+    expect(find.textContaining('-6.816, 39.280'), findsOneWidget);
   });
 
   testWidgets('shows an empty state when nothing is GPS-connected', (tester) async {

@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../jobs/map_placeholder.dart';
 import '../data/truck_repository.dart';
 
-/// The Featured "fleet map" (AppFlow §2.7) — a simple map of the
-/// company's own GPS-connected trucks. No real map rendered (same
-/// documented scope decision as the Job Detail GPS card, Phase 6: no
-/// Google Maps API key provisioned) — a live position readout per truck
-/// instead, which still fully reflects the real data.
+/// The Featured "fleet map" (AppFlow §2.7) — the company's own
+/// GPS-connected trucks. No real map rendered yet (same documented scope
+/// gap as Live GPS Tracking — no Google Maps API key provisioned): a
+/// styled placeholder fills the map area, with a real bottom-sheet list
+/// of the fleet's actual registration/status/last-known-position data
+/// underneath, matching the mockup's map+sheet layout.
 class FleetMapScreen extends StatefulWidget {
   FleetMapScreen({super.key, TruckRepository? repository}) : repository = repository ?? TruckRepository();
 
@@ -51,72 +53,216 @@ class _FleetMapScreenState extends State<FleetMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Fleet map')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _isForbidden
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('The fleet map is a Featured-only feature. Upgrade to Featured to see your live fleet.', textAlign: TextAlign.center),
-              ),
-            )
-          : _loadError != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [Text(_loadError!), const SizedBox(height: 12), OutlinedButton(onPressed: _load, child: const Text('Try again'))],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: _trucks.isEmpty
-                  ? ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: const [SizedBox(height: 80), Center(child: Text('No GPS-connected trucks yet.'))],
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _trucks.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) => _TruckPositionCard(truck: _trucks[index]),
-                    ),
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_isForbidden) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Fleet map')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'The fleet map is a Featured-only feature. Upgrade to Featured to see your live fleet.',
+              textAlign: TextAlign.center,
             ),
+          ),
+        ),
+      );
+    }
+    if (_loadError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Fleet map')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_loadError!),
+              const SizedBox(height: 12),
+              OutlinedButton(onPressed: _load, child: const Text('Try again')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final onJob = _trucks.where((t) => t.currentStatus == 'on_job').length;
+    final available = _trucks.where((t) => t.currentStatus != 'on_job' && t.verificationStatus == 'approved').length;
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          MapPlaceholder(child: _trucks.isEmpty ? null : const PulsingMarker()),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  MapFloatingButton(icon: Icons.arrow_back, onTap: () => Navigator.of(context).maybePop()),
+                  const SizedBox(width: 10),
+                  Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 11),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(7),
+                      border: Border.all(color: const Color(0xFFC9A227)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.workspace_premium_outlined, size: 14, color: AppColors.lightBlue),
+                        SizedBox(width: 7),
+                        Text(
+                          'PLUS · FLEET MAP',
+                          style: TextStyle(
+                            fontFamily: 'Barlow Condensed',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.lightBlue,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 26),
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+                boxShadow: [BoxShadow(color: Color(0x1F1D2D3D), blurRadius: 20, offset: Offset(0, -4))],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 14),
+                        decoration: BoxDecoration(color: const Color(0xFFE4E5E8), borderRadius: BorderRadius.circular(2)),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'All ${_trucks.length} truck${_trucks.length == 1 ? '' : 's'}',
+                                style: const TextStyle(
+                                  fontFamily: 'Barlow Condensed',
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              Text(
+                                '$onJob on a job · $available available',
+                                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(color: AppColors.ctaBlue, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Live',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: _trucks.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Text('No GPS-connected trucks yet.', style: TextStyle(color: AppColors.textSecondary)),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: _trucks.length,
+                              separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF0F0F2)),
+                              itemBuilder: (context, index) => _TruckPositionRow(truck: _trucks[index]),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _TruckPositionCard extends StatelessWidget {
-  const _TruckPositionCard({required this.truck});
+class _TruckPositionRow extends StatelessWidget {
+  const _TruckPositionRow({required this.truck});
 
   final Truck truck;
 
   @override
   Widget build(BuildContext context) {
     final hasPosition = truck.lastKnownLat != null && truck.lastKnownAt != null;
+    final isOnJob = truck.currentStatus == 'on_job';
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: isOnJob ? AppColors.ctaBlue : AppColors.textSecondary),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.statusLive, shape: BoxShape.circle)),
-                const SizedBox(width: 8),
-                Text(truck.registrationNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Row(
+                  children: [
+                    Text(truck.makeModel, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 6),
+                    Text(
+                      truck.registrationNumber,
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                Text(
+                  hasPosition
+                      ? '${truck.lastKnownLat!.toStringAsFixed(3)}, ${truck.lastKnownLng!.toStringAsFixed(3)} · ${_relativeTime(truck.lastKnownAt!)}'
+                      : 'Waiting for the first position…',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            if (hasPosition) ...[
-              Text('${truck.lastKnownLat!.toStringAsFixed(4)}, ${truck.lastKnownLng!.toStringAsFixed(4)}'),
-              Text('Updated ${_relativeTime(truck.lastKnownAt!)}', style: Theme.of(context).textTheme.labelSmall),
-            ] else
-              const Text('Waiting for the first position…', style: TextStyle(color: AppColors.textSecondary)),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

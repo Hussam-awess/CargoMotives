@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import 'data/job_repository.dart';
 import 'job_geo.dart';
 import 'job_status.dart';
+import 'map_placeholder.dart';
 import 'messages_screen.dart';
 
 /// "Live GPS tracking" (mockup) — a full-screen map view of a job's truck.
@@ -35,13 +36,13 @@ class LiveGpsTrackingScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const _MapPlaceholder(),
+          const MapPlaceholder(child: PulsingMarker()),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  _FloatingButton(icon: Icons.arrow_back, onTap: () => Navigator.of(context).maybePop()),
+                  MapFloatingButton(icon: Icons.arrow_back, onTap: () => Navigator.of(context).maybePop()),
                   const SizedBox(width: 10),
                   Container(
                     height: 36,
@@ -76,11 +77,11 @@ class LiveGpsTrackingScreen extends StatelessWidget {
             top: 108,
             child: Column(
               children: [
-                _FloatingButton(icon: Icons.add, onTap: () => _showMapComingSoon(context)),
+                MapFloatingButton(icon: Icons.add, onTap: () => _showMapComingSoon(context)),
                 const SizedBox(height: 8),
-                _FloatingButton(icon: Icons.remove, onTap: () => _showMapComingSoon(context)),
+                MapFloatingButton(icon: Icons.remove, onTap: () => _showMapComingSoon(context)),
                 const SizedBox(height: 8),
-                _FloatingButton(icon: Icons.my_location, onTap: () => _showMapComingSoon(context)),
+                MapFloatingButton(icon: Icons.my_location, onTap: () => _showMapComingSoon(context)),
               ],
             ),
           ),
@@ -229,97 +230,4 @@ class LiveGpsTrackingScreen extends StatelessWidget {
     if (diff.inMinutes < 1) return 'Live · updated just now';
     return 'Live · updated ${diff.inMinutes} min ago';
   }
-}
-
-class _FloatingButton extends StatelessWidget {
-  const _FloatingButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(7),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(7),
-          boxShadow: const [BoxShadow(color: Color(0x1F1D2D3D), blurRadius: 3, offset: Offset(0, 1))],
-        ),
-        child: Icon(icon, size: 18, color: AppColors.textPrimary),
-      ),
-    );
-  }
-}
-
-/// A styled stand-in for the real map (no Google Maps API key provisioned
-/// yet) — a grid ("streets") over a flat ground tone with a single pulsing
-/// marker, occupying exactly the space `GoogleMap` will later fill.
-class _MapPlaceholder extends StatelessWidget {
-  const _MapPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFEFEFEA),
-      child: CustomPaint(
-        painter: _MapGridPainter(),
-        child: const Center(child: _PulsingMarker()),
-      ),
-    );
-  }
-}
-
-class _PulsingMarker extends StatelessWidget {
-  const _PulsingMarker();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 30,
-      height: 30,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.ctaBlue.withValues(alpha: 0.16)),
-          ),
-          Container(
-            width: 15,
-            height: 15,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.ctaBlue,
-              border: Border.all(color: Colors.white, width: 2.5),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFE2E2DC)
-      ..strokeWidth = 1;
-    for (double y = 0; y < size.height; y += 60) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-    for (double x = 0; x < size.width; x += 60) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
