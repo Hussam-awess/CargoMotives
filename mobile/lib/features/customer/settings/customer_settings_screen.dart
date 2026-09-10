@@ -45,6 +45,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
   bool _smsAlerts = false;
   bool _promotions = false;
   bool _darkPreview = false;
+  bool _twoFactor = false;
   UserProfile? _profile;
 
   @override
@@ -60,6 +61,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
     final smsAlerts = await widget.prefs.getBool('settings.notif.sms_alerts', defaultValue: false);
     final promotions = await widget.prefs.getBool('settings.notif.promotions', defaultValue: false);
     final darkPreview = await widget.prefs.getBool('settings.dark_preview', defaultValue: false);
+    final twoFactor = await widget.prefs.getBool('settings.two_factor', defaultValue: false);
     if (!mounted) return;
     setState(() {
       _shipmentUpdates = shipmentUpdates;
@@ -67,6 +69,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
       _smsAlerts = smsAlerts;
       _promotions = promotions;
       _darkPreview = darkPreview;
+      _twoFactor = twoFactor;
     });
   }
 
@@ -101,6 +104,25 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open $uri')));
     }
+  }
+
+  String _maskPhone(String? raw) {
+    if (raw == null) return '—';
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 12) return raw;
+    final national = digits.substring(digits.length - 9);
+    return '+255 ${national.substring(0, 3)} ••• ${national.substring(6)}';
+  }
+
+  Future<void> _showActiveSessionsUnavailable() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Active sessions'),
+        content: const Text('Viewing and managing active sessions isn\'t available in the app yet.'),
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+      ),
+    );
   }
 
   Future<void> _confirmDeleteAccount() async {
@@ -203,13 +225,25 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
           const SettingsSectionLabel('Account'),
           SettingsCard(
             children: [
-              SettingsNavRow(title: 'Registered phone', value: _profile?.phoneNumber),
-              SettingsNavRow(title: 'Email', value: _profile?.email, onTap: _profile == null ? null : _openEditProfile),
+              SettingsNavRow(title: 'Registered phone', value: _profile == null ? null : _maskPhone(_profile!.phoneNumber)),
+              SettingsNavRow(title: 'Email', value: _profile?.email, onTap: _profile == null ? null : _openEditProfile, isLast: true),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const SettingsSectionLabel('Security'),
+          SettingsCard(
+            children: [
               SettingsNavRow(
                 title: 'Change password',
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),
-                isLast: true,
               ),
+              SettingsToggleRow(
+                title: 'Two-factor authentication',
+                subtitle: 'SMS code on new devices',
+                value: _twoFactor,
+                onChanged: (v) => _setToggle('settings.two_factor', v, () => _twoFactor = v),
+              ),
+              SettingsNavRow(title: 'Active sessions', onTap: _showActiveSessionsUnavailable, isLast: true),
             ],
           ),
           const SizedBox(height: 20),

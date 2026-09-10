@@ -14,6 +14,8 @@ import '../../support/how_it_works_screen.dart';
 import '../../support/settings_widgets.dart';
 import '../data/featured_repository.dart';
 import '../featured/featured_screen.dart';
+import '../fleet/fleet_screen.dart';
+import 'company_details_screen.dart';
 
 /// "Settings" (mockup, Transporter) — mirrors CustomerSettingsScreen's
 /// scope call. Real: language switcher, registered phone (AuthRepository.
@@ -127,8 +129,30 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
     await widget.prefs.setBool(key, value);
   }
 
-  void _hintFleetTab(String what) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Open the Fleet tab to manage $what.')));
+  void _openFleet() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => FleetScreen()));
+  }
+
+  void _openPreferredRoutes() {
+    final status = _featuredStatus;
+    if (status == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PreferredRoutesScreen(repository: widget.featuredRepository, initialRoutes: status.preferredRoutes),
+      ),
+    );
+  }
+
+  void _openCompanyDetails() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyDetailsScreen()));
+  }
+
+  String _maskPhone(String? raw) {
+    if (raw == null) return '—';
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 12) return raw;
+    final national = digits.substring(digits.length - 9);
+    return '+255 ${national.substring(0, 3)} ••• ${national.substring(6)}';
   }
 
   Future<void> _openLegal(String path) async {
@@ -178,8 +202,8 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
           const SettingsSectionLabel('Fleet & drivers'),
           SettingsCard(
             children: [
-              SettingsNavRow(title: 'Manage trucks', onTap: () => _hintFleetTab('trucks')),
-              SettingsNavRow(title: 'Manage drivers', onTap: () => _hintFleetTab('drivers')),
+              SettingsNavRow(title: 'Manage trucks', onTap: _openFleet),
+              SettingsNavRow(title: 'Manage drivers', onTap: _openFleet),
               SettingsToggleRow(
                 title: 'Share GPS with customers',
                 subtitle: 'Only while a job is active',
@@ -221,6 +245,12 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
           const SettingsSectionLabel('Company & billing'),
           SettingsCard(
             children: [
+              SettingsNavRow(title: 'Company details & documents', onTap: _openCompanyDetails),
+              SettingsNavRow(
+                title: 'Preferred lanes',
+                value: _featuredStatus == null ? null : '${_featuredStatus!.preferredRoutes.length} saved',
+                onTap: _featuredStatus == null ? null : _openPreferredRoutes,
+              ),
               const SettingsNavRow(title: 'Payout method', value: 'M-Pesa'),
               SettingsNavRow(
                 title: _featuredStatus?.isFeatured == true ? 'Cargo Motives Plus · active' : 'Cargo Motives Plus',
@@ -262,7 +292,11 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
           const SettingsSectionLabel('Account'),
           SettingsCard(
             children: [
-              SettingsNavRow(title: 'Registered phone', value: _profile?.phoneNumber, onTap: _profile == null ? null : _openEditProfile),
+              SettingsNavRow(
+                title: 'Registered phone',
+                value: _profile == null ? null : _maskPhone(_profile!.phoneNumber),
+                onTap: _profile == null ? null : _openEditProfile,
+              ),
               SettingsNavRow(
                 title: 'Change password',
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),

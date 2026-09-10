@@ -10,6 +10,13 @@ class CompanyVerification {
     required this.status,
     required this.rejectedReason,
     required this.companyName,
+    this.registrationNumber,
+    this.tin,
+    this.physicalAddress,
+    this.companyPhone,
+    this.companyEmail,
+    this.repFullName,
+    this.repPosition,
   });
 
   factory CompanyVerification.fromJson(Map<String, dynamic> json) {
@@ -17,6 +24,13 @@ class CompanyVerification {
       status: json['verification_status'] as String,
       rejectedReason: json['verification_rejected_reason'] as String?,
       companyName: json['company_name'] as String,
+      registrationNumber: json['registration_number'] as String?,
+      tin: json['tin'] as String?,
+      physicalAddress: json['physical_address'] as String?,
+      companyPhone: json['company_phone'] as String?,
+      companyEmail: json['company_email'] as String?,
+      repFullName: json['rep_full_name'] as String?,
+      repPosition: json['rep_position'] as String?,
     );
   }
 
@@ -24,10 +38,22 @@ class CompanyVerification {
   final String? rejectedReason;
   final String companyName;
 
+  /// The company's own submitted details (Backend Schema §2.2) — present
+  /// on every real GetStatus response (CompanyResource already returns
+  /// them), just not previously read here. Used by the read-only "Company
+  /// details & documents" settings row (Phase 10.18) rather than adding a
+  /// second endpoint.
+  final String? registrationNumber;
+  final String? tin;
+  final String? physicalAddress;
+  final String? companyPhone;
+  final String? companyEmail;
+  final String? repFullName;
+  final String? repPosition;
+
   bool get isApproved => status == 'approved';
   bool get isRejected => status == 'rejected';
-  bool get isUnderReview =>
-      status == 'pending' || status == 'flagged_duplicate';
+  bool get isUnderReview => status == 'pending' || status == 'flagged_duplicate';
 }
 
 /// The two-section verification form's fields (AppFlow §1), gathered as one
@@ -86,17 +112,11 @@ class CompanyRepository {
     final body = await _client.get('/company/verification');
     final data = body['data'];
 
-    return data == null
-        ? null
-        : CompanyVerification.fromJson(data as Map<String, dynamic>);
+    return data == null ? null : CompanyVerification.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<CompanyVerification> submit(
-    CompanyVerificationSubmission submission,
-  ) async {
-    final otherDocuments = await Future.wait(
-      submission.otherDocuments.map(_toMultipart),
-    );
+  Future<CompanyVerification> submit(CompanyVerificationSubmission submission) async {
+    final otherDocuments = await Future.wait(submission.otherDocuments.map(_toMultipart));
 
     final formData = FormData.fromMap({
       'company_name': submission.companyName,
@@ -104,12 +124,8 @@ class CompanyRepository {
       'tin': submission.tin,
       'physical_address': submission.physicalAddress,
       'company_phone': submission.companyPhone,
-      if (submission.companyEmail != null &&
-          submission.companyEmail!.isNotEmpty)
-        'company_email': submission.companyEmail,
-      'registration_certificate': await _toMultipart(
-        submission.registrationCertificate,
-      ),
+      if (submission.companyEmail != null && submission.companyEmail!.isNotEmpty) 'company_email': submission.companyEmail,
+      'registration_certificate': await _toMultipart(submission.registrationCertificate),
       'tin_certificate': await _toMultipart(submission.tinCertificate),
       if (otherDocuments.isNotEmpty) 'other_documents': otherDocuments,
       'rep_full_name': submission.repFullName,
