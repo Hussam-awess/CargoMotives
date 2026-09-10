@@ -62,6 +62,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Dry Van · 40ft'), findsOneWidget);
+    await tester.scrollUntilVisible(find.textContaining('ABC Logistics'), 300, scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('ABC Logistics'), findsOneWidget);
     expect(find.text('TZS 750000'), findsOneWidget);
     expect(find.text('Live GPS Available'), findsOneWidget);
@@ -82,6 +83,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('No bids yet.'), 300, scrollable: find.byType(Scrollable).first);
     expect(find.text('No bids yet.'), findsOneWidget);
 
     channel.emitBid({
@@ -121,6 +123,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('Accept'), 300, scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Accept'));
     await tester.pumpAndSettle();
 
@@ -177,11 +180,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Proof of delivery'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('PROOF OF DELIVERY'), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('PROOF OF DELIVERY'), findsOneWidget);
     expect(find.text('Received by: Asha Mwinyi'), findsOneWidget);
     expect(find.text('Left at reception.'), findsOneWidget);
     expect(find.text('Confirm Receipt'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Confirm Receipt'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Confirm Receipt'));
     await tester.pumpAndSettle();
 
@@ -231,6 +237,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('Confirmed'), 300, scrollable: find.byType(Scrollable).first);
     expect(find.text('Confirmed'), findsOneWidget);
     expect(find.text('Confirm Receipt'), findsNothing);
   });

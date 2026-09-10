@@ -259,4 +259,11 @@ class JobRepository {
 
     return Job.fromJson(body['data'] as Map<String, dynamic>);
   }
+
+  /// The alternative to confirmDelivery() once proof of delivery is in —
+  /// raises a Dispute for Admin to review (AppFlow §3.5); does NOT change
+  /// the job's own status.
+  Future<void> reportProblem(int jobId, {required String reason}) {
+    return _client.post('/jobs/$jobId/report-problem', data: {'reason': reason});
+  }
 }
