@@ -10,8 +10,7 @@ import '../data/truck_repository.dart';
 /// CompanyVerificationScreen, for the same reason (a one-time, sit-down
 /// form rather than a frequent on-the-go flow).
 class AddTruckScreen extends StatefulWidget {
-  AddTruckScreen({super.key, TruckRepository? repository, this.resubmitTruck})
-    : repository = repository ?? TruckRepository();
+  AddTruckScreen({super.key, TruckRepository? repository, this.resubmitTruck}) : repository = repository ?? TruckRepository();
 
   final TruckRepository repository;
 
@@ -56,12 +55,7 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
 
   @override
   void dispose() {
-    for (final c in [
-      _registrationNumber,
-      _makeModel,
-      _vehicleType,
-      _capacityTons,
-    ]) {
+    for (final c in [_registrationNumber, _makeModel, _vehicleType, _capacityTons]) {
       c.dispose();
     }
     super.dispose();
@@ -80,11 +74,7 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
   }
 
   Future<void> _pickFile(ValueChanged<PlatformFile> onPicked) async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: _allowedExtensions,
-      withData: true,
-    );
+    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: _allowedExtensions, withData: true);
     final file = result?.files.singleOrNull;
     if (file != null) setState(() => onPicked(file));
   }
@@ -93,10 +83,7 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_photos.isEmpty || _registrationCard == null || _insurance == null) {
-      setState(
-        () => _errorText =
-            'Please attach at least one photo, the registration card, and insurance.',
-      );
+      setState(() => _errorText = 'Please attach at least one photo, the registration card, and insurance.');
       return;
     }
 
@@ -128,17 +115,12 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
     }
   }
 
-  String? _required(String? value) =>
-      (value == null || value.trim().isEmpty) ? 'Required' : null;
+  String? _required(String? value) => (value == null || value.trim().isEmpty) ? 'Required' : null;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.resubmitTruck == null ? 'Add truck' : 'Resubmit truck',
-        ),
-      ),
+      appBar: AppBar(title: Text(widget.resubmitTruck == null ? 'Add truck' : 'Resubmit truck')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -152,17 +134,12 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.statusError.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.statusError.withValues(alpha: 0.3),
-                    ),
+                    border: Border.all(color: AppColors.statusError.withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Previous submission rejected',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
+                      const Text('Previous submission rejected', style: TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       Text(widget.resubmitTruck!.rejectedReason!),
                     ],
@@ -170,16 +147,11 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
                 ),
                 const SizedBox(height: 24),
               ],
-              Text(
-                'Vehicle Info',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('Vehicle Info', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _registrationNumber,
-                decoration: const InputDecoration(
-                  labelText: 'Registration number',
-                ),
+                decoration: const InputDecoration(labelText: 'Registration number'),
                 validator: _required,
               ),
               const SizedBox(height: 12),
@@ -191,23 +163,17 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _vehicleType,
-                decoration: const InputDecoration(
-                  labelText: 'Type (e.g. Flatbed, Tanker)',
-                ),
+                decoration: const InputDecoration(labelText: 'Type (e.g. Flatbed, Tanker)'),
                 validator: _required,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _capacityTons,
                 decoration: const InputDecoration(labelText: 'Capacity (tons)'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (_required(value) != null) return 'Required';
-                  return double.tryParse(value!.trim()) == null
-                      ? 'Enter a number'
-                      : null;
+                  return double.tryParse(value!.trim()) == null ? 'Enter a number' : null;
                 },
               ),
               const SizedBox(height: 24),
@@ -219,63 +185,37 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFDDE1E6)),
+                    border: Border.all(color: AppColors.border),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _photos.isEmpty
-                            ? Icons.add_a_photo_outlined
-                            : Icons.check_circle,
-                        color: _photos.isEmpty
-                            ? const Color(0xFF6B7280)
-                            : AppColors.statusLive,
+                        _photos.isEmpty ? Icons.add_a_photo_outlined : Icons.check_circle,
+                        color: _photos.isEmpty ? AppColors.textSecondary : AppColors.statusLive,
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        _photos.isEmpty
-                            ? 'Add photos (up to 5)'
-                            : '${_photos.length} photo(s) selected',
-                      ),
+                      Text(_photos.isEmpty ? 'Add photos (up to 5)' : '${_photos.length} photo(s) selected'),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              _FilePickerTile(
-                label: 'Registration card',
-                file: _registrationCard,
-                onTap: () => _pickFile((f) => _registrationCard = f),
-              ),
+              _FilePickerTile(label: 'Registration card', file: _registrationCard, onTap: () => _pickFile((f) => _registrationCard = f)),
               const SizedBox(height: 12),
-              _FilePickerTile(
-                label: 'Insurance',
-                file: _insurance,
-                onTap: () => _pickFile((f) => _insurance = f),
-              ),
+              _FilePickerTile(label: 'Insurance', file: _insurance, onTap: () => _pickFile((f) => _insurance = f)),
               const SizedBox(height: 12),
               _FilePickerTile(
                 label: 'Roadworthiness / permit (if applicable)',
                 file: _roadworthinessPermit,
                 onTap: () => _pickFile((f) => _roadworthinessPermit = f),
               ),
-              if (_errorText != null) ...[
-                const SizedBox(height: 16),
-                Text(_errorText!, style: const TextStyle(color: Colors.red)),
-              ],
+              if (_errorText != null) ...[const SizedBox(height: 16), Text(_errorText!, style: const TextStyle(color: Colors.red))],
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('Submit for review'),
               ),
             ],
@@ -287,11 +227,7 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
 }
 
 class _FilePickerTile extends StatelessWidget {
-  const _FilePickerTile({
-    required this.label,
-    required this.file,
-    required this.onTap,
-  });
+  const _FilePickerTile({required this.label, required this.file, required this.onTap});
 
   final String label;
   final PlatformFile? file;
@@ -305,21 +241,17 @@ class _FilePickerTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFDDE1E6)),
+          border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Icon(
               file != null ? Icons.check_circle : Icons.attach_file,
-              color: file != null
-                  ? AppColors.statusLive
-                  : const Color(0xFF6B7280),
+              color: file != null ? AppColors.statusLive : AppColors.textSecondary,
             ),
             const SizedBox(width: 12),
-            Expanded(
-              child: Text(file?.name ?? label, overflow: TextOverflow.ellipsis),
-            ),
+            Expanded(child: Text(file?.name ?? label, overflow: TextOverflow.ellipsis)),
           ],
         ),
       ),
