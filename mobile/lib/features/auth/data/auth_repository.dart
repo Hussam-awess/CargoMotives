@@ -11,19 +11,23 @@ class OtpVerifyResult {
 /// (greeting name, company name, featured badge) — not a full
 /// profile-editing model.
 class UserProfile {
-  const UserProfile({required this.fullName, required this.companyName, required this.isFeatured});
+  const UserProfile({required this.fullName, required this.companyName, required this.isFeatured, this.phoneNumber, this.email});
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       fullName: json['full_name'] as String?,
       companyName: json['company_name'] as String?,
       isFeatured: json['is_featured'] as bool? ?? false,
+      phoneNumber: json['phone_number'] as String?,
+      email: json['email'] as String?,
     );
   }
 
   final String? fullName;
   final String? companyName;
   final bool isFeatured;
+  final String? phoneNumber;
+  final String? email;
 }
 
 /// Wraps Transporter Company's phone+OTP endpoints (see backend
@@ -66,31 +70,17 @@ class AuthRepository {
     );
   }
 
-  Future<OtpVerifyResult> verifyOtp({
-    required String phoneNumber,
-    required AccountRole role,
-    required String code,
-  }) async {
+  Future<OtpVerifyResult> verifyOtp({required String phoneNumber, required AccountRole role, required String code}) async {
     final body = await _client.post(
       '/auth/otp/verify',
-      data: {
-        'phone_number': phoneNumber,
-        'account_type': _accountTypeValue(role),
-        'code': code,
-      },
+      data: {'phone_number': phoneNumber, 'account_type': _accountTypeValue(role), 'code': code},
     );
 
     return OtpVerifyResult(token: body['token'] as String);
   }
 
-  Future<String> login({
-    required String phoneNumber,
-    required String password,
-  }) async {
-    final body = await _client.post(
-      '/auth/company/login',
-      data: {'phone_number': phoneNumber, 'password': password},
-    );
+  Future<String> login({required String phoneNumber, required String password}) async {
+    final body = await _client.post('/auth/company/login', data: {'phone_number': phoneNumber, 'password': password});
 
     return body['token'] as String;
   }
