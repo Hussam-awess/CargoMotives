@@ -6,6 +6,7 @@ import '../auth/data/auth_repository.dart';
 import '../jobs/data/job_repository.dart';
 import '../jobs/job_detail_screen.dart';
 import '../jobs/job_status.dart';
+import '../jobs/live_gps_tracking_screen.dart';
 import '../jobs/post_job_screen.dart';
 import '../notifications/data/notification_repository.dart';
 import '../notifications/notifications_screen.dart';
@@ -97,6 +98,10 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
     refresh();
   }
 
+  void _openTracking(Job job) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => LiveGpsTrackingScreen(job: job)));
+  }
+
   void _openShipments() {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => CustomerShipmentsScreen(repository: widget.repository)));
   }
@@ -139,7 +144,11 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
-                  _Header(profile: data.profile, onBell: _openNotifications, unreadCount: data.notifications.where((n) => n.isUnread).length),
+                  _Header(
+                    profile: data.profile,
+                    onBell: _openNotifications,
+                    unreadCount: data.notifications.where((n) => n.isUnread).length,
+                  ),
                   const SizedBox(height: 14),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -150,7 +159,7 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                       onTrackShipment: () {
                         final active = _mostRecentActive(data.jobs);
                         if (active != null) {
-                          _openJob(active.id);
+                          _openTracking(active);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No active shipment to track yet.')));
                         }
@@ -167,7 +176,7 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                     _SectionHeader(title: 'Active Shipment', onSeeAll: _openShipments),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _ActiveShipmentCard(job: _mostRecentActive(data.jobs), onTrack: _openJob),
+                      child: _ActiveShipmentCard(job: _mostRecentActive(data.jobs), onOpenDetail: _openJob, onTrack: _openTracking),
                     ),
                     _SectionHeader(title: 'Recent Activity', onSeeAll: _openNotifications),
                     _RecentActivity(notifications: data.notifications.take(4).toList(), onTap: _openNotification),
@@ -242,7 +251,12 @@ class _Header extends StatelessWidget {
               children: [
                 Text(
                   firstName == null ? 'Hello 👋' : 'Hello, $firstName 👋',
-                  style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 21, fontWeight: FontWeight.w600, color: AppColors.primary),
+                  style: const TextStyle(
+                    fontFamily: 'Barlow Condensed',
+                    fontSize: 21,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 1),
                 const Text('Tanzania', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
@@ -255,7 +269,10 @@ class _Header extends StatelessWidget {
             child: Container(
               width: 38,
               height: 38,
-              decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Badge(
                 label: Text('$unreadCount'),
                 isLabelVisible: unreadCount > 0,
@@ -306,7 +323,12 @@ class _ActivityCard extends StatelessWidget {
                         children: [
                           Text(
                             '$onTheRoad',
-                            style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 34, fontWeight: FontWeight.w600, color: Colors.white),
+                            style: const TextStyle(
+                              fontFamily: 'Barlow Condensed',
+                              fontSize: 34,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                           const SizedBox(width: 9),
                           const Text('shipment(s) on the road', style: TextStyle(fontSize: 13, color: AppColors.lightBlue)),
@@ -389,7 +411,10 @@ class _Stat extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue)),
-        Text('$value', style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+        Text(
+          '$value',
+          style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+        ),
       ],
     );
   }
@@ -405,7 +430,11 @@ class _SearchBar extends StatelessWidget {
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(8), color: AppColors.surfaceSubtle),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(8),
+        color: AppColors.surfaceSubtle,
+      ),
       child: Row(
         children: [
           const Icon(Icons.search, size: 18, color: AppColors.textTertiary),
@@ -414,11 +443,7 @@ class _SearchBar extends StatelessWidget {
             child: TextField(
               controller: controller,
               style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                hintText: 'Search shipments, tracking ID...',
-              ),
+              decoration: const InputDecoration(isCollapsed: true, border: InputBorder.none, hintText: 'Search shipments, tracking ID...'),
             ),
           ),
         ],
@@ -442,10 +467,16 @@ class _SectionHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          Text(title, style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          Text(
+            title,
+            style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.primary),
+          ),
           GestureDetector(
             onTap: onSeeAll,
-            child: const Text('See all', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.ctaBlue)),
+            child: const Text(
+              'See all',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
+            ),
           ),
         ],
       ),
@@ -454,10 +485,11 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _ActiveShipmentCard extends StatelessWidget {
-  const _ActiveShipmentCard({required this.job, required this.onTrack});
+  const _ActiveShipmentCard({required this.job, required this.onOpenDetail, required this.onTrack});
 
   final Job? job;
-  final void Function(int jobId) onTrack;
+  final void Function(int jobId) onOpenDetail;
+  final void Function(Job job) onTrack;
 
   @override
   Widget build(BuildContext context) {
@@ -465,7 +497,10 @@ class _ActiveShipmentCard extends StatelessWidget {
     if (job == null) {
       return Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(10),
+        ),
         child: const Center(
           child: Text('No active shipment right now.', style: TextStyle(color: AppColors.textSecondary)),
         ),
@@ -479,7 +514,7 @@ class _ActiveShipmentCard extends StatelessWidget {
     };
 
     return InkWell(
-      onTap: () => onTrack(job.id),
+      onTap: () => onOpenDetail(job.id),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.all(15),
@@ -504,9 +539,16 @@ class _ActiveShipmentCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(width: 5, height: 5, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.ctaBlue)),
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.ctaBlue),
+                      ),
                       const SizedBox(width: 5),
-                      Text(jobStatusLabel(job.status), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed)),
+                      Text(
+                        jobStatusLabel(job.status),
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                      ),
                     ],
                   ),
                 ),
@@ -515,7 +557,13 @@ class _ActiveShipmentCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               '${job.pickupAddress} → ${job.dropoffAddress}',
-              style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primary, height: 1.1),
+              style: const TextStyle(
+                fontFamily: 'Barlow Condensed',
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+                height: 1.1,
+              ),
             ),
             const SizedBox(height: 3),
             Text(
@@ -525,11 +573,18 @@ class _ActiveShipmentCard extends StatelessWidget {
             const SizedBox(height: 17),
             _ProgressTracker(stage: stage, pickupTime: job.preferredPickupWindowStart, statusLabel: jobStatusLabel(job.status)),
             const SizedBox(height: 15),
-            Container(
-              height: 42,
-              decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(7)),
-              alignment: Alignment.center,
-              child: const Text('Track Shipment', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed)),
+            InkWell(
+              onTap: () => onTrack(job),
+              borderRadius: BorderRadius.circular(7),
+              child: Container(
+                height: 42,
+                decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(7)),
+                alignment: Alignment.center,
+                child: const Text(
+                  'Track Shipment',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                ),
+              ),
             ),
           ],
         ),
@@ -562,13 +617,7 @@ class _ProgressTracker extends StatelessWidget {
     return Column(
       children: [
         Row(
-          children: [
-            dot(true, stage == 0),
-            line(stage >= 1),
-            dot(stage >= 1, stage == 1),
-            line(stage >= 2),
-            dot(stage >= 2, stage == 2),
-          ],
+          children: [dot(true, stage == 0), line(stage >= 1), dot(stage >= 1, stage == 1), line(stage >= 2), dot(stage >= 2, stage == 2)],
         ),
         const SizedBox(height: 7),
         Row(
@@ -577,19 +626,32 @@ class _ProgressTracker extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Pickup', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                const Text(
+                  'Pickup',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                ),
                 Text(DateFormat('d MMM, HH:mm').format(pickupTime), style: const TextStyle(fontSize: 11.5, color: AppColors.textTertiary)),
               ],
             ),
             Column(
               children: [
-                Text(stage == 1 ? statusLabel : 'In Transit', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                Text(
+                  stage == 1 ? statusLabel : 'In Transit',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                ),
               ],
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('Delivered', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: stage == 2 ? AppColors.primary : AppColors.textTertiary)),
+                Text(
+                  'Delivered',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: stage == 2 ? AppColors.primary : AppColors.textTertiary,
+                  ),
+                ),
               ],
             ),
           ],
@@ -623,7 +685,9 @@ class _RecentActivity extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 11),
               decoration: i == notifications.length - 1
                   ? null
-                  : const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF0F0F2)))),
+                  : const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Color(0xFFF0F0F2))),
+                    ),
               child: InkWell(
                 onTap: () => onTap(notifications[i]),
                 child: Row(
@@ -652,7 +716,10 @@ class _RecentActivity extends StatelessWidget {
                               color: AppColors.textPrimary,
                             ),
                           ),
-                          Text(_relativeTime(notifications[i].createdAt), style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                          Text(
+                            _relativeTime(notifications[i].createdAt),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                          ),
                         ],
                       ),
                     ),

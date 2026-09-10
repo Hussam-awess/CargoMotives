@@ -11,6 +11,7 @@ import 'data/job_repository.dart';
 import 'gps_status_card.dart';
 import 'job_geo.dart';
 import 'job_status.dart';
+import 'live_gps_tracking_screen.dart';
 import 'messages_screen.dart';
 
 /// Job Detail (Customer) — AppFlow §3.3/§3.4: the job summary, its bid
@@ -189,6 +190,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   if (_job!.isAssignable) ...[
                     const SizedBox(height: 16),
                     GpsStatusCard(trackingActive: _job!.gpsTrackingActive, signalStatus: _job!.gpsSignalStatus, location: _liveLocation),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LiveGpsTrackingScreen(job: _job!))),
+                      icon: const Icon(Icons.near_me_outlined, size: 16),
+                      label: const Text('Open live tracking'),
+                    ),
                   ],
                   const SizedBox(height: 20),
                   const _SectionLabel('Timeline'),

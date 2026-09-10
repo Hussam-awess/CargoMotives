@@ -11,6 +11,7 @@ import '../../jobs/data/job_repository.dart';
 import '../../jobs/gps_status_card.dart';
 import '../../jobs/job_geo.dart';
 import '../../jobs/job_status.dart';
+import '../../jobs/live_gps_tracking_screen.dart';
 import '../../jobs/messages_screen.dart';
 import 'assign_job_screen.dart';
 import 'data/job_assignment_repository.dart';
@@ -241,6 +242,12 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     if (job.assignedTruckRegistration != null) ...[
                       const SizedBox(height: 16),
                       GpsStatusCard(trackingActive: job.gpsTrackingActive, signalStatus: job.gpsSignalStatus, location: _liveLocation),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LiveGpsTrackingScreen(job: job))),
+                        icon: const Icon(Icons.near_me_outlined, size: 16),
+                        label: const Text('View route on map'),
+                      ),
                     ],
                     if (_returnLoadSuggestions.isNotEmpty) ...[
                       const SizedBox(height: 20),
