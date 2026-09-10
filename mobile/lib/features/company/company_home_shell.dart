@@ -121,10 +121,7 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
         onEarnings: () => setState(() => _index = 2),
         onAddTruck: _openAddTruck,
       ),
-      FleetScreen(
-        truckRepository: widget.truckRepository,
-        driverRepository: widget.driverRepository,
-      ),
+      FleetScreen(truckRepository: widget.truckRepository, driverRepository: widget.driverRepository),
       EarningsScreen(repository: widget.commissionRepository),
       CompanyProfileTab(
         companyRepository: widget.companyRepository,
@@ -147,27 +144,25 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
                 textAlign: TextAlign.center,
               ),
             ),
-          Expanded(child: IndexedStack(index: _index, children: tabs)),
+          Expanded(
+            child: IndexedStack(index: _index, children: tabs),
+          ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (index) => setState(() => _index = index),
-        destinations: [
-          NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navJobs),
-          NavigationDestination(
-            icon: const Icon(Icons.local_shipping_outlined),
-            label: l10n.navFleet,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            label: l10n.navEarnings,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            label: l10n.navProfile,
-          ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.border)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (index) => setState(() => _index = index),
+          destinations: [
+            NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navJobs),
+            NavigationDestination(icon: const Icon(Icons.local_shipping_outlined), label: l10n.navFleet),
+            NavigationDestination(icon: const Icon(Icons.account_balance_wallet_outlined), label: l10n.navEarnings),
+            NavigationDestination(icon: const Icon(Icons.person_outline), label: l10n.navProfile),
+          ],
+        ),
       ),
     );
   }

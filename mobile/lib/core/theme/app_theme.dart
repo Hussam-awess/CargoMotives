@@ -38,9 +38,7 @@ abstract final class AppColors {
   static const statusLive = Color(0xFF2E7D32); // green: live/good
   static const statusIdle = Color(0xFF9E9E9E); // gray: unavailable/idle
   static const statusPending = Color(0xFFF2994A); // amber: pending/attention
-  static const statusError = Color(
-    0xFFD32F2F,
-  ); // red: rejected/on hold/cancelled
+  static const statusError = Color(0xFFD32F2F); // red: rejected/on hold/cancelled
 
   static const background = Color(0xFFF2F2F3);
   static const surface = Color(0xFFFFFFFF);
@@ -87,30 +85,16 @@ class AppTheme {
         foregroundColor: AppColors.primaryDark,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
-          fontFamily: headingFont,
-          fontWeight: FontWeight.w600,
-          fontSize: 20,
-          color: AppColors.primaryDark,
-        ),
+        titleTextStyle: TextStyle(fontFamily: headingFont, fontWeight: FontWeight.w600, fontSize: 20, color: AppColors.primaryDark),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.ctaBlue,
           foregroundColor: Colors.white,
           disabledBackgroundColor: AppColors.ctaBlue.withValues(alpha: 0.4),
-          minimumSize: const Size.fromHeight(
-            50,
-          ), // large touch targets (Brief §6)
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          textStyle: const TextStyle(
-            fontFamily: headingFont,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-            letterSpacing: 0.4,
-          ),
+          minimumSize: const Size.fromHeight(50), // large touch targets (Brief §6)
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: const TextStyle(fontFamily: headingFont, fontWeight: FontWeight.w600, fontSize: 18, letterSpacing: 0.4),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -118,19 +102,27 @@ class AppTheme {
           foregroundColor: AppColors.textPrimary,
           side: const BorderSide(color: AppColors.border),
           minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: AppColors.ctaBlue)),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        height: 64,
+        indicatorColor: AppColors.infoTint,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: states.contains(WidgetState.selected) ? AppColors.ctaBluePressed : AppColors.textTertiary,
           ),
         ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppColors.ctaBlue),
-      ),
-      checkboxTheme: CheckboxThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(color: states.contains(WidgetState.selected) ? AppColors.ctaBluePressed : AppColors.textTertiary),
         ),
       ),
+      checkboxTheme: CheckboxThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
@@ -146,36 +138,15 @@ class AppTheme {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.ctaBlue, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 13,
-          vertical: 14,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
         hintStyle: const TextStyle(color: AppColors.textTertiary),
       ),
       textTheme: const TextTheme(
-        headlineMedium: TextStyle(
-          fontFamily: headingFont,
-          fontWeight: FontWeight.w600,
-          fontSize: 30,
-          color: AppColors.primary,
-        ),
-        titleLarge: TextStyle(
-          fontFamily: headingFont,
-          fontWeight: FontWeight.w600,
-          fontSize: 20,
-        ),
+        headlineMedium: TextStyle(fontFamily: headingFont, fontWeight: FontWeight.w600, fontSize: 30, color: AppColors.primary),
+        titleLarge: TextStyle(fontFamily: headingFont, fontWeight: FontWeight.w600, fontSize: 20),
         bodyLarge: TextStyle(fontFamily: bodyFont, fontSize: 16),
-        bodyMedium: TextStyle(
-          fontFamily: bodyFont,
-          fontSize: 14,
-          color: AppColors.textSecondary,
-        ),
-        labelSmall: TextStyle(
-          fontFamily: bodyFont,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textLabel,
-        ),
+        bodyMedium: TextStyle(fontFamily: bodyFont, fontSize: 14, color: AppColors.textSecondary),
+        labelSmall: TextStyle(fontFamily: bodyFont, fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
       ),
     );
   }

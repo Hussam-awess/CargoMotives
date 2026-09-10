@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/push/push_notification_service.dart';
+import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../jobs/data/job_repository.dart';
 import '../jobs/post_job_screen.dart';
@@ -27,10 +28,7 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
   int _bodyIndex = 0;
   final _jobsTabKey = GlobalKey<CustomerJobsTabState>();
 
-  late final _bodies = [
-    CustomerJobsTab(key: _jobsTabKey, repository: JobRepository(), onPostJob: _openPostJob),
-    CustomerProfileTab(),
-  ];
+  late final _bodies = [CustomerJobsTab(key: _jobsTabKey, repository: JobRepository(), onPostJob: _openPostJob), CustomerProfileTab()];
 
   @override
   void initState() {
@@ -67,16 +65,21 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
 
     return Scaffold(
       body: IndexedStack(index: _bodyIndex, children: _bodies),
-      bottomNavigationBar: NavigationBar(
-        // Post (index 1) is never the "selected" destination — it's a
-        // one-shot action, not a body of its own.
-        selectedIndex: _bodyIndex == 0 ? 0 : 2,
-        onDestinationSelected: _onDestinationSelected,
-        destinations: [
-          NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navJobs),
-          NavigationDestination(icon: const Icon(Icons.add_circle_outline), label: l10n.navPost),
-          NavigationDestination(icon: const Icon(Icons.person_outline), label: l10n.navProfile),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.border)),
+        ),
+        child: NavigationBar(
+          // Post (index 1) is never the "selected" destination — it's a
+          // one-shot action, not a body of its own.
+          selectedIndex: _bodyIndex == 0 ? 0 : 2,
+          onDestinationSelected: _onDestinationSelected,
+          destinations: [
+            NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navJobs),
+            NavigationDestination(icon: const Icon(Icons.add_circle_outline), label: l10n.navPost),
+            NavigationDestination(icon: const Icon(Icons.person_outline), label: l10n.navProfile),
+          ],
+        ),
       ),
     );
   }
