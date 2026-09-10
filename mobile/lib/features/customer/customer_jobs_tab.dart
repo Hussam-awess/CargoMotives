@@ -7,6 +7,7 @@ import '../jobs/data/job_repository.dart';
 import '../jobs/job_detail_screen.dart';
 import '../jobs/job_status.dart';
 import '../jobs/live_gps_tracking_screen.dart';
+import '../jobs/messages_inbox_screen.dart';
 import '../jobs/post_job_screen.dart';
 import '../notifications/data/notification_repository.dart';
 import '../notifications/notifications_screen.dart';
@@ -115,6 +116,15 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
     refresh();
   }
 
+  void _openMessages() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            MessagesInboxScreen(fetchJobs: widget.repository.list, counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,6 +157,7 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                   _Header(
                     profile: data.profile,
                     onBell: _openNotifications,
+                    onMessages: _openMessages,
                     unreadCount: data.notifications.where((n) => n.isUnread).length,
                   ),
                   const SizedBox(height: 14),
@@ -218,10 +229,11 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.profile, required this.onBell, required this.unreadCount});
+  const _Header({required this.profile, required this.onBell, required this.onMessages, required this.unreadCount});
 
   final UserProfile profile;
   final VoidCallback onBell;
+  final VoidCallback onMessages;
   final int unreadCount;
 
   @override
@@ -261,6 +273,20 @@ class _Header extends StatelessWidget {
                 const SizedBox(height: 1),
                 const Text('Tanzania', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
               ],
+            ),
+          ),
+          InkWell(
+            onTap: onMessages,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: 38,
+              height: 38,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.chat_bubble_outline, size: 19, color: AppColors.primary),
             ),
           ),
           InkWell(

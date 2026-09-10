@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../jobs/data/company_job_repository.dart';
+import '../../jobs/messages_inbox_screen.dart';
 import '../../notifications/data/notification_repository.dart';
 import '../../notifications/notification_bell_button.dart';
 import '../data/featured_repository.dart';
@@ -63,10 +64,21 @@ class _CompanyJobsScreenState extends State<CompanyJobsScreen> {
         appBar: AppBar(
           title: const Text('Jobs'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => MessagesInboxScreen(
+                    fetchJobs: widget.repository.active,
+                    enrichJob: widget.repository.show,
+                    counterpartyLabel: (job) => job.customerCompanyName ?? job.customerName ?? 'Customer',
+                  ),
+                ),
+              ),
+            ),
             NotificationBellButton(
               repository: widget.notificationRepository,
-              onTapJob: (jobId) =>
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: jobId))),
+              onTapJob: (jobId) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: jobId))),
             ),
           ],
           bottom: const TabBar(
