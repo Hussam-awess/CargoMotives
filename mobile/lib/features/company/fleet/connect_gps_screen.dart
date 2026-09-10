@@ -185,7 +185,7 @@ class _ProviderTile extends StatelessWidget {
       opacity: enabled ? 1 : 0.5,
       child: Card(
         margin: EdgeInsets.zero,
-        color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
+        color: selected ? AppColors.infoTint : null,
         child: ListTile(
           title: Text(name),
           trailing: enabled ? null : const Text('Coming soon', style: TextStyle(color: AppColors.textSecondary)),
@@ -219,7 +219,7 @@ class _MatchUnitsForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('✓ Wialon connected', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.green)),
+        Text('✓ Wialon connected', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.statusLive)),
         const SizedBox(height: 4),
         Text('We found ${units.length} vehicle(s)', style: const TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 16),
@@ -283,7 +283,7 @@ class _ImportedSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(Icons.check_circle, color: Colors.green, size: 48),
+        const Icon(Icons.check_circle, color: AppColors.statusLive, size: 48),
         const SizedBox(height: 12),
         Text('${trucks.length} truck(s) connected', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
         const SizedBox(height: 8),
