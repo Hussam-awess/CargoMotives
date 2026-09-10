@@ -4,6 +4,16 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/featured_repository.dart';
 
+/// Plus's own premium palette — deliberately distinct from the app's
+/// navy/steel-blue system (a "gold tier" reads as premium precisely
+/// because it doesn't reuse the everyday CTA color).
+const _plusInk = Color(0xFF1F1B12);
+const _plusGold = Color(0xFFE8C34A);
+const _plusTint = Color(0xFFFCF8EE);
+const _plusTintBorder = Color(0xFFE2D3A8);
+const _plusTextDark = Color(0xFF5C4409);
+const _plusTextMuted = Color(0xFF8A6410);
+
 /// Upgrade to Featured (Customer) — AppFlow §3.6: "explains the higher
 /// daily post quota → pay via mobile money → unlocks immediately."
 /// JobPostQuotaService already reads users.is_featured (Phase 4); this
@@ -58,49 +68,241 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Featured')),
+      backgroundColor: AppColors.surface,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [Text(_loadError!), const SizedBox(height: 12), OutlinedButton(onPressed: _load, child: const Text('Try again'))],
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (_status!.isFeatured) ...[
-                    const Icon(Icons.star, color: AppColors.accent, size: 48),
-                    const SizedBox(height: 12),
-                    Text('You\'re Featured', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-                    if (_status!.featuredUntil != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Until ${_status!.featuredUntil!.toLocal().toString().split(' ').first}',
-                        style: const TextStyle(color: AppColors.textSecondary),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ] else ...[
-                    Text('Upgrade to Featured', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
-                    const SizedBox(height: 16),
-                    const Text('Post more jobs per day with a higher daily quota.', textAlign: TextAlign.center),
-                    const SizedBox(height: 24),
-                    Text(
-                      'TZS ${_status!.price.toStringAsFixed(0)} for ${_status!.durationDays} days',
-                      style: Theme.of(context).textTheme.titleLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(onPressed: _openPurchaseForm, child: const Text('Pay via Mobile Money')),
-                  ],
+                  Text(_loadError!),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
                 ],
               ),
+            )
+          : ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _PlusHero(status: _status!),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                  child: _status!.isFeatured
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: _plusTint,
+                                border: Border.all(color: _plusTintBorder),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle, color: _plusTextDark),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _status!.featuredUntil != null
+                                          ? 'You\'re on Plus until ${_status!.featuredUntil!.toLocal().toString().split(' ').first}.'
+                                          : 'You\'re on Plus.',
+                                      style: const TextStyle(color: _plusTextDark, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColors.border),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  const Text('TZS', style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _status!.price.toStringAsFixed(0),
+                                    style: const TextStyle(
+                                      fontFamily: 'Barlow Condensed',
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '/ ${_status!.durationDays} days',
+                                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            const Text(
+                              'WHAT YOU GET',
+                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.all_inclusive,
+                              title: 'A higher daily posting quota',
+                              body: 'Standard accounts have a limited number of new shipments per day — Plus raises that cap.',
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _openPurchaseForm,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _plusInk,
+                                foregroundColor: _plusGold,
+                                side: const BorderSide(color: Color(0xFFC9A227)),
+                              ),
+                              child: Text('GET PLUS · TZS ${_status!.price.toStringAsFixed(0)}'),
+                            ),
+                          ],
+                        ),
+                ),
+              ],
             ),
+    );
+  }
+}
+
+class _PlusHero extends StatelessWidget {
+  const _PlusHero({required this.status});
+
+  final CustomerFeaturedStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      color: _plusInk,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.arrow_back, color: _plusGold, size: 18),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _plusGold.withValues(alpha: 0.12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: _plusGold, borderRadius: BorderRadius.circular(9)),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.bolt, color: _plusInk, size: 22),
+                ),
+                const SizedBox(width: 11),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'CARGO MOTIVES',
+                      style: TextStyle(
+                        fontFamily: 'Barlow Condensed',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: _plusGold,
+                        letterSpacing: 0.6,
+                        height: 1,
+                      ),
+                    ),
+                    Text(
+                      'PLUS',
+                      style: TextStyle(
+                        fontFamily: 'Barlow Condensed',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 4,
+                        height: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Post more, and never be blocked by the daily shipment cap.',
+              style: TextStyle(fontSize: 13.5, color: Color(0xFFC4B896), height: 1.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BenefitCard extends StatelessWidget {
+  const _BenefitCard({required this.icon, required this.title, required this.body});
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _plusTint,
+        border: Border.all(color: _plusTintBorder),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: _plusInk, borderRadius: BorderRadius.circular(7)),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 16, color: _plusGold),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: _plusTextDark),
+                ),
+                const SizedBox(height: 2),
+                Text(body, style: const TextStyle(fontSize: 13, color: _plusTextMuted, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -179,10 +381,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
             decoration: const InputDecoration(labelText: 'Mobile money phone number'),
             keyboardType: TextInputType.phone,
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
-          ],
+          if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: const TextStyle(color: Colors.red))],
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submit,

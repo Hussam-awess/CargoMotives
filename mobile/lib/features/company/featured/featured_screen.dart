@@ -4,6 +4,16 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/featured_repository.dart';
 
+/// Plus's own premium palette — deliberately distinct from the app's
+/// navy/steel-blue system (a "gold tier" reads as premium precisely
+/// because it doesn't reuse the everyday CTA color).
+const _plusInk = Color(0xFF1F1B12);
+const _plusGold = Color(0xFFE8C34A);
+const _plusTint = Color(0xFFFCF8EE);
+const _plusTintBorder = Color(0xFFE2D3A8);
+const _plusTextDark = Color(0xFF5C4409);
+const _plusTextMuted = Color(0xFF8A6410);
+
 /// Upgrade to Featured (Company) — AppFlow §2.7: "explains the
 /// higher/faster bid quota, priority placement, fleet map, route filter,
 /// and return-load suggestions → pay via mobile money → unlocks
@@ -60,7 +70,9 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
 
   Future<void> _editPreferredRoutes() async {
     final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => PreferredRoutesScreen(repository: widget.repository, initialRoutes: _status!.preferredRoutes)),
+      MaterialPageRoute(
+        builder: (_) => PreferredRoutesScreen(repository: widget.repository, initialRoutes: _status!.preferredRoutes),
+      ),
     );
     if (saved == true) _load();
   }
@@ -68,81 +80,296 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Featured')),
+      backgroundColor: AppColors.surface,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [Text(_loadError!), const SizedBox(height: 12), OutlinedButton(onPressed: _load, child: const Text('Try again'))],
+                children: [
+                  Text(_loadError!),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                ],
               ),
             )
           : ListView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.zero,
               children: [
-                if (_status!.isFeatured) ...[
-                  const Icon(Icons.star, color: AppColors.accent, size: 48),
-                  const SizedBox(height: 12),
-                  Text('You\'re Featured', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-                  if (_status!.featuredUntil != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Until ${_status!.featuredUntil!.toLocal().toString().split(' ').first}',
-                      style: const TextStyle(color: AppColors.textSecondary),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-                  Text('Preferred routes', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (_status!.preferredRoutes.isEmpty)
-                    const Text('No preferred routes set.', style: TextStyle(color: AppColors.textSecondary))
-                  else
-                    for (final route in _status!.preferredRoutes)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text('${route.origin} → ${route.destination}'),
-                      ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _editPreferredRoutes, child: const Text('Edit preferred routes')),
-                ] else ...[
-                  Text('Upgrade to Featured', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-                  const _BenefitRow(text: 'Higher, faster bid quota'),
-                  const _BenefitRow(text: 'Priority placement on your bids'),
-                  const _BenefitRow(text: 'A map of your own GPS-connected fleet'),
-                  const _BenefitRow(text: 'Filter Open Jobs to your preferred routes'),
-                  const _BenefitRow(text: 'Return-load suggestions after a delivery'),
-                  const SizedBox(height: 24),
-                  Text(
-                    'TZS ${_status!.price.toStringAsFixed(0)} for ${_status!.durationDays} days',
-                    style: Theme.of(context).textTheme.titleLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(onPressed: _openPurchaseForm, child: const Text('Pay via Mobile Money')),
-                ],
+                _PlusHero(status: _status!),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                  child: _status!.isFeatured
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: _plusTint,
+                                border: Border.all(color: _plusTintBorder),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle, color: _plusTextDark),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _status!.featuredUntil != null
+                                          ? 'You\'re on Plus until ${_status!.featuredUntil!.toLocal().toString().split(' ').first}.'
+                                          : 'You\'re on Plus.',
+                                      style: const TextStyle(color: _plusTextDark, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Text(
+                              'PREFERRED ROUTES',
+                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_status!.preferredRoutes.isEmpty)
+                              const Text('No preferred routes set.', style: TextStyle(color: AppColors.textSecondary))
+                            else
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: AppColors.border),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  children: [
+                                    for (var i = 0; i < _status!.preferredRoutes.length; i++)
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                                        decoration: i == _status!.preferredRoutes.length - 1
+                                            ? null
+                                            : const BoxDecoration(
+                                                border: Border(bottom: BorderSide(color: AppColors.background)),
+                                              ),
+                                        child: Text('${_status!.preferredRoutes[i].origin} → ${_status!.preferredRoutes[i].destination}'),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            const SizedBox(height: 12),
+                            OutlinedButton(onPressed: _editPreferredRoutes, child: const Text('Edit preferred routes')),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColors.border),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  const Text('TZS', style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _status!.price.toStringAsFixed(0),
+                                    style: const TextStyle(
+                                      fontFamily: 'Barlow Condensed',
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '/ ${_status!.durationDays} days',
+                                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            const Text(
+                              'WHAT YOU GET',
+                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.gavel_outlined,
+                              title: 'Higher, faster bid quota',
+                              body: 'Place more bids per day, with your allowance refreshing sooner.',
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.push_pin_outlined,
+                              title: 'Priority placement on your bids',
+                              body: 'Your bids are pinned above the rest on every job you bid on.',
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.map_outlined,
+                              title: 'A map of your GPS-connected fleet',
+                              body: 'See every truck with GPS connected on one live map.',
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.route_outlined,
+                              title: 'Filter Open Jobs to your routes',
+                              body: 'Save the lanes you run and filter the job board down to just those.',
+                            ),
+                            const SizedBox(height: 8),
+                            const _BenefitCard(
+                              icon: Icons.replay_outlined,
+                              title: 'Return-load suggestions',
+                              body: 'After a delivery, see other open jobs near where you just dropped off.',
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _openPurchaseForm,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _plusInk,
+                                foregroundColor: _plusGold,
+                                side: const BorderSide(color: Color(0xFFC9A227)),
+                              ),
+                              child: Text('GET PLUS · TZS ${_status!.price.toStringAsFixed(0)}'),
+                            ),
+                          ],
+                        ),
+                ),
               ],
             ),
     );
   }
 }
 
-class _BenefitRow extends StatelessWidget {
-  const _BenefitRow({required this.text});
+class _PlusHero extends StatelessWidget {
+  const _PlusHero({required this.status});
 
-  final String text;
+  final CompanyFeaturedStatus status;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      color: _plusInk,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.arrow_back, color: _plusGold, size: 18),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _plusGold.withValues(alpha: 0.12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: _plusGold, borderRadius: BorderRadius.circular(9)),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.bolt, color: _plusInk, size: 22),
+                ),
+                const SizedBox(width: 11),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'CARGO MOTIVES',
+                      style: TextStyle(
+                        fontFamily: 'Barlow Condensed',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: _plusGold,
+                        letterSpacing: 0.6,
+                        height: 1,
+                      ),
+                    ),
+                    Text(
+                      'PLUS',
+                      style: TextStyle(
+                        fontFamily: 'Barlow Condensed',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 4,
+                        height: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Bid more, win more, and get seen first on every job.',
+              style: TextStyle(fontSize: 13.5, color: Color(0xFFC4B896), height: 1.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BenefitCard extends StatelessWidget {
+  const _BenefitCard({required this.icon, required this.title, required this.body});
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _plusTint,
+        border: Border.all(color: _plusTintBorder),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, color: AppColors.statusLive, size: 18),
-          const SizedBox(width: 8),
-          Expanded(child: Text(text)),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: _plusInk, borderRadius: BorderRadius.circular(7)),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 16, color: _plusGold),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: _plusTextDark),
+                ),
+                const SizedBox(height: 2),
+                Text(body, style: const TextStyle(fontSize: 13, color: _plusTextMuted, height: 1.4)),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -223,10 +450,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
             decoration: const InputDecoration(labelText: 'Mobile money phone number'),
             keyboardType: TextInputType.phone,
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
-          ],
+          if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: const TextStyle(color: Colors.red))],
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submit,
@@ -296,7 +520,9 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
           children: [
             Expanded(
               child: _routes.isEmpty
-                  ? const Center(child: Text('No preferred routes yet.', style: TextStyle(color: AppColors.textSecondary)))
+                  ? const Center(
+                      child: Text('No preferred routes yet.', style: TextStyle(color: AppColors.textSecondary)),
+                    )
                   : ListView.separated(
                       itemCount: _routes.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
@@ -318,10 +544,7 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
             ),
             const SizedBox(height: 8),
             OutlinedButton(onPressed: _addRoute, child: const Text('Add route')),
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-            ],
+            if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: const TextStyle(color: Colors.red))],
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _isSaving ? null : _save,
@@ -361,9 +584,15 @@ class _AddRouteDialogState extends State<_AddRouteDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(controller: _originController, decoration: const InputDecoration(labelText: 'Origin')),
+          TextField(
+            controller: _originController,
+            decoration: const InputDecoration(labelText: 'Origin'),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: _destinationController, decoration: const InputDecoration(labelText: 'Destination')),
+          TextField(
+            controller: _destinationController,
+            decoration: const InputDecoration(labelText: 'Destination'),
+          ),
         ],
       ),
       actions: [
@@ -371,7 +600,9 @@ class _AddRouteDialogState extends State<_AddRouteDialog> {
         TextButton(
           onPressed: () {
             if (_originController.text.trim().isEmpty || _destinationController.text.trim().isEmpty) return;
-            Navigator.of(context).pop(PreferredRoute(origin: _originController.text.trim(), destination: _destinationController.text.trim()));
+            Navigator.of(
+              context,
+            ).pop(PreferredRoute(origin: _originController.text.trim(), destination: _destinationController.text.trim()));
           },
           child: const Text('Add'),
         ),

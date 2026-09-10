@@ -18,8 +18,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Upgrade to Featured'), findsOneWidget);
-    expect(find.text('TZS 20000 for 30 days'), findsOneWidget);
+    expect(find.text('20000'), findsOneWidget);
+    expect(find.text('/ 30 days'), findsOneWidget);
   });
 
   testWidgets('shows Featured state once active', (tester) async {
@@ -35,7 +35,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text("You're Featured"), findsOneWidget);
+    expect(find.textContaining("You're on Plus"), findsOneWidget);
   });
 
   testWidgets('purchasing pushes a charge and confirms', (tester) async {
@@ -55,7 +55,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Pay via Mobile Money'));
+    await tester.tap(find.textContaining('GET PLUS'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.widgetWithText(TextField, 'Mobile money phone number'), '0712345678');

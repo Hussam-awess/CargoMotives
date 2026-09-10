@@ -19,8 +19,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Upgrade to Featured'), findsOneWidget);
-    expect(find.text('TZS 50000 for 30 days'), findsOneWidget);
+    expect(find.text('50000'), findsOneWidget);
+    expect(find.text('/ 30 days'), findsOneWidget);
   });
 
   testWidgets('shows Featured state and preferred routes once active', (tester) async {
@@ -41,7 +41,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text("You're Featured"), findsOneWidget);
+    expect(find.textContaining("You're on Plus"), findsOneWidget);
     expect(find.text('Dar → Arusha'), findsOneWidget);
   });
 
@@ -63,7 +63,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Pay via Mobile Money'));
+    await tester.scrollUntilVisible(find.textContaining('GET PLUS'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.textContaining('GET PLUS'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('GET PLUS'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.widgetWithText(TextField, 'Mobile money phone number'), '0712345678');
