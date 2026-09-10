@@ -111,6 +111,14 @@ class AppServiceProvider extends ServiceProvider
         // attempt is not.
         RateLimiter::for('driver-link', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
 
+        // Profile email/phone change (Phase 10.16) — authenticated, so keyed
+        // by the user's own id rather than a request field; same
+        // request/verify split and per-minute shape as otp-request/otp-verify.
+        RateLimiter::for('profile-email-change-request', fn (Request $request) => Limit::perMinute(3)->by($request->user()->id));
+        RateLimiter::for('profile-email-change-confirm', fn (Request $request) => Limit::perMinute(10)->by($request->user()->id));
+        RateLimiter::for('profile-phone-change-request', fn (Request $request) => Limit::perMinute(3)->by($request->user()->id));
+        RateLimiter::for('profile-phone-change-confirm', fn (Request $request) => Limit::perMinute(10)->by($request->user()->id));
+
         // Phase 9's activity_logs (Backend Schema §2.16) is populated
         // entirely through observers rather than threading a logging call
         // into every controller across Phases 1-8 — see

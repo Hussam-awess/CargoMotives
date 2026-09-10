@@ -55,6 +55,20 @@ Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile/language', [ProfileController::class, 'updateLanguage']);
+        Route::post('/profile/name', [ProfileController::class, 'updateName']);
+
+        // Email/phone are login credentials, so changing either goes
+        // through a confirmation code sent to the *new* value first
+        // (Phase 10.16) — reuses the exact same OTP services registration
+        // already depends on.
+        Route::post('/profile/email/request-change', [ProfileController::class, 'requestEmailChange'])
+            ->middleware('throttle:profile-email-change-request');
+        Route::post('/profile/email/confirm-change', [ProfileController::class, 'confirmEmailChange'])
+            ->middleware('throttle:profile-email-change-confirm');
+        Route::post('/profile/phone/request-change', [ProfileController::class, 'requestPhoneChange'])
+            ->middleware('throttle:profile-phone-change-request');
+        Route::post('/profile/phone/confirm-change', [ProfileController::class, 'confirmPhoneChange'])
+            ->middleware('throttle:profile-phone-change-confirm');
     });
 });
 
