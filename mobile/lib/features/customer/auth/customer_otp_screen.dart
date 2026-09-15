@@ -79,6 +79,7 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
       await widget.repository.register(widget.registration);
       _startCooldown(_resendCooldownSeconds);
     } on ApiException catch (e) {
+      if (!mounted) return;
       final secondsRemaining = e.body?['seconds_remaining'];
       if (secondsRemaining is int) {
         _startCooldown(secondsRemaining);
@@ -110,6 +111,7 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
       if (!mounted) return;
       context.go('/customer');
     } on ApiException catch (e) {
+      if (!mounted) return;
       setState(() => _errorText = e.firstErrorFor('code') ?? e.message);
     } finally {
       if (mounted) setState(() => _isVerifying = false);

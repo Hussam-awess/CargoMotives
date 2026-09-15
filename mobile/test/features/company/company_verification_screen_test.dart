@@ -57,8 +57,16 @@ void main() {
         ),
       );
 
-      for (final field in find.byType(TextFormField).evaluate()) {
-        await tester.enterText(find.byWidget(field.widget), 'test value');
+      for (final field in find.byType(TextField).evaluate()) {
+        final widget = field.widget as TextField;
+        final label = widget.decoration?.labelText ?? '';
+        // The company email field validates format now — every other
+        // field accepts any non-empty text, so a plain string still works
+        // for those.
+        final value = label.startsWith('Company email')
+            ? 'test@example.com'
+            : 'test value';
+        await tester.enterText(find.byWidget(field.widget), value);
       }
 
       await tester.ensureVisible(find.text('Submit for review'));

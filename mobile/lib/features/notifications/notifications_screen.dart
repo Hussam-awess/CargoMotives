@@ -44,18 +44,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAllRead() async {
-    await widget.repository.markAllRead();
-    _refresh();
+    try {
+      await widget.repository.markAllRead();
+      if (mounted) _refresh();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not mark all as read.')),
+        );
+      }
+    }
   }
 
   Future<void> _onTap(AppNotification notification) async {
     if (notification.isUnread) {
-      await widget.repository.markRead(notification.id);
+      try {
+        await widget.repository.markRead(notification.id);
+        if (mounted) _refresh();
+      } catch (_) {
+        // Best-effort — a failed mark-as-read shouldn't block navigating
+        // to the related job below.
+      }
     }
+    if (!mounted) return;
     if (notification.relatedJobId != null) {
       widget.onTapJob?.call(notification.relatedJobId!);
     }
-    _refresh();
   }
 
   @override
@@ -80,11 +94,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Could not load notifications.'),
+                  Text(l10n.couldNotLoadNotifications),
                   const SizedBox(height: 12),
                   OutlinedButton(
                     onPressed: _refresh,
-                    child: const Text('Try again'),
+                    child: Text(l10n.tryAgainLabel),
                   ),
                 ],
               ),
@@ -129,12 +143,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             child: ListView(
               children: [
                 if (today.isNotEmpty) ...[
-                  const _DateHeader('Today'),
+                  _DateHeader(l10n.notificationsSectionToday),
                   for (final n in today)
                     _NotificationRow(notification: n, onTap: () => _onTap(n)),
                 ],
                 if (earlier.isNotEmpty) ...[
-                  const _DateHeader('Earlier'),
+                  _DateHeader(l10n.notificationsSectionEarlier),
                   for (final n in earlier)
                     _NotificationRow(notification: n, onTap: () => _onTap(n)),
                 ],

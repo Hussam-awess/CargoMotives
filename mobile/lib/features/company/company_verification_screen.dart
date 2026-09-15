@@ -184,6 +184,16 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
   String? _required(String? value) =>
       (value == null || value.trim().isEmpty) ? 'Required' : null;
 
+  // Optional field (backend: nullable|email) — only validated when non-empty
+  // so a blank value stays valid, but a malformed one is caught before
+  // submitting rather than coming back as a raw server error.
+  static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  String? _optionalEmail(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    return _emailPattern.hasMatch(value.trim()) ? null : 'Enter a valid email';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -266,6 +276,7 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
                   labelText: 'Company email (optional)',
                 ),
                 keyboardType: TextInputType.emailAddress,
+                validator: _optionalEmail,
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(

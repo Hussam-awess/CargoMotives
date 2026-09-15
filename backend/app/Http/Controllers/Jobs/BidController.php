@@ -133,6 +133,7 @@ class BidController extends Controller
             Bid::where('job_id', $job->id)
                 ->where('id', '!=', $bid->id)
                 ->where('status', 'pending')
+                ->with('company.owner')
                 ->get()
                 ->each(fn (Bid $losingBid) => $losingBid->update(['status' => 'rejected']));
 

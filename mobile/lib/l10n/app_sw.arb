@@ -65,6 +65,9 @@
   "notificationsBellTooltip": "Arifa",
   "markAllRead": "Weka zote kama zimesomwa",
   "noNotificationsYet": "Hakuna arifa bado.",
+  "couldNotLoadNotifications": "Imeshindwa kupakia arifa.",
+  "notificationsSectionToday": "Leo",
+  "notificationsSectionEarlier": "Hapo awali",
 
   "settingsTitle": "Mipangilio",
   "notificationsSectionLabel": "Arifa",

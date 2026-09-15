@@ -208,6 +208,15 @@
   "noNotificationsYet": "No notifications yet.",
   "@noNotificationsYet": {"description": "Empty state on the Notifications screen."},
 
+  "couldNotLoadNotifications": "Could not load notifications.",
+  "@couldNotLoadNotifications": {"description": "Error state on the Notifications screen."},
+
+  "notificationsSectionToday": "Today",
+  "@notificationsSectionToday": {"description": "Date-group header on the Notifications screen."},
+
+  "notificationsSectionEarlier": "Earlier",
+  "@notificationsSectionEarlier": {"description": "Date-group header on the Notifications screen."},
+
   "settingsTitle": "Settings",
   "@settingsTitle": {"description": "AppBar title on both Settings screens."},
 

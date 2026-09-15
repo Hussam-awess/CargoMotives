@@ -90,6 +90,7 @@ class _OtpScreenState extends State<OtpScreen> {
       );
       _startCooldown(_resendCooldownSeconds);
     } on ApiException catch (e) {
+      if (!mounted) return;
       final secondsRemaining = e.body?['seconds_remaining'];
       if (secondsRemaining is int) {
         _startCooldown(secondsRemaining);
@@ -131,6 +132,7 @@ class _OtpScreenState extends State<OtpScreen> {
       // verification form, a pending-review screen, or Company Home.
       context.go('/company');
     } on ApiException catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorText = e.firstErrorFor('code') ?? e.message;
       });
