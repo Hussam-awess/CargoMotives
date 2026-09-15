@@ -61,8 +61,20 @@
   "passwordHelperText": "At least 8 characters, one number.",
   "@passwordHelperText": {"description": "Helper text under a password field."},
 
-  "agreeToTermsText": "I agree to the Terms and Conditions and Privacy Policy.",
-  "@agreeToTermsText": {"description": "Required Terms & Conditions checkbox label on both sign-up screens."},
+  "agreeToTermsPrefix": "I agree to the ",
+  "@agreeToTermsPrefix": {"description": "Sign-up terms checkbox: text before the tappable \"Terms and Conditions\" link."},
+
+  "termsAndConditionsLabel": "Terms and Conditions",
+  "@termsAndConditionsLabel": {"description": "Tappable link text on the sign-up terms checkbox, opens /legal/terms."},
+
+  "agreeToTermsMiddle": " and ",
+  "@agreeToTermsMiddle": {"description": "Sign-up terms checkbox: text between the two tappable links."},
+
+  "privacyPolicyLinkLabel": "Privacy Policy",
+  "@privacyPolicyLinkLabel": {"description": "Tappable link text on the sign-up terms checkbox, opens /legal/privacy. Distinct from privacyPolicyLabel's lowercase \"Privacy policy\" (a settings nav row title) since this one is capitalized mid-sentence in the original checkbox text."},
+
+  "agreeToTermsSuffix": ".",
+  "@agreeToTermsSuffix": {"description": "Sign-up terms checkbox: text after the tappable \"Privacy Policy\" link."},
 
   "pleaseAcceptTerms": "Please accept the Terms and Conditions to continue.",
   "@pleaseAcceptTerms": {"description": "Validation error when submitting a sign-up form without accepting the Terms checkbox."},

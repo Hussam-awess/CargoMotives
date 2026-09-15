@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/localization/language_menu_button.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/widgets/terms_agreement_checkbox.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import 'data/customer_auth_repository.dart';
 
@@ -15,8 +16,7 @@ import 'data/customer_auth_repository.dart';
 /// phone-entry -> OTP flow (PhoneEntryScreen/OtpScreen) even though the
 /// channel and fields differ.
 class CustomerRegisterScreen extends StatefulWidget {
-  CustomerRegisterScreen({super.key, CustomerAuthRepository? repository})
-    : repository = repository ?? CustomerAuthRepository();
+  CustomerRegisterScreen({super.key, CustomerAuthRepository? repository}) : repository = repository ?? CustomerAuthRepository();
 
   final CustomerAuthRepository repository;
 
@@ -53,10 +53,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
+    final result = await FilePicker.pickFiles(type: FileType.image, withData: true);
     final file = result?.files.singleOrNull;
     if (file != null) setState(() => _logo = file);
   }
@@ -116,11 +113,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
       context.push('/customer-otp', extra: registration);
     } on ApiException catch (e) {
       setState(() {
-        _errorText =
-            e.firstErrorFor('email') ??
-            e.firstErrorFor('phone_number') ??
-            e.firstErrorFor('password') ??
-            e.message;
+        _errorText = e.firstErrorFor('email') ?? e.firstErrorFor('phone_number') ?? e.firstErrorFor('password') ?? e.message;
       });
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -132,10 +125,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.customerSignUpTitle),
-        actions: const [LanguageMenuButton()],
-      ),
+      appBar: AppBar(title: Text(l10n.customerSignUpTitle), actions: const [LanguageMenuButton()]),
       // SingleChildScrollView — see PhoneEntryScreen's build() comment for
       // why: an unscrolled Column silently overflows on short viewports.
       body: SingleChildScrollView(
@@ -165,9 +155,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
             TextField(
               controller: _companyNameController,
               textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                hintText: l10n.companyNameOptionalHint,
-              ),
+              decoration: InputDecoration(hintText: l10n.companyNameOptionalHint),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -189,44 +177,13 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 12),
-            InkWell(
-              onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Checkbox(
-                    value: _acceptedTerms,
-                    onChanged: (value) =>
-                        setState(() => _acceptedTerms = value ?? false),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 14),
-                      child: Text(
-                        l10n.agreeToTermsText,
-                        style: const TextStyle(fontSize: 12.5, height: 1.4),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_errorText != null) ...[
-              const SizedBox(height: 8),
-              Text(_errorText!, style: const TextStyle(color: Colors.red)),
-            ],
+            TermsAgreementCheckbox(value: _acceptedTerms, onChanged: (value) => setState(() => _acceptedTerms = value)),
+            if (_errorText != null) ...[const SizedBox(height: 8), Text(_errorText!, style: const TextStyle(color: Colors.red))],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _isSubmitting ? null : _submit,
               child: _isSubmitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(l10n.createAccount),
             ),
             const SizedBox(height: 12),

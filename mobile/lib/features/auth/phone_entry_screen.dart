@@ -5,6 +5,7 @@ import '../../core/auth/session_store.dart';
 import '../../core/localization/language_menu_button.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/terms_agreement_checkbox.dart';
 import '../../l10n/generated/app_localizations.dart';
 import 'data/auth_repository.dart';
 
@@ -17,11 +18,7 @@ import 'data/auth_repository.dart';
 /// only created once the OTP verifies (AuthController's pending-cache
 /// pattern) — this screen only requests the code.
 class PhoneEntryScreen extends StatefulWidget {
-  PhoneEntryScreen({
-    super.key,
-    required this.role,
-    AuthRepository? authRepository,
-  }) : authRepository = authRepository ?? AuthRepository();
+  PhoneEntryScreen({super.key, required this.role, AuthRepository? authRepository}) : authRepository = authRepository ?? AuthRepository();
 
   final AccountRole role;
   final AuthRepository authRepository;
@@ -83,31 +80,15 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
     });
 
     try {
-      await widget.authRepository.requestOtp(
-        phoneNumber: phone,
-        role: widget.role,
-        fullName: fullName,
-        email: email,
-        password: password,
-      );
+      await widget.authRepository.requestOtp(phoneNumber: phone, role: widget.role, fullName: fullName, email: email, password: password);
       if (!mounted) return;
       context.push(
         '/otp',
-        extra: OtpScreenArgs(
-          phoneNumber: phone,
-          role: widget.role,
-          fullName: fullName,
-          email: email,
-          password: password,
-        ),
+        extra: OtpScreenArgs(phoneNumber: phone, role: widget.role, fullName: fullName, email: email, password: password),
       );
     } on ApiException catch (e) {
       setState(() {
-        _errorText =
-            e.firstErrorFor('phone_number') ??
-            e.firstErrorFor('email') ??
-            e.firstErrorFor('password') ??
-            e.message;
+        _errorText = e.firstErrorFor('phone_number') ?? e.firstErrorFor('email') ?? e.firstErrorFor('password') ?? e.message;
       });
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -119,10 +100,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.transporterSignUpTitle),
-        actions: const [LanguageMenuButton()],
-      ),
+      appBar: AppBar(title: Text(l10n.transporterSignUpTitle), actions: const [LanguageMenuButton()]),
       // SingleChildScrollView, not just Padding+Column: on a short viewport
       // (a small phone, or a keyboard eating half the screen) an unscrolled
       // Column here silently overflows in release builds — no debug banner,
@@ -147,28 +125,16 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
             const SizedBox(height: 8),
             Text(
               l10n.transporterSignUpStepLabel,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-                letterSpacing: 0.6,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.6),
             ),
             const SizedBox(height: 4),
-            Text(
-              l10n.transporterSignUpSubtitle,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(l10n.transporterSignUpSubtitle, style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 20),
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               autofocus: true,
-              decoration: InputDecoration(
-                hintText: l10n.phoneNumberHint,
-                helperText: l10n.phoneNumberHelperText,
-                errorMaxLines: 2,
-              ),
+              decoration: InputDecoration(hintText: l10n.phoneNumberHint, helperText: l10n.phoneNumberHelperText, errorMaxLines: 2),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -186,63 +152,22 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: InputDecoration(
-                hintText: l10n.passwordHint,
-                helperText: l10n.passwordHelperText,
-              ),
+              decoration: InputDecoration(hintText: l10n.passwordHint, helperText: l10n.passwordHelperText),
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 16),
-            InkWell(
-              onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Checkbox(
-                    value: _acceptedTerms,
-                    onChanged: (value) =>
-                        setState(() => _acceptedTerms = value ?? false),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 14),
-                      child: Text(
-                        l10n.agreeToTermsText,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.textLabel,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_errorText != null) ...[
-              const SizedBox(height: 8),
-              Text(_errorText!, style: const TextStyle(color: Colors.red)),
-            ],
+            TermsAgreementCheckbox(value: _acceptedTerms, onChanged: (value) => setState(() => _acceptedTerms = value)),
+            if (_errorText != null) ...[const SizedBox(height: 8), Text(_errorText!, style: const TextStyle(color: Colors.red))],
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _isSubmitting ? null : _submit,
               child: _isSubmitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(l10n.sendVerificationCode.toUpperCase()),
             ),
             const SizedBox(height: 12),
             Center(
-              child: TextButton(
-                onPressed: () => context.push('/company-login'),
-                child: Text('${l10n.alreadyRegistered} ${l10n.logIn}'),
-              ),
+              child: TextButton(onPressed: () => context.push('/company-login'), child: Text('${l10n.alreadyRegistered} ${l10n.logIn}')),
             ),
           ],
         ),
@@ -258,12 +183,7 @@ class _StepDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: 3,
-        color: filled ? AppColors.ctaBlue : AppColors.border,
-      ),
-    );
+    return Expanded(child: Container(height: 3, color: filled ? AppColors.ctaBlue : AppColors.border));
   }
 }
 
@@ -273,13 +193,7 @@ class _StepDot extends StatelessWidget {
 /// phone number) so OtpScreen's "resend" can call requestOtp() again with
 /// identical data — mirroring CustomerOtpScreen/CustomerRegistration.
 class OtpScreenArgs {
-  const OtpScreenArgs({
-    required this.phoneNumber,
-    required this.role,
-    required this.fullName,
-    required this.email,
-    required this.password,
-  });
+  const OtpScreenArgs({required this.phoneNumber, required this.role, required this.fullName, required this.email, required this.password});
 
   final String phoneNumber;
   final AccountRole role;
