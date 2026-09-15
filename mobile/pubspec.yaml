@@ -39,7 +39,12 @@ dependencies:
   go_router: ^17.2.3
   dio: ^5.11.1
   flutter_secure_storage: ^10.3.1
-  google_maps_flutter: ^2.14.2
+  # OpenStreetMap tiles, not Google Maps — no billing account or API key
+  # needed at all (Google Cloud billing rejects this project's cards; see
+  # AppMap's docblock). google_maps_flutter was listed but never actually
+  # used anywhere in the app for exactly that reason.
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
   file_picker: ^11.0.3
   web_socket_channel: ^3.0.3
   intl: ^0.20.2

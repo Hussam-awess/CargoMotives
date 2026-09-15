@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
 
+import '../../core/map/app_map.dart';
 import '../../core/theme/app_theme.dart';
 import 'data/job_repository.dart';
 import 'job_geo.dart';
@@ -8,18 +11,25 @@ import 'map_placeholder.dart';
 import 'messages_screen.dart';
 
 /// "Live GPS tracking" (mockup) — a full-screen map view of a job's truck.
-/// No `google_maps_flutter` widget yet (no API key provisioned — the same
-/// documented, already-existing scope gap as the Job Detail GPS card since
-/// Phase 6): a styled placeholder fills the exact space the real map will
-/// occupy later, sized and positioned so swapping it in only ever touches
-/// this one widget. Every number on the bottom sheet is real — distance
-/// remaining (haversine from the truck's last known position to
-/// drop-off), progress, driver/company — nothing here is a mockup
-/// placeholder value.
-class LiveGpsTrackingScreen extends StatelessWidget {
+/// A real map (AppMap — OpenStreetMap, not Google Maps; see its own
+/// docblock for why) showing pickup, drop-off, and the truck's live
+/// position when tracking is active. Every number on the bottom sheet is
+/// real — distance remaining (haversine from the truck's last known
+/// position to drop-off), progress, driver/company — nothing here is a
+/// mockup placeholder value.
+class LiveGpsTrackingScreen extends StatefulWidget {
   const LiveGpsTrackingScreen({super.key, required this.job});
 
   final Job job;
+
+  @override
+  State<LiveGpsTrackingScreen> createState() => _LiveGpsTrackingScreenState();
+}
+
+class _LiveGpsTrackingScreenState extends State<LiveGpsTrackingScreen> {
+  final _mapController = MapController();
+
+  Job get job => widget.job;
 
   @override
   Widget build(BuildContext context) {
@@ -53,10 +63,54 @@ class LiveGpsTrackingScreen extends StatelessWidget {
         job.gpsSignalStatus == 'ok' &&
         location != null;
 
+    final pickupPoint = (job.pickupLat != null && job.pickupLng != null)
+        ? LatLng(job.pickupLat!, job.pickupLng!)
+        : null;
+    final dropoffPoint = (job.dropoffLat != null && job.dropoffLng != null)
+        ? LatLng(job.dropoffLat!, job.dropoffLng!)
+        : null;
+    final truckPoint = location != null
+        ? LatLng(location.lat, location.lng)
+        : null;
+    final fit = AppMap.fit([
+      if (pickupPoint != null) pickupPoint,
+      if (dropoffPoint != null) dropoffPoint,
+      if (truckPoint != null) truckPoint,
+    ]);
+
     return Scaffold(
       body: Stack(
         children: [
-          const MapPlaceholder(child: PulsingMarker()),
+          AppMap(
+            controller: _mapController,
+            initialCenter: fit.center,
+            initialZoom: fit.zoom,
+            markers: [
+              if (pickupPoint != null)
+                Marker(
+                  point: pickupPoint,
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.topCenter,
+                  child: AppMapPin(color: AppColors.textSecondary),
+                ),
+              if (dropoffPoint != null)
+                Marker(
+                  point: dropoffPoint,
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.topCenter,
+                  child: const AppMapPin(),
+                ),
+              if (truckPoint != null)
+                Marker(
+                  point: truckPoint,
+                  width: 30,
+                  height: 30,
+                  child: const PulsingMarker(),
+                ),
+            ],
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -113,17 +167,29 @@ class LiveGpsTrackingScreen extends StatelessWidget {
               children: [
                 MapFloatingButton(
                   icon: Icons.add,
-                  onTap: () => _showMapComingSoon(context),
+                  onTap: () => _mapController.move(
+                    _mapController.camera.center,
+                    _mapController.camera.zoom + 1,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 MapFloatingButton(
                   icon: Icons.remove,
-                  onTap: () => _showMapComingSoon(context),
+                  onTap: () => _mapController.move(
+                    _mapController.camera.center,
+                    _mapController.camera.zoom - 1,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 MapFloatingButton(
                   icon: Icons.my_location,
-                  onTap: () => _showMapComingSoon(context),
+                  onTap: () {
+                    if (truckPoint != null)
+                      _mapController.move(
+                        truckPoint,
+                        _mapController.camera.zoom,
+                      );
+                  },
                 ),
               ],
             ),
@@ -316,14 +382,6 @@ class LiveGpsTrackingScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showMapComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Interactive map controls arrive with the real map.'),
       ),
     );
   }

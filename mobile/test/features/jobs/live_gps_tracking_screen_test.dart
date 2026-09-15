@@ -1,6 +1,6 @@
+import 'package:cargo_motives/core/map/app_map.dart';
 import 'package:cargo_motives/features/jobs/data/job_repository.dart';
 import 'package:cargo_motives/features/jobs/live_gps_tracking_screen.dart';
-import 'package:cargo_motives/features/jobs/map_placeholder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -40,7 +40,7 @@ void main() {
       // Regression test for a bug where the bottom info sheet's Column (missing
       // `mainAxisSize: MainAxisSize.min`) defaulted to MainAxisSize.max and
       // expanded to cover the entire screen, hiding everything behind it.
-      expect(find.byType(MapPlaceholder), findsOneWidget);
+      expect(find.byType(AppMap), findsOneWidget);
       expect(find.byIcon(Icons.arrow_back), findsOneWidget);
       expect(find.text('GPS signal unavailable'), findsOneWidget);
 

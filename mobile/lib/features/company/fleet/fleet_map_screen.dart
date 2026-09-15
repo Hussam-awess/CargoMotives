@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
 
+import '../../../core/map/app_map.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../jobs/map_placeholder.dart';
 import '../data/truck_repository.dart';
 
 /// The Featured "fleet map" (AppFlow §2.7) — the company's own
-/// GPS-connected trucks. No real map rendered yet (same documented scope
-/// gap as Live GPS Tracking — no Google Maps API key provisioned): a
-/// styled placeholder fills the map area, with a real bottom-sheet list
+/// GPS-connected trucks. A real map (AppMap — OpenStreetMap) plots one
+/// marker per truck with a known position, with a real bottom-sheet list
 /// of the fleet's actual registration/status/last-known-position data
 /// underneath, matching the mockup's map+sheet layout.
 class FleetMapScreen extends StatefulWidget {
@@ -101,10 +103,33 @@ class _FleetMapScreenState extends State<FleetMapScreen> {
         )
         .length;
 
+    final points = _trucks
+        .where((t) => t.lastKnownLat != null && t.lastKnownLng != null)
+        .map((t) => LatLng(t.lastKnownLat!, t.lastKnownLng!))
+        .toList();
+    final fit = AppMap.fit(points);
+
     return Scaffold(
       body: Stack(
         children: [
-          MapPlaceholder(child: _trucks.isEmpty ? null : const PulsingMarker()),
+          AppMap(
+            initialCenter: fit.center,
+            initialZoom: fit.zoom,
+            markers: [
+              for (final t in _trucks)
+                if (t.lastKnownLat != null && t.lastKnownLng != null)
+                  Marker(
+                    point: LatLng(t.lastKnownLat!, t.lastKnownLng!),
+                    width: 30,
+                    height: 30,
+                    child: PulsingMarker(
+                      color: t.currentStatus == 'on_job'
+                          ? AppColors.ctaBlue
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+            ],
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),

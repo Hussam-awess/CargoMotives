@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
 import 'data/job_repository.dart';
 import 'job_geo.dart';
+import 'route_picker_map.dart';
 import 'shipment_posted_screen.dart';
 
 const _cargoTypes = [
@@ -18,18 +20,16 @@ const _containerSizes = ['20ft', '40ft', 'Other'];
 
 /// Post a Job (AppFlow §3.2): locations, container/cargo details, timing,
 /// notes. Restyled to the mockup's step-by-step wizard — three real steps
-/// (Route, Cargo details, Pickup & notes), not the mockup's four: the
-/// mockup's fourth step sets a customer "budget", but this app has no such
-/// field (JobSubmission has none — a price only exists once a transporter's
-/// bid is accepted), so that step isn't reproduced.
+/// (Route, Cargo details, Pickup & notes), not the mockup's four (its
+/// separate "budget" step is folded into Cargo details here instead,
+/// since JobSubmission's `budgetPrice` is genuinely optional, not the
+/// mockup's own required flow gate).
 ///
-/// Location entry is plain address + latitude/longitude fields, not a map
-/// pin-drop picker: no Google Maps API key is provisioned yet (an empty
-/// key would just render broken tiles), so a real map picker would be
-/// untestable regardless of how it's built. The backend already stores and
-/// serves real PostGIS coordinates either way — swapping in a GoogleMap-
-/// based picker later, once a key exists, only touches this screen's input
-/// widgets, not the data layer or backend.
+/// Location entry is a real, searchable route picker (RoutePickerMap — one
+/// combined OpenStreetMap map for both points, not two separate ones) above
+/// the address/latitude/longitude fields — searching a place or tapping the
+/// map fills those same fields rather than replacing them, so a customer
+/// who already knows the exact coordinates can still type them directly.
 class PostJobScreen extends StatefulWidget {
   PostJobScreen({super.key, JobRepository? repository, this.prefillReturnFrom})
     : repository = repository ?? JobRepository();
@@ -110,7 +110,17 @@ class _PostJobScreenState extends State<PostJobScreen> {
     super.dispose();
   }
 
+  /// The real road-following distance from RoutePickerMap, when routing
+  /// succeeded — preferred over the straight-line haversine estimate
+  /// below so the form never shows two different numbers for the same
+  /// trip (the map's own route card, and this "Estimated distance" one).
+  double? _routeDistanceKm;
+
+  void _setRouteDistanceKm(double? km) => setState(() => _routeDistanceKm = km);
+
   double? get _distanceKm {
+    if (_routeDistanceKm != null) return _routeDistanceKm;
+
     final pLat = double.tryParse(_pickupLat.text.trim());
     final pLng = double.tryParse(_pickupLng.text.trim());
     final dLat = double.tryParse(_dropoffLat.text.trim());
@@ -219,6 +229,22 @@ class _PostJobScreenState extends State<PostJobScreen> {
     return double.tryParse(value!.trim()) == null ? 'Enter a number' : null;
   }
 
+  void _setPickupPoint(LatLng point, [String? address]) {
+    setState(() {
+      _pickupLat.text = point.latitude.toStringAsFixed(6);
+      _pickupLng.text = point.longitude.toStringAsFixed(6);
+      if (address != null) _pickupAddress.text = address;
+    });
+  }
+
+  void _setDropoffPoint(LatLng point, [String? address]) {
+    setState(() {
+      _dropoffLat.text = point.latitude.toStringAsFixed(6);
+      _dropoffLng.text = point.longitude.toStringAsFixed(6);
+      if (address != null) _dropoffAddress.text = address;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     const stepTitles = [
@@ -266,6 +292,15 @@ class _PostJobScreenState extends State<PostJobScreen> {
             child: Form(
               key: _formKey,
               child: SingleChildScrollView(
+                // Forces a fresh Scrollable per step — without this, all
+                // three steps share one persistent scroll position (only
+                // the child content swaps), so scrolling deep into a long
+                // step and continuing lands the next, shorter step already
+                // scrolled past its own content instead of at the top. Not
+                // just a test artifact: adding the pickup/drop-off maps
+                // made Route long enough for this to actually bite a real
+                // user for the first time.
+                key: ValueKey(_step),
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -341,6 +376,17 @@ class _PostJobScreenState extends State<PostJobScreen> {
   }
 }
 
+/// Null unless both fields already hold a valid number — used to decide
+/// whether a pickup/drop-off map should show an existing pin (e.g. a
+/// return-job prefill) or start blank at a city-wide default view.
+LatLng? _pointFrom(TextEditingController lat, TextEditingController lng) {
+  final parsedLat = double.tryParse(lat.text.trim());
+  final parsedLng = double.tryParse(lng.text.trim());
+  if (parsedLat == null || parsedLng == null) return null;
+
+  return LatLng(parsedLat, parsedLng);
+}
+
 class _RouteStep extends StatelessWidget {
   const _RouteStep({required this.state});
 
@@ -354,8 +400,16 @@ class _RouteStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Pick-up and drop-off points for this load.',
+          'Search for a place or tap the map to set pick-up (green) and drop-off (red).',
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 12),
+        RoutePickerMap(
+          initialPickup: _pointFrom(state._pickupLat, state._pickupLng),
+          initialDropoff: _pointFrom(state._dropoffLat, state._dropoffLng),
+          onPickupChanged: state._setPickupPoint,
+          onDropoffChanged: state._setDropoffPoint,
+          onRouteDistanceChanged: state._setRouteDistanceKm,
         ),
         const SizedBox(height: 20),
         Text('Pickup', style: Theme.of(context).textTheme.titleLarge),
