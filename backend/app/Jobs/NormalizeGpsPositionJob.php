@@ -32,6 +32,7 @@ class NormalizeGpsPositionJob implements ShouldQueue
         public float $lng,
         public ?float $heading,
         public ?CarbonImmutable $recordedAt,
+        public ?float $speedKmh = null,
     ) {}
 
     public function handle(): void
@@ -55,6 +56,7 @@ class NormalizeGpsPositionJob implements ShouldQueue
             'last_known_lat' => $this->lat,
             'last_known_lng' => $this->lng,
             'last_known_heading' => $this->heading,
+            'last_known_speed_kmh' => $this->speedKmh,
             'last_known_at' => $recordedAt,
             // A position arriving at all means the feed is alive — this is
             // also how a truck recovers from 'signal_lost' back to

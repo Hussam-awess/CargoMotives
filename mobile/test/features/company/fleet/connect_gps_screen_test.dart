@@ -40,10 +40,12 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: ConnectGpsScreen(
-          gpsRepository: FakeGpsRepository(onConnect: ({required provider, required accessToken}) async {
-            connectCalled = true;
-            throw StateError('should not be called');
-          }),
+          gpsRepository: FakeGpsRepository(
+            onConnect: ({required provider, required accessToken}) async {
+              connectCalled = true;
+              throw StateError('should not be called');
+            },
+          ),
           truckRepository: FakeTruckRepository(),
         ),
       ),
@@ -56,13 +58,58 @@ void main() {
     expect(connectCalled, isFalse);
   });
 
+  testWidgets('selecting a different provider changes the token label and the connect() call', (tester) async {
+    String? capturedProvider;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConnectGpsScreen(
+          gpsRepository: FakeGpsRepository(
+            onConnect: ({required provider, required accessToken}) async {
+              capturedProvider = provider;
+              return (
+                connection: GpsConnectionSummary(
+                  id: 1,
+                  provider: provider,
+                  status: 'connected',
+                  connectedAt: DateTime.now(),
+                  lastSyncedAt: null,
+                ),
+                units: const <GpsUnitCandidate>[],
+              );
+            },
+          ),
+          truckRepository: FakeTruckRepository(),
+        ),
+      ),
+    );
+
+    expect(find.text('Wialon API token'), findsOneWidget);
+
+    await tester.tap(find.text('Traccar'));
+    await tester.pump();
+
+    expect(find.text('Traccar API token'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'a-real-token');
+    await tester.tap(find.text('Connect'));
+    await tester.pumpAndSettle();
+
+    expect(capturedProvider, 'traccar');
+  });
+
   testWidgets('connecting shows the returned units with a pre-suggested match', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: ConnectGpsScreen(
           gpsRepository: FakeGpsRepository(
             onConnect: ({required provider, required accessToken}) async => (
-              connection: GpsConnectionSummary(id: 1, provider: 'wialon', status: 'connected', connectedAt: DateTime.now(), lastSyncedAt: null),
+              connection: GpsConnectionSummary(
+                id: 1,
+                provider: 'wialon',
+                status: 'connected',
+                connectedAt: DateTime.now(),
+                lastSyncedAt: null,
+              ),
               units: const [
                 GpsUnitCandidate(unitId: 'unit-1', name: 'T123ABC', hasPosition: true, suggestedTruckId: 1),
                 GpsUnitCandidate(unitId: 'unit-2', name: 'Unknown Vehicle', hasPosition: false, suggestedTruckId: null),
@@ -91,8 +138,12 @@ void main() {
       MaterialApp(
         home: ConnectGpsScreen(
           gpsRepository: FakeGpsRepository(
-            onConnect: ({required provider, required accessToken}) async =>
-                throw ApiException('Invalid token.', fieldErrors: {'access_token': ['Invalid token.']}),
+            onConnect: ({required provider, required accessToken}) async => throw ApiException(
+              'Invalid token.',
+              fieldErrors: {
+                'access_token': ['Invalid token.'],
+              },
+            ),
           ),
           truckRepository: FakeTruckRepository(),
         ),
@@ -113,7 +164,13 @@ void main() {
         home: ConnectGpsScreen(
           gpsRepository: FakeGpsRepository(
             onConnect: ({required provider, required accessToken}) async => (
-              connection: GpsConnectionSummary(id: 7, provider: 'wialon', status: 'connected', connectedAt: DateTime.now(), lastSyncedAt: null),
+              connection: GpsConnectionSummary(
+                id: 7,
+                provider: 'wialon',
+                status: 'connected',
+                connectedAt: DateTime.now(),
+                lastSyncedAt: null,
+              ),
               units: const [GpsUnitCandidate(unitId: 'unit-1', name: 'T123ABC', hasPosition: true, suggestedTruckId: 1)],
             ),
             onImport: ({required connectionId, required unitIdToTruckId}) async {

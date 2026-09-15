@@ -20,6 +20,7 @@ final readonly class GpsUnit
         public ?float $lng,
         public ?float $heading,
         public ?CarbonImmutable $recordedAt,
+        public ?float $speedKmh = null,
     ) {}
 
     public function hasPosition(): bool

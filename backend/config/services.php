@@ -64,11 +64,20 @@ return [
     ],
 
     // GPS providers (TRD §5) — concrete per-provider config, not a generic
-    // framework. Wialon first (Phase 6); Traccar/Tracksolid Pro follow once
-    // Wialon works end to end.
+    // framework. A company picks one of these per GpsConnection; there is
+    // no single "default" GPS provider for the whole app the way SMS/push
+    // have (see GpsProviderManager).
     'wialon' => [
         'token' => env('WIALON_TOKEN'),
         'base_url' => env('WIALON_BASE_URL', 'https://hst-api.wialon.com'),
+    ],
+
+    'traccar' => [
+        'base_url' => env('TRACCAR_BASE_URL'),
+    ],
+
+    'tracksolid_pro' => [
+        'base_url' => env('TRACKSOLID_BASE_URL', 'https://openapi.tracksolid.com'),
     ],
 
 ];

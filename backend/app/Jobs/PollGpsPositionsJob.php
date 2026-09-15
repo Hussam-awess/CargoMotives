@@ -4,8 +4,8 @@ namespace App\Jobs;
 
 use App\Models\GpsConnection;
 use App\Models\Truck;
-use App\Services\Gps\GpsProvider;
 use App\Services\Gps\GpsProviderException;
+use App\Services\Gps\GpsProviderManager;
 use App\Services\Gps\GpsUnit;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -30,17 +30,20 @@ class PollGpsPositionsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, SerializesModels;
 
-    public function handle(GpsProvider $provider): void
+    public function handle(GpsProviderManager $providers): void
     {
-        GpsConnection::where('status', 'connected')->each(function (GpsConnection $connection) use ($provider) {
-            $this->pollConnection($connection, $provider);
+        GpsConnection::where('status', 'connected')->each(function (GpsConnection $connection) use ($providers) {
+            $this->pollConnection($connection, $providers);
         });
     }
 
-    private function pollConnection(GpsConnection $connection, GpsProvider $provider): void
+    private function pollConnection(GpsConnection $connection, GpsProviderManager $providers): void
     {
         try {
-            $units = $provider->listUnits($connection->access_token);
+            // Each connection independently records which provider it
+            // uses — resolved per-connection, not a single app-wide
+            // instance, since two companies can each pick a different one.
+            $units = $providers->driver($connection->provider)->listUnits($connection->access_token);
         } catch (GpsProviderException $e) {
             $connection->update(['status' => 'error']);
             Log::warning('GPS poll failed for a connection', [
@@ -65,7 +68,7 @@ class PollGpsPositionsJob implements ShouldQueue
                 continue;
             }
 
-            NormalizeGpsPositionJob::dispatch($truck->id, $unit->lat, $unit->lng, $unit->heading, $unit->recordedAt);
+            NormalizeGpsPositionJob::dispatch($truck->id, $unit->lat, $unit->lng, $unit->heading, $unit->recordedAt, $unit->speedKmh);
         }
 
         $connection->update(['last_synced_at' => now()]);

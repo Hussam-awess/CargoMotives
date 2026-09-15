@@ -9,8 +9,8 @@ use App\Http\Resources\GpsConnectionResource;
 use App\Http\Resources\TruckResource;
 use App\Models\GpsConnection;
 use App\Models\Truck;
-use App\Services\Gps\GpsProvider;
 use App\Services\Gps\GpsProviderException;
+use App\Services\Gps\GpsProviderManager;
 use App\Services\Gps\GpsUnit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +27,7 @@ use Illuminate\Validation\ValidationException;
  */
 class GpsConnectionController extends Controller
 {
-    public function __construct(private readonly GpsProvider $provider) {}
+    public function __construct(private readonly GpsProviderManager $providers) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -46,7 +46,8 @@ class GpsConnectionController extends Controller
         $company = $request->user()->transporterCompany;
 
         try {
-            $units = $this->provider->listUnits($request->string('access_token')->toString());
+            $provider = $this->providers->driver($request->string('provider')->toString());
+            $units = $provider->listUnits($request->string('access_token')->toString());
         } catch (GpsProviderException $e) {
             throw ValidationException::withMessages(['access_token' => [$e->getMessage()]]);
         }

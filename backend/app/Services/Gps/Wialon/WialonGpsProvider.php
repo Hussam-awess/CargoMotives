@@ -87,6 +87,9 @@ class WialonGpsProvider implements GpsProvider
                 lng: $pos['x'] ?? null,
                 heading: $pos['c'] ?? null,
                 recordedAt: isset($pos['t']) ? CarbonImmutable::createFromTimestampUTC($pos['t']) : null,
+                // Wialon's own 'pos.s' is already km/h, unlike Traccar's
+                // knots — no unit conversion needed here.
+                speedKmh: isset($pos['s']) ? (float) $pos['s'] : null,
             );
         })->all();
     }

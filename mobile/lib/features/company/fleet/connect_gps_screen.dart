@@ -5,20 +5,29 @@ import '../../../core/theme/app_theme.dart';
 import '../data/gps_repository.dart';
 import '../data/truck_repository.dart';
 
+enum GpsProviderOption {
+  wialon('wialon', 'Wialon'),
+  traccar('traccar', 'Traccar'),
+  tracksolidPro('tracksolid_pro', 'Tracksolid Pro');
+
+  const GpsProviderOption(this.value, this.label);
+
+  /// The exact string the backend's gps_connections.provider column and
+  /// ConnectGpsRequest expect.
+  final String value;
+  final String label;
+}
+
 /// Connect GPS (AppFlow §2.3): pick a provider, authorize with an access
 /// token, then match each returned vehicle to a registered truck (or skip
 /// it — an unmatched vehicle just stays "GPS Tracking Not Available",
-/// same as if the company never connected anything at all). Only Wialon
-/// is a real integration yet (Phase 6 — "prove the pattern with one
-/// provider before touching a second"); the others are shown so the
-/// picker matches the UI/UX Brief's mockup, but disabled.
+/// same as if the company never connected anything at all). All three
+/// providers are real integrations now (Wialon, then Traccar and
+/// Tracksolid Pro added alongside it once the pattern was proven).
 class ConnectGpsScreen extends StatefulWidget {
-  ConnectGpsScreen({
-    super.key,
-    GpsRepository? gpsRepository,
-    TruckRepository? truckRepository,
-  }) : gpsRepository = gpsRepository ?? GpsRepository(),
-       truckRepository = truckRepository ?? TruckRepository();
+  ConnectGpsScreen({super.key, GpsRepository? gpsRepository, TruckRepository? truckRepository})
+    : gpsRepository = gpsRepository ?? GpsRepository(),
+      truckRepository = truckRepository ?? TruckRepository();
 
   final GpsRepository gpsRepository;
   final TruckRepository truckRepository;
@@ -29,6 +38,7 @@ class ConnectGpsScreen extends StatefulWidget {
 
 class _ConnectGpsScreenState extends State<ConnectGpsScreen> {
   final _tokenController = TextEditingController();
+  GpsProviderOption _selectedProvider = GpsProviderOption.wialon;
   bool _isConnecting = false;
   String? _connectError;
 
@@ -49,7 +59,7 @@ class _ConnectGpsScreenState extends State<ConnectGpsScreen> {
   Future<void> _connect() async {
     final token = _tokenController.text.trim();
     if (token.isEmpty) {
-      setState(() => _connectError = 'Enter your Wialon API token.');
+      setState(() => _connectError = 'Enter your ${_selectedProvider.label} API token.');
       return;
     }
 
@@ -59,26 +69,19 @@ class _ConnectGpsScreenState extends State<ConnectGpsScreen> {
     });
 
     try {
-      final result = await widget.gpsRepository.connect(
-        provider: 'wialon',
-        accessToken: token,
-      );
+      final result = await widget.gpsRepository.connect(provider: _selectedProvider.value, accessToken: token);
       final trucks = await widget.truckRepository.list();
       if (!mounted) return;
       setState(() {
         _connection = result.connection;
         _units = result.units;
-        _availableTrucks = trucks
-            .where((t) => t.gpsStatus != 'connected')
-            .toList();
+        _availableTrucks = trucks.where((t) => t.gpsStatus != 'connected').toList();
         for (final unit in result.units) {
           _selectedTruckIdByUnit[unit.unitId] = unit.suggestedTruckId;
         }
       });
     } on ApiException catch (e) {
-      setState(
-        () => _connectError = e.firstErrorFor('access_token') ?? e.message,
-      );
+      setState(() => _connectError = e.firstErrorFor('access_token') ?? e.message);
     } finally {
       if (mounted) setState(() => _isConnecting = false);
     }
@@ -91,10 +94,7 @@ class _ConnectGpsScreenState extends State<ConnectGpsScreen> {
     };
 
     if (matches.isEmpty) {
-      setState(
-        () => _importError =
-            'Match at least one vehicle to a truck, or go back if none apply.',
-      );
+      setState(() => _importError = 'Match at least one vehicle to a truck, or go back if none apply.');
       return;
     }
 
@@ -104,10 +104,7 @@ class _ConnectGpsScreenState extends State<ConnectGpsScreen> {
     });
 
     try {
-      final trucks = await widget.gpsRepository.import(
-        connectionId: _connection!.id,
-        unitIdToTruckId: matches,
-      );
+      final trucks = await widget.gpsRepository.import(connectionId: _connection!.id, unitIdToTruckId: matches);
       if (!mounted) return;
       setState(() => _importedTrucks = trucks);
     } on ApiException catch (e) {
@@ -124,13 +121,12 @@ class _ConnectGpsScreenState extends State<ConnectGpsScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: _importedTrucks != null
-            ? _ImportedSummary(
-                trucks: _importedTrucks!,
-                onDone: () => Navigator.of(context).pop(true),
-              )
+            ? _ImportedSummary(trucks: _importedTrucks!, onDone: () => Navigator.of(context).pop(true))
             : _connection == null
             ? _ProviderForm(
                 tokenController: _tokenController,
+                selectedProvider: _selectedProvider,
+                onSelectProvider: (provider) => setState(() => _selectedProvider = provider),
                 isConnecting: _isConnecting,
                 error: _connectError,
                 onConnect: _connect,
@@ -139,8 +135,7 @@ class _ConnectGpsScreenState extends State<ConnectGpsScreen> {
                 units: _units,
                 availableTrucks: _availableTrucks,
                 selectedTruckIdByUnit: _selectedTruckIdByUnit,
-                onSelect: (unitId, truckId) =>
-                    setState(() => _selectedTruckIdByUnit[unitId] = truckId),
+                onSelect: (unitId, truckId) => setState(() => _selectedTruckIdByUnit[unitId] = truckId),
                 isImporting: _isImporting,
                 error: _importError,
                 onImport: _import,
@@ -153,12 +148,16 @@ class _ConnectGpsScreenState extends State<ConnectGpsScreen> {
 class _ProviderForm extends StatelessWidget {
   const _ProviderForm({
     required this.tokenController,
+    required this.selectedProvider,
+    required this.onSelectProvider,
     required this.isConnecting,
     required this.error,
     required this.onConnect,
   });
 
   final TextEditingController tokenController;
+  final GpsProviderOption selectedProvider;
+  final void Function(GpsProviderOption provider) onSelectProvider;
   final bool isConnecting;
   final String? error;
   final VoidCallback onConnect;
@@ -168,42 +167,24 @@ class _ProviderForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Choose your provider',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
+        Text('Choose your provider', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 16),
-        const _ProviderTile(name: 'Wialon', enabled: true, selected: true),
-        const SizedBox(height: 8),
-        const _ProviderTile(name: 'Traccar', enabled: false, selected: false),
-        const SizedBox(height: 8),
-        const _ProviderTile(
-          name: 'Tracksolid Pro',
-          enabled: false,
-          selected: false,
-        ),
-        const SizedBox(height: 24),
+        for (final provider in GpsProviderOption.values) ...[
+          _ProviderTile(provider: provider, selected: provider == selectedProvider, onTap: () => onSelectProvider(provider)),
+          const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 16),
         TextField(
           controller: tokenController,
-          decoration: const InputDecoration(labelText: 'Wialon API token'),
+          decoration: InputDecoration(labelText: '${selectedProvider.label} API token'),
           obscureText: true,
         ),
-        if (error != null) ...[
-          const SizedBox(height: 12),
-          Text(error!, style: const TextStyle(color: Colors.red)),
-        ],
+        if (error != null) ...[const SizedBox(height: 12), Text(error!, style: const TextStyle(color: Colors.red))],
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: isConnecting ? null : onConnect,
           child: isConnecting
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
+              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Text('Connect'),
         ),
       ],
@@ -212,32 +193,21 @@ class _ProviderForm extends StatelessWidget {
 }
 
 class _ProviderTile extends StatelessWidget {
-  const _ProviderTile({
-    required this.name,
-    required this.enabled,
-    required this.selected,
-  });
+  const _ProviderTile({required this.provider, required this.selected, required this.onTap});
 
-  final String name;
-  final bool enabled;
+  final GpsProviderOption provider;
   final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.5,
-      child: Card(
-        margin: EdgeInsets.zero,
-        color: selected ? AppColors.infoTint : null,
-        child: ListTile(
-          title: Text(name),
-          trailing: enabled
-              ? null
-              : Text(
-                  'Coming soon',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-        ),
+    return Card(
+      margin: EdgeInsets.zero,
+      color: selected ? AppColors.infoTint : null,
+      child: ListTile(
+        title: Text(provider.label),
+        trailing: selected ? Icon(Icons.check_circle, color: AppColors.ctaBlue) : null,
+        onTap: onTap,
       ),
     );
   }
@@ -267,17 +237,9 @@ class _MatchUnitsForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '✓ Wialon connected',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(color: AppColors.statusLive),
-        ),
+        Text('✓ Wialon connected', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.statusLive)),
         const SizedBox(height: 4),
-        Text(
-          'We found ${units.length} vehicle(s)',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
+        Text('We found ${units.length} vehicle(s)', style: TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 16),
         for (final unit in units) ...[
           Card(
@@ -290,18 +252,9 @@ class _MatchUnitsForm extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          unit.name,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
+                        Text(unit.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (!unit.hasPosition)
-                          Text(
-                            'No position reported yet',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
+                          Text('No position reported yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -309,15 +262,8 @@ class _MatchUnitsForm extends StatelessWidget {
                     value: selectedTruckIdByUnit[unit.unitId],
                     hint: const Text('Skip'),
                     items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('Skip'),
-                      ),
-                      for (final truck in availableTrucks)
-                        DropdownMenuItem<int?>(
-                          value: truck.id,
-                          child: Text(truck.registrationNumber),
-                        ),
+                      const DropdownMenuItem<int?>(value: null, child: Text('Skip')),
+                      for (final truck in availableTrucks) DropdownMenuItem<int?>(value: truck.id, child: Text(truck.registrationNumber)),
                     ],
                     onChanged: (truckId) => onSelect(unit.unitId, truckId),
                   ),
@@ -327,22 +273,12 @@ class _MatchUnitsForm extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        if (error != null) ...[
-          const SizedBox(height: 12),
-          Text(error!, style: const TextStyle(color: Colors.red)),
-        ],
+        if (error != null) ...[const SizedBox(height: 12), Text(error!, style: const TextStyle(color: Colors.red))],
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: isImporting ? null : onImport,
           child: isImporting
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
+              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Text('Import selected vehicles'),
         ),
       ],
@@ -363,14 +299,9 @@ class _ImportedSummary extends StatelessWidget {
       children: [
         const Icon(Icons.check_circle, color: AppColors.statusLive, size: 48),
         const SizedBox(height: 12),
-        Text(
-          '${trucks.length} truck(s) connected',
-          style: Theme.of(context).textTheme.titleLarge,
-          textAlign: TextAlign.center,
-        ),
+        Text('${trucks.length} truck(s) connected', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
         const SizedBox(height: 8),
-        for (final truck in trucks)
-          Text(truck.registrationNumber, textAlign: TextAlign.center),
+        for (final truck in trucks) Text(truck.registrationNumber, textAlign: TextAlign.center),
         const SizedBox(height: 24),
         ElevatedButton(onPressed: onDone, child: const Text('Done')),
       ],

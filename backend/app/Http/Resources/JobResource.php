@@ -77,6 +77,7 @@ class JobResource extends JsonResource
                     'lat' => (float) $this->assignedTruck->last_known_lat,
                     'lng' => (float) $this->assignedTruck->last_known_lng,
                     'heading' => $this->assignedTruck->last_known_heading !== null ? (float) $this->assignedTruck->last_known_heading : null,
+                    'speed_kmh' => $this->assignedTruck->last_known_speed_kmh !== null ? (float) $this->assignedTruck->last_known_speed_kmh : null,
                     'recorded_at' => $this->assignedTruck->last_known_at->toIso8601String(),
                 ];
             }),

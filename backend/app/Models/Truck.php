@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'transporter_company_id', 'registration_number', 'make_model', 'vehicle_type', 'capacity_tons',
     'documents', 'verification_status', 'verification_rejected_reason', 'current_status',
     'gps_status', 'gps_connection_id', 'gps_unit_id', 'last_known_lat', 'last_known_lng',
-    'last_known_heading', 'last_known_at',
+    'last_known_heading', 'last_known_speed_kmh', 'last_known_at',
 ])]
 class Truck extends Model
 {
@@ -56,6 +56,7 @@ class Truck extends Model
             'last_known_lat' => 'decimal:6',
             'last_known_lng' => 'decimal:6',
             'last_known_heading' => 'decimal:2',
+            'last_known_speed_kmh' => 'decimal:2',
             'last_known_at' => 'datetime',
         ];
     }

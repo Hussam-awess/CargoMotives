@@ -18,7 +18,9 @@ use App\Observers\PaymentObserver;
 use App\Observers\SupportMessageObserver;
 use App\Observers\TransporterCompanyObserver;
 use App\Observers\TruckObserver;
-use App\Services\Gps\GpsProvider;
+use App\Services\Gps\GpsProviderManager;
+use App\Services\Gps\Traccar\TraccarGpsProvider;
+use App\Services\Gps\Tracksolid\TracksolidGpsProvider;
 use App\Services\Gps\Wialon\WialonGpsProvider;
 use App\Services\MobileMoney\MobileMoneyGateway;
 use App\Services\MobileMoney\Selcom\SelcomMobileMoneyGateway;
@@ -51,14 +53,15 @@ class AppServiceProvider extends ServiceProvider
         // concrete driver directly.
         $this->app->bind(PushGateway::class, fn ($app) => $app->make(PushManager::class)->driver());
 
-        // Only one GPS provider exists yet (TRD §5: "concrete integrations,
-        // not a framework"), so a direct interface binding is enough — a
-        // manager/driver-resolution layer (like SmsManager) only earns its
-        // keep once a second provider actually exists to switch between.
-        $this->app->bind(
-            GpsProvider::class,
-            fn () => new WialonGpsProvider(config('services.wialon.base_url')),
-        );
+        // Each concrete provider bound individually (resolvable/fakeable on
+        // its own in tests) — GpsProviderManager::driver() picks the right
+        // one per GpsConnection.provider, since a company's own choice of
+        // Wialon/Traccar/Tracksolid is per-connection, not app-wide like
+        // SmsGateway/PushGateway's single active driver.
+        $this->app->bind(WialonGpsProvider::class, fn () => new WialonGpsProvider(config('services.wialon.base_url')));
+        $this->app->bind(TraccarGpsProvider::class, fn () => new TraccarGpsProvider(config('services.traccar.base_url')));
+        $this->app->bind(TracksolidGpsProvider::class, fn () => new TracksolidGpsProvider(config('services.tracksolid_pro.base_url')));
+        $this->app->singleton(GpsProviderManager::class);
 
         // Same reasoning as GpsProvider above — one aggregator (TRD §1),
         // so a direct binding, no manager layer.

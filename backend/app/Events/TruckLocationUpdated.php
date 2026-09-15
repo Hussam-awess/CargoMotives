@@ -43,6 +43,7 @@ class TruckLocationUpdated implements ShouldBroadcast
             'lat' => (float) $this->truck->last_known_lat,
             'lng' => (float) $this->truck->last_known_lng,
             'heading' => $this->truck->last_known_heading !== null ? (float) $this->truck->last_known_heading : null,
+            'speed_kmh' => $this->truck->last_known_speed_kmh !== null ? (float) $this->truck->last_known_speed_kmh : null,
             'recorded_at' => $this->truck->last_known_at?->toIso8601String(),
             'gps_signal_status' => $this->job->gps_signal_status,
         ];

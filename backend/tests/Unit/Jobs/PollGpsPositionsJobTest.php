@@ -8,7 +8,9 @@ use App\Models\GpsConnection;
 use App\Models\Truck;
 use App\Services\Gps\GpsProvider;
 use App\Services\Gps\GpsProviderException;
+use App\Services\Gps\GpsProviderManager;
 use App\Services\Gps\GpsUnit;
+use App\Services\Gps\Wialon\WialonGpsProvider;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -37,21 +39,21 @@ class PollGpsPositionsJobTest extends TestCase
         ]);
         $unmatchedTruck = Truck::factory()->approved()->create(['gps_connection_id' => $connection->id, 'gps_unit_id' => null]);
 
-        $this->app->instance(GpsProvider::class, new class implements GpsProvider
+        $this->app->instance(WialonGpsProvider::class, new class implements GpsProvider
         {
             public function listUnits(string $accessToken): array
             {
                 return [
-                    new GpsUnit('unit-1', 'T 123 ABC', -6.8, 39.2, 90.0, CarbonImmutable::now()),
+                    new GpsUnit('unit-1', 'T 123 ABC', -6.8, 39.2, 90.0, CarbonImmutable::now(), speedKmh: 55.0),
                     new GpsUnit('unit-not-imported', 'T 999 ZZZ', -6.9, 39.3, 0.0, CarbonImmutable::now()),
                     new GpsUnit('unit-no-position', 'T 888 YYY', null, null, null, null),
                 ];
             }
         });
 
-        (new PollGpsPositionsJob)->handle($this->app->make(GpsProvider::class));
+        (new PollGpsPositionsJob)->handle($this->app->make(GpsProviderManager::class));
 
-        Bus::assertDispatched(NormalizeGpsPositionJob::class, fn (NormalizeGpsPositionJob $job) => $job->truckId === $truck->id);
+        Bus::assertDispatched(NormalizeGpsPositionJob::class, fn (NormalizeGpsPositionJob $job) => $job->truckId === $truck->id && $job->speedKmh === 55.0);
         // Exactly one: the "not imported" unit has no matching truck, and
         // the "no position" unit is skipped even though a truck exists for
         // it — neither should reach a NormalizeGpsPositionJob.
@@ -68,7 +70,7 @@ class PollGpsPositionsJobTest extends TestCase
         $goodConnection = GpsConnection::factory()->create(['provider' => 'wialon', 'status' => 'connected']);
         $goodTruck = Truck::factory()->approved()->create(['gps_connection_id' => $goodConnection->id, 'gps_unit_id' => 'good-unit']);
 
-        $this->app->instance(GpsProvider::class, new class($badConnection->id, $goodTruck) implements GpsProvider
+        $this->app->instance(WialonGpsProvider::class, new class($badConnection->id, $goodTruck) implements GpsProvider
         {
             public function __construct(private int $badConnectionId, private Truck $goodTruck) {}
 
@@ -87,7 +89,7 @@ class PollGpsPositionsJobTest extends TestCase
             }
         });
 
-        (new PollGpsPositionsJob)->handle($this->app->make(GpsProvider::class));
+        (new PollGpsPositionsJob)->handle($this->app->make(GpsProviderManager::class));
 
         $this->assertSame('error', $badConnection->fresh()->status);
         $this->assertSame('connected', $goodConnection->fresh()->status);
@@ -100,7 +102,7 @@ class PollGpsPositionsJobTest extends TestCase
 
         GpsConnection::factory()->create(['provider' => 'wialon', 'status' => 'disconnected']);
 
-        $this->app->instance(GpsProvider::class, new class implements GpsProvider
+        $this->app->instance(WialonGpsProvider::class, new class implements GpsProvider
         {
             public function listUnits(string $accessToken): array
             {
@@ -108,7 +110,7 @@ class PollGpsPositionsJobTest extends TestCase
             }
         });
 
-        (new PollGpsPositionsJob)->handle($this->app->make(GpsProvider::class));
+        (new PollGpsPositionsJob)->handle($this->app->make(GpsProviderManager::class));
 
         Bus::assertNotDispatched(NormalizeGpsPositionJob::class);
     }

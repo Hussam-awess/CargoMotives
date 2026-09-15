@@ -33,7 +33,7 @@ class WialonGpsProviderTest extends TestCase
                 'token/login' => Http::response(['eid' => 'session-123']),
                 'core/search_items' => Http::response([
                     'items' => [
-                        ['id' => 1001, 'nm' => 'T 123 ABC', 'pos' => ['y' => -6.8161, 'x' => 39.2803, 'c' => 90, 't' => 1700000000]],
+                        ['id' => 1001, 'nm' => 'T 123 ABC', 'pos' => ['y' => -6.8161, 'x' => 39.2803, 'c' => 90, 's' => 62, 't' => 1700000000]],
                         ['id' => 1002, 'nm' => 'T 456 XYZ'], // no `pos` at all — never reported.
                     ],
                 ]),
@@ -51,6 +51,7 @@ class WialonGpsProviderTest extends TestCase
         $this->assertSame(-6.8161, $units[0]->lat);
         $this->assertSame(39.2803, $units[0]->lng);
         $this->assertSame(90.0, $units[0]->heading);
+        $this->assertSame(62.0, $units[0]->speedKmh);
         $this->assertNotNull($units[0]->recordedAt);
 
         $this->assertFalse($units[1]->hasPosition());

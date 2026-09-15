@@ -44,6 +44,7 @@ class TruckResource extends JsonResource
             'last_known_lat' => $this->last_known_lat !== null ? (float) $this->last_known_lat : null,
             'last_known_lng' => $this->last_known_lng !== null ? (float) $this->last_known_lng : null,
             'last_known_heading' => $this->last_known_heading !== null ? (float) $this->last_known_heading : null,
+            'last_known_speed_kmh' => $this->last_known_speed_kmh !== null ? (float) $this->last_known_speed_kmh : null,
             'last_known_at' => $this->last_known_at?->toIso8601String(),
             'current_status' => $this->current_status,
             'is_active' => $this->is_active,

@@ -27,13 +27,14 @@ class NormalizeGpsPositionJobTest extends TestCase
         $truck = Truck::factory()->approved()->create(['gps_status' => 'signal_lost', 'current_status' => 'idle']);
         $recordedAt = CarbonImmutable::now();
 
-        (new NormalizeGpsPositionJob($truck->id, -6.8161, 39.2803, 90.0, $recordedAt))->handle();
+        (new NormalizeGpsPositionJob($truck->id, -6.8161, 39.2803, 90.0, $recordedAt, 62.5))->handle();
 
         $truck->refresh();
         $this->assertSame('connected', $truck->gps_status);
         $this->assertEqualsWithDelta(-6.8161, (float) $truck->last_known_lat, 0.0001);
         $this->assertEqualsWithDelta(39.2803, (float) $truck->last_known_lng, 0.0001);
         $this->assertEqualsWithDelta(90.0, (float) $truck->last_known_heading, 0.0001);
+        $this->assertEqualsWithDelta(62.5, (float) $truck->last_known_speed_kmh, 0.0001);
         // The DB column stores whole-second precision (no fractional
         // seconds), so up to ~1s of rounding versus the microsecond-
         // precision Carbon instance we passed in is expected, not a bug.
