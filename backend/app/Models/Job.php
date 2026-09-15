@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\DB;
 #[Fillable([
     'customer_id', 'status', 'pickup_address', 'dropoff_address', 'container_type', 'container_size',
     'approx_weight_tons', 'cargo_description', 'preferred_pickup_window_start', 'preferred_pickup_window_end',
-    'customer_notes', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'assigned_truck_id',
+    'customer_notes', 'budget_price', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'assigned_truck_id',
     'assigned_driver_id', 'agreed_price', 'cancelled_reason', 'gps_tracking_active', 'gps_signal_status',
     'gps_tracking_started_at',
 ])]
@@ -56,6 +56,7 @@ class Job extends Model
         return [
             'photo_urls' => 'array',
             'approx_weight_tons' => 'decimal:2',
+            'budget_price' => 'decimal:2',
             'agreed_price' => 'decimal:2',
             'preferred_pickup_window_start' => 'datetime',
             'preferred_pickup_window_end' => 'datetime',

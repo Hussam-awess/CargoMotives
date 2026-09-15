@@ -35,6 +35,11 @@ class JobResource extends JsonResource
             'preferred_pickup_window_start' => $this->preferred_pickup_window_start?->toIso8601String(),
             'preferred_pickup_window_end' => $this->preferred_pickup_window_end?->toIso8601String(),
             'customer_notes' => $this->customer_notes,
+            // The customer's own stated asking price — shown to a
+            // transporter company deciding what to bid, distinct from
+            // `agreed_price` (only ever set once a bid is accepted).
+            // Optional: never fabricated when the customer didn't give one.
+            'budget_price' => $this->budget_price !== null ? (float) $this->budget_price : null,
             // A Customer's optional business identity (Phase 11) — shown
             // to companies bidding on the job, not just the customer
             // themselves, per the product decision behind this field

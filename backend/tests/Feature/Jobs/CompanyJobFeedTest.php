@@ -52,6 +52,16 @@ class CompanyJobFeedTest extends TestCase
             ->assertJsonPath('data.0.customer_company_name', 'Amina Textiles Ltd');
     }
 
+    public function test_open_feed_shows_the_customers_budget_price_so_a_company_can_bid_informed(): void
+    {
+        $company = $this->approvedCompanyUser();
+        Job::factory()->create(['status' => 'open', 'budget_price' => 850000, 'created_at' => now()->subMinutes(5)]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk()->assertJsonPath('data.0.budget_price', 850000);
+    }
+
     public function test_a_non_featured_company_does_not_see_a_job_posted_less_than_2_minutes_ago(): void
     {
         $company = $this->approvedCompanyUser();

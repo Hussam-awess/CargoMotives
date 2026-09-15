@@ -32,6 +32,7 @@ class PostJobRequest extends FormRequest
             'container_size' => ['required', 'string', 'max:50'],
             'approx_weight_tons' => ['nullable', 'numeric', 'min:0.1', 'max:999'],
             'cargo_description' => ['nullable', 'string', 'max:2000'],
+            'budget_price' => ['nullable', 'numeric', 'min:0'],
             'preferred_pickup_window_start' => ['required', 'date', 'after_or_equal:now'],
             'preferred_pickup_window_end' => ['nullable', 'date', 'after:preferred_pickup_window_start'],
             'customer_notes' => ['nullable', 'string', 'max:2000'],

@@ -54,6 +54,24 @@ class JobPostingTest extends TestCase
         $this->assertDatabaseHas('jobs', ['customer_id' => $customer->id, 'status' => 'open']);
     }
 
+    public function test_a_customer_can_post_a_job_with_a_budget_price(): void
+    {
+        $customer = User::factory()->create();
+
+        $response = $this->actingAs($customer)->postJson('/api/jobs', $this->validPayload(['budget_price' => 850000]));
+
+        $response->assertCreated()->assertJsonPath('data.budget_price', 850000);
+    }
+
+    public function test_a_customer_can_post_a_job_without_a_budget_price(): void
+    {
+        $customer = User::factory()->create();
+
+        $response = $this->actingAs($customer)->postJson('/api/jobs', $this->validPayload());
+
+        $response->assertCreated()->assertJsonPath('data.budget_price', null);
+    }
+
     public function test_a_company_cannot_post_a_job(): void
     {
         $company = User::factory()->transporterCompany()->create();
