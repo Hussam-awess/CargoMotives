@@ -32,7 +32,11 @@ class PostJobRequest extends FormRequest
             'container_size' => ['required', 'string', 'max:50'],
             'approx_weight_tons' => ['nullable', 'numeric', 'min:0.1', 'max:999'],
             'cargo_description' => ['nullable', 'string', 'max:2000'],
-            'budget_price' => ['nullable', 'numeric', 'min:0'],
+            // Required (was optional pre-launch) — every job now states a
+            // budget so transporters have a real number to bid against.
+            // Same floor/ceiling as PlaceBidRequest's own 'price' rule
+            // (TZS has no cents in practice here, so a plain 1,000 floor).
+            'budget_price' => ['required', 'numeric', 'min:1000', 'max:999999999'],
             'preferred_pickup_window_start' => ['required', 'date', 'after_or_equal:now'],
             'preferred_pickup_window_end' => ['nullable', 'date', 'after:preferred_pickup_window_start'],
             'customer_notes' => ['nullable', 'string', 'max:2000'],

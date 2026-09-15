@@ -34,6 +34,7 @@ class JobPostingTest extends TestCase
             'container_type' => 'Dry Van',
             'container_size' => '40ft',
             'approx_weight_tons' => 15,
+            'budget_price' => 850000,
             'preferred_pickup_window_start' => now()->addDay()->toIso8601String(),
             'customer_notes' => 'Handle with care.',
         ], $overrides);
@@ -63,13 +64,16 @@ class JobPostingTest extends TestCase
         $response->assertCreated()->assertJsonPath('data.budget_price', 850000);
     }
 
-    public function test_a_customer_can_post_a_job_without_a_budget_price(): void
+    public function test_a_customer_must_provide_a_budget_price_to_post_a_job(): void
     {
         $customer = User::factory()->create();
 
-        $response = $this->actingAs($customer)->postJson('/api/jobs', $this->validPayload());
+        $payload = $this->validPayload();
+        unset($payload['budget_price']);
 
-        $response->assertCreated()->assertJsonPath('data.budget_price', null);
+        $response = $this->actingAs($customer)->postJson('/api/jobs', $payload);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors('budget_price');
     }
 
     public function test_a_company_cannot_post_a_job(): void

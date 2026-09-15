@@ -9,13 +9,7 @@ import 'job_geo.dart';
 import 'route_picker_map.dart';
 import 'shipment_posted_screen.dart';
 
-const _cargoTypes = [
-  'Container',
-  'General cargo',
-  'Machinery',
-  'Construction materials',
-  'Other',
-];
+const _cargoTypes = ['Container', 'General cargo', 'Machinery', 'Construction materials', 'Other'];
 const _containerSizes = ['20ft', '40ft', 'Other'];
 
 /// Post a Job (AppFlow §3.2): locations, container/cargo details, timing,
@@ -31,8 +25,7 @@ const _containerSizes = ['20ft', '40ft', 'Other'];
 /// map fills those same fields rather than replacing them, so a customer
 /// who already knows the exact coordinates can still type them directly.
 class PostJobScreen extends StatefulWidget {
-  PostJobScreen({super.key, JobRepository? repository, this.prefillReturnFrom})
-    : repository = repository ?? JobRepository();
+  PostJobScreen({super.key, JobRepository? repository, this.prefillReturnFrom}) : repository = repository ?? JobRepository();
 
   final JobRepository repository;
 
@@ -125,8 +118,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
     final pLng = double.tryParse(_pickupLng.text.trim());
     final dLat = double.tryParse(_dropoffLat.text.trim());
     final dLng = double.tryParse(_dropoffLng.text.trim());
-    if (pLat == null || pLng == null || dLat == null || dLng == null)
-      return null;
+    if (pLat == null || pLng == null || dLat == null || dLng == null) return null;
     return kmBetween(pLat, pLng, dLat, dLng);
   }
 
@@ -146,20 +138,11 @@ class _PostJobScreenState extends State<PostJobScreen> {
     );
     if (date == null || !mounted) return;
 
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
+    final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
     if (time == null) return;
 
     setState(() {
-      _pickupWindowStart = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute,
-      );
+      _pickupWindowStart = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });
   }
 
@@ -167,9 +150,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_pickupWindowStart == null) {
-      setState(
-        () => _errorText = 'Please choose a preferred pickup date and time.',
-      );
+      setState(() => _errorText = 'Please choose a preferred pickup date and time.');
       return;
     }
 
@@ -189,19 +170,11 @@ class _PostJobScreenState extends State<PostJobScreen> {
           dropoffLng: double.parse(_dropoffLng.text.trim()),
           containerType: _containerType.text.trim(),
           containerSize: _containerSize.text.trim(),
-          approxWeightTons: _approxWeightTons.text.trim().isEmpty
-              ? null
-              : double.tryParse(_approxWeightTons.text.trim()),
-          cargoDescription: _cargoDescription.text.trim().isEmpty
-              ? null
-              : _cargoDescription.text.trim(),
+          approxWeightTons: _approxWeightTons.text.trim().isEmpty ? null : double.tryParse(_approxWeightTons.text.trim()),
+          cargoDescription: _cargoDescription.text.trim().isEmpty ? null : _cargoDescription.text.trim(),
           preferredPickupWindowStart: _pickupWindowStart!,
-          customerNotes: _customerNotes.text.trim().isEmpty
-              ? null
-              : _customerNotes.text.trim(),
-          budgetPrice: _budgetPrice.text.trim().isEmpty
-              ? null
-              : double.tryParse(_budgetPrice.text.trim()),
+          customerNotes: _customerNotes.text.trim().isEmpty ? null : _customerNotes.text.trim(),
+          budgetPrice: double.parse(_budgetPrice.text.trim()),
         ),
       );
       if (!mounted) return;
@@ -209,10 +182,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
       // future resolves right now via `result: true` (so CustomerHomeShell
       // refreshes Jobs immediately), while ShipmentPostedScreen takes this
       // route's place in the stack — no separate confirmation dialog needed.
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => ShipmentPostedScreen(job: job)),
-        result: true,
-      );
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => ShipmentPostedScreen(job: job)), result: true);
     } on ApiException catch (e) {
       setState(() => _errorText = e.message);
     } finally {
@@ -220,10 +190,15 @@ class _PostJobScreenState extends State<PostJobScreen> {
     }
   }
 
-  String? _required(String? value) =>
-      (value == null || value.trim().isEmpty) ? 'Required' : null;
+  String? _required(String? value) => (value == null || value.trim().isEmpty) ? 'Required' : null;
 
   String? _requiredCoordinate(String? value) {
+    if (_required(value) != null) return 'Required';
+
+    return double.tryParse(value!.trim()) == null ? 'Enter a number' : null;
+  }
+
+  String? _requiredPrice(String? value) {
     if (_required(value) != null) return 'Required';
 
     return double.tryParse(value!.trim()) == null ? 'Enter a number' : null;
@@ -247,11 +222,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const stepTitles = [
-      'Where are you moving cargo?',
-      'Cargo details',
-      'Pickup & notes',
-    ];
+    const stepTitles = ['Where are you moving cargo?', 'Cargo details', 'Pickup & notes'];
 
     return Scaffold(
       appBar: AppBar(
@@ -260,13 +231,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
-              child: Text(
-                'Step ${_step + 1} of 3',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+              child: Text('Step ${_step + 1} of 3', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
             ),
           ),
         ],
@@ -279,10 +244,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
                 Expanded(
                   child: Container(
                     height: 3,
-                    margin: EdgeInsets.only(
-                      left: i == 0 ? 20 : 2,
-                      right: i == 2 ? 20 : 2,
-                    ),
+                    margin: EdgeInsets.only(left: i == 0 ? 20 : 2, right: i == 2 ? 20 : 2),
                     color: i <= _step ? AppColors.ctaBlue : AppColors.border,
                   ),
                 ),
@@ -321,13 +283,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
                       1 => _CargoStep(state: this),
                       _ => _PickupStep(state: this),
                     },
-                    if (_errorText != null) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorText!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ],
+                    if (_errorText != null) ...[const SizedBox(height: 16), Text(_errorText!, style: const TextStyle(color: Colors.red))],
                   ],
                 ),
               ),
@@ -342,27 +298,15 @@ class _PostJobScreenState extends State<PostJobScreen> {
                   if (_step > 0) ...[
                     SizedBox(
                       width: 96,
-                      child: OutlinedButton(
-                        onPressed: _back,
-                        child: const Text('BACK'),
-                      ),
+                      child: OutlinedButton(onPressed: _back, child: const Text('BACK')),
                     ),
                     const SizedBox(width: 10),
                   ],
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isSubmitting
-                          ? null
-                          : (_step < 2 ? _continue : _submit),
+                      onPressed: _isSubmitting ? null : (_step < 2 ? _continue : _submit),
                       child: _isSubmitting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : Text(_step < 2 ? 'CONTINUE' : 'POST SHIPMENT'),
                     ),
                   ),
@@ -426,10 +370,7 @@ class _RouteStep extends StatelessWidget {
               child: TextFormField(
                 controller: state._pickupLat,
                 decoration: const InputDecoration(labelText: 'Latitude'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                 validator: state._requiredCoordinate,
               ),
             ),
@@ -438,10 +379,7 @@ class _RouteStep extends StatelessWidget {
               child: TextFormField(
                 controller: state._pickupLng,
                 decoration: const InputDecoration(labelText: 'Longitude'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                 validator: state._requiredCoordinate,
               ),
             ),
@@ -462,10 +400,7 @@ class _RouteStep extends StatelessWidget {
               child: TextFormField(
                 controller: state._dropoffLat,
                 decoration: const InputDecoration(labelText: 'Latitude'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                 validator: state._requiredCoordinate,
               ),
             ),
@@ -474,10 +409,7 @@ class _RouteStep extends StatelessWidget {
               child: TextFormField(
                 controller: state._dropoffLng,
                 decoration: const InputDecoration(labelText: 'Longitude'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                 validator: state._requiredCoordinate,
               ),
             ),
@@ -494,18 +426,10 @@ class _RouteStep extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Estimated distance',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+                const Text('Estimated distance', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 Text(
                   '${distance.toStringAsFixed(0)} km',
-                  style: TextStyle(
-                    fontFamily: 'Barlow Condensed',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                  style: TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primary),
                 ),
               ],
             ),
@@ -529,18 +453,11 @@ class _CargoStep extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'The more precise this is, the better your bids.',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-            ),
+            Text('The more precise this is, the better your bids.', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
             const SizedBox(height: 18),
             Text(
               'Cargo type',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textLabel,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -548,19 +465,13 @@ class _CargoStep extends StatelessWidget {
               runSpacing: 8,
               children: [
                 for (final type in _cargoTypes)
-                  _Chip(
-                    label: type,
-                    selected: state._containerType.text == type,
-                    onTap: () => state._containerType.text = type,
-                  ),
+                  _Chip(label: type, selected: state._containerType.text == type, onTap: () => state._containerType.text = type),
               ],
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: state._containerType,
-              decoration: const InputDecoration(
-                labelText: 'Container type (e.g. Dry Van, Reefer)',
-              ),
+              decoration: const InputDecoration(labelText: 'Container type (e.g. Dry Van, Reefer)'),
               validator: state._required,
             ),
             const SizedBox(height: 18),
@@ -569,12 +480,8 @@ class _CargoStep extends StatelessWidget {
                 Expanded(
                   child: TextFormField(
                     controller: state._approxWeightTons,
-                    decoration: const InputDecoration(
-                      labelText: 'Weight (tons, optional)',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+                    decoration: const InputDecoration(labelText: 'Weight (tons, optional)'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
                 ),
               ],
@@ -582,11 +489,7 @@ class _CargoStep extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               'Container size',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textLabel,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
             ),
             const SizedBox(height: 8),
             Row(
@@ -608,17 +511,13 @@ class _CargoStep extends StatelessWidget {
             const SizedBox(height: 12),
             TextFormField(
               controller: state._containerSize,
-              decoration: const InputDecoration(
-                labelText: 'Container size (e.g. 20ft, 40ft)',
-              ),
+              decoration: const InputDecoration(labelText: 'Container size (e.g. 20ft, 40ft)'),
               validator: state._required,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: state._cargoDescription,
-              decoration: const InputDecoration(
-                labelText: 'Cargo description (optional)',
-              ),
+              decoration: const InputDecoration(labelText: 'Cargo description (optional)'),
               maxLines: 2,
             ),
           ],
@@ -629,12 +528,7 @@ class _CargoStep extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.centered = false,
-  });
+  const _Chip({required this.label, required this.selected, required this.onTap, this.centered = false});
 
   final String label;
   final bool selected;
@@ -647,16 +541,10 @@ class _Chip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: centered ? 0 : 13,
-          vertical: 8,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: centered ? 0 : 13, vertical: 8),
         alignment: centered ? Alignment.center : null,
         decoration: BoxDecoration(
-          border: Border.all(
-            color: selected ? AppColors.ctaBlue : AppColors.border,
-            width: selected ? 1.5 : 1,
-          ),
+          border: Border.all(color: selected ? AppColors.ctaBlue : AppColors.border, width: selected ? 1.5 : 1),
           color: selected ? AppColors.infoTint : null,
           borderRadius: BorderRadius.circular(6),
         ),
@@ -683,40 +571,26 @@ class _PickupStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'When and exactly where the truck should collect.',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
+        Text('When and exactly where the truck should collect.', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
         const SizedBox(height: 18),
         InkWell(
           onTap: state._pickWindowStart,
           borderRadius: BorderRadius.circular(12),
           child: InputDecorator(
-            decoration: const InputDecoration(
-              labelText: 'Preferred pickup date & time',
-            ),
+            decoration: const InputDecoration(labelText: 'Preferred pickup date & time'),
             child: Text(
               state._pickupWindowStart == null
                   ? 'Tap to choose'
-                  : DateFormat(
-                      'd MMM yyyy, HH:mm',
-                    ).format(state._pickupWindowStart!.toLocal()),
+                  : DateFormat('d MMM yyyy, HH:mm').format(state._pickupWindowStart!.toLocal()),
             ),
           ),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: state._budgetPrice,
-          decoration: const InputDecoration(
-            labelText: 'Your budget, TZS (optional)',
-          ),
+          decoration: const InputDecoration(labelText: 'Your budget, TZS'),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) return null;
-            return double.tryParse(value.trim()) == null
-                ? 'Enter a number'
-                : null;
-          },
+          validator: state._requiredPrice,
         ),
         const SizedBox(height: 4),
         Text(
@@ -726,9 +600,7 @@ class _PickupStep extends StatelessWidget {
         const SizedBox(height: 12),
         TextFormField(
           controller: state._customerNotes,
-          decoration: const InputDecoration(
-            labelText: 'Notes for companies (optional)',
-          ),
+          decoration: const InputDecoration(labelText: 'Notes for companies (optional)'),
           maxLines: 3,
         ),
         const SizedBox(height: 8),
@@ -747,11 +619,7 @@ class _PickupStep extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Transporters see the district, not your exact address, until you accept an offer.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.ctaBluePressed,
-                    height: 1.4,
-                  ),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.ctaBluePressed, height: 1.4),
                 ),
               ),
             ],
@@ -768,26 +636,16 @@ class _PickupStep extends StatelessWidget {
           ]),
           builder: (context, _) {
             final rows = <(String, String)>[
-              (
-                'Route',
-                '${state._pickupAddress.text} → ${state._dropoffAddress.text}',
-              ),
+              ('Route', '${state._pickupAddress.text} → ${state._dropoffAddress.text}'),
               (
                 'Cargo',
                 [
                   state._containerType.text,
                   state._containerSize.text,
-                  if (state._approxWeightTons.text.trim().isNotEmpty)
-                    '${state._approxWeightTons.text} t',
+                  if (state._approxWeightTons.text.trim().isNotEmpty) '${state._approxWeightTons.text} t',
                 ].where((s) => s.isNotEmpty).join(' · '),
               ),
-              if (state._pickupWindowStart != null)
-                (
-                  'Pickup',
-                  DateFormat(
-                    'd MMM yyyy, HH:mm',
-                  ).format(state._pickupWindowStart!.toLocal()),
-                ),
+              if (state._pickupWindowStart != null) ('Pickup', DateFormat('d MMM yyyy, HH:mm').format(state._pickupWindowStart!.toLocal())),
             ];
 
             return Container(
@@ -800,49 +658,28 @@ class _PickupStep extends StatelessWidget {
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 13,
-                      vertical: 10,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
                     color: AppColors.surfaceSubtle,
                     child: Text(
                       'SHIPMENT SUMMARY',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textLabel,
-                        letterSpacing: 0.7,
-                      ),
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
                     ),
                   ),
                   for (final row in rows)
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 13,
-                        vertical: 9,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(
                             width: 60,
-                            child: Text(
-                              row.$1,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
+                            child: Text(row.$1, style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
                           ),
                           Expanded(
                             child: Text(
                               row.$2,
                               textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textPrimary,
-                              ),
+                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
                             ),
                           ),
                         ],
