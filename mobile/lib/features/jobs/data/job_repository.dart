@@ -3,14 +3,21 @@ import '../../../core/network/api_client.dart';
 /// A driver's delivery submission (Backend Schema §2.10), embedded on a
 /// [Job] once its driver has submitted one via the Driver Link.
 class ProofOfDelivery {
-  const ProofOfDelivery({required this.photoUrls, required this.recipientName, required this.notes, required this.confirmedByCustomerAt});
+  const ProofOfDelivery({
+    required this.photoUrls,
+    required this.recipientName,
+    required this.notes,
+    required this.confirmedByCustomerAt,
+  });
 
   factory ProofOfDelivery.fromJson(Map<String, dynamic> json) {
     return ProofOfDelivery(
       photoUrls: (json['photo_urls'] as List).cast<String>(),
       recipientName: json['recipient_name'] as String?,
       notes: json['notes'] as String?,
-      confirmedByCustomerAt: json['confirmed_by_customer_at'] == null ? null : DateTime.parse(json['confirmed_by_customer_at'] as String),
+      confirmedByCustomerAt: json['confirmed_by_customer_at'] == null
+          ? null
+          : DateTime.parse(json['confirmed_by_customer_at'] as String),
     );
   }
 
@@ -25,7 +32,12 @@ class ProofOfDelivery {
 /// (`last_known_location`), later kept current by JobLocationChannel
 /// while the job screen is open (TRD §5.2).
 class GpsLocation {
-  const GpsLocation({required this.lat, required this.lng, required this.heading, required this.recordedAt});
+  const GpsLocation({
+    required this.lat,
+    required this.lng,
+    required this.heading,
+    required this.recordedAt,
+  });
 
   factory GpsLocation.fromJson(Map<String, dynamic> json) {
     return GpsLocation(
@@ -59,6 +71,7 @@ class Job {
     required this.cargoDescription,
     required this.preferredPickupWindowStart,
     required this.customerNotes,
+    this.budgetPrice,
     required this.agreedPrice,
     required this.currency,
     required this.assignedCompanyName,
@@ -89,8 +102,11 @@ class Job {
       containerSize: json['container_size'] as String,
       approxWeightTons: (json['approx_weight_tons'] as num?)?.toDouble(),
       cargoDescription: json['cargo_description'] as String?,
-      preferredPickupWindowStart: DateTime.parse(json['preferred_pickup_window_start'] as String),
+      preferredPickupWindowStart: DateTime.parse(
+        json['preferred_pickup_window_start'] as String,
+      ),
       customerNotes: json['customer_notes'] as String?,
+      budgetPrice: (json['budget_price'] as num?)?.toDouble(),
       agreedPrice: (json['agreed_price'] as num?)?.toDouble(),
       currency: json['currency'] as String,
       assignedCompanyName: json['assigned_company_name'] as String?,
@@ -98,14 +114,18 @@ class Job {
       assignedDriverName: json['assigned_driver_name'] as String?,
       proofOfDelivery: json['proof_of_delivery'] == null
           ? null
-          : ProofOfDelivery.fromJson(json['proof_of_delivery'] as Map<String, dynamic>),
+          : ProofOfDelivery.fromJson(
+              json['proof_of_delivery'] as Map<String, dynamic>,
+            ),
       bidsCount: json['bids_count'] as int?,
       isAssignedToViewer: json['is_assigned_to_viewer'] as bool? ?? false,
       gpsTrackingActive: json['gps_tracking_active'] as bool? ?? false,
       gpsSignalStatus: json['gps_signal_status'] as String? ?? 'not_applicable',
       lastKnownLocation: json['last_known_location'] == null
           ? null
-          : GpsLocation.fromJson(json['last_known_location'] as Map<String, dynamic>),
+          : GpsLocation.fromJson(
+              json['last_known_location'] as Map<String, dynamic>,
+            ),
       customerName: json['customer_name'] as String?,
       customerCompanyName: json['customer_company_name'] as String?,
       customerCompletedJobsCount: json['customer_completed_jobs_count'] as int?,
@@ -113,7 +133,8 @@ class Job {
   }
 
   final int id;
-  final String status; // open|assigned|en_route_pickup|picked_up|in_transit|delivered|completed|cancelled
+  final String
+  status; // open|assigned|en_route_pickup|picked_up|in_transit|delivered|completed|cancelled
   final String pickupAddress;
   final double? pickupLat;
   final double? pickupLng;
@@ -126,6 +147,11 @@ class Job {
   final String? cargoDescription;
   final DateTime preferredPickupWindowStart;
   final String? customerNotes;
+
+  /// The customer's own stated asking price — shown to a transporter
+  /// company deciding what to bid. Distinct from [agreedPrice] (only ever
+  /// set once a bid is accepted) and always optional.
+  final double? budgetPrice;
   final double? agreedPrice;
   final String currency;
   final String? assignedCompanyName;
@@ -174,7 +200,12 @@ class Job {
   /// job (AppFlow §2.5) — mirrors JobAssignmentService::ASSIGNABLE_STATUSES
   /// on the backend. Company-side callers must also check
   /// [isAssignedToViewer] before showing assignment actions.
-  bool get isAssignable => const ['assigned', 'en_route_pickup', 'picked_up', 'in_transit'].contains(status);
+  bool get isAssignable => const [
+    'assigned',
+    'en_route_pickup',
+    'picked_up',
+    'in_transit',
+  ].contains(status);
 
   bool get isAwaitingDeliveryConfirmation => status == 'delivered';
 }
@@ -194,6 +225,7 @@ class JobSubmission {
     this.cargoDescription,
     required this.preferredPickupWindowStart,
     this.customerNotes,
+    this.budgetPrice,
   });
 
   final String pickupAddress;
@@ -209,6 +241,10 @@ class JobSubmission {
   final DateTime preferredPickupWindowStart;
   final String? customerNotes;
 
+  /// Optional — a customer who doesn't know a fair price can still post
+  /// without one, same as the rest of this form's optional fields.
+  final double? budgetPrice;
+
   Map<String, dynamic> toJson() => {
     'pickup_address': pickupAddress,
     'pickup_lat': pickupLat,
@@ -219,9 +255,13 @@ class JobSubmission {
     'container_type': containerType,
     'container_size': containerSize,
     if (approxWeightTons != null) 'approx_weight_tons': approxWeightTons,
-    if (cargoDescription != null && cargoDescription!.isNotEmpty) 'cargo_description': cargoDescription,
-    'preferred_pickup_window_start': preferredPickupWindowStart.toIso8601String(),
-    if (customerNotes != null && customerNotes!.isNotEmpty) 'customer_notes': customerNotes,
+    if (cargoDescription != null && cargoDescription!.isNotEmpty)
+      'cargo_description': cargoDescription,
+    'preferred_pickup_window_start': preferredPickupWindowStart
+        .toIso8601String(),
+    if (customerNotes != null && customerNotes!.isNotEmpty)
+      'customer_notes': customerNotes,
+    if (budgetPrice != null) 'budget_price': budgetPrice,
   };
 }
 
@@ -236,7 +276,9 @@ class JobRepository {
   Future<List<Job>> list() async {
     final body = await _client.get('/jobs');
 
-    return (body['data'] as List).map((e) => Job.fromJson(e as Map<String, dynamic>)).toList();
+    return (body['data'] as List)
+        .map((e) => Job.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Job> show(int jobId) async {
@@ -252,7 +294,10 @@ class JobRepository {
   }
 
   Future<Job> cancel(int jobId, {String? reason}) async {
-    final body = await _client.post('/jobs/$jobId/cancel', data: {if (reason != null) 'reason': reason});
+    final body = await _client.post(
+      '/jobs/$jobId/cancel',
+      data: {if (reason != null) 'reason': reason},
+    );
 
     return Job.fromJson(body['data'] as Map<String, dynamic>);
   }
@@ -275,6 +320,9 @@ class JobRepository {
   /// raises a Dispute for Admin to review (AppFlow §3.5); does NOT change
   /// the job's own status.
   Future<void> reportProblem(int jobId, {required String reason}) {
-    return _client.post('/jobs/$jobId/report-problem', data: {'reason': reason});
+    return _client.post(
+      '/jobs/$jobId/report-problem',
+      data: {'reason': reason},
+    );
   }
 }

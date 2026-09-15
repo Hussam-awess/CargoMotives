@@ -7,6 +7,8 @@ import '../../../core/config/app_config.dart';
 import '../../../core/local/local_prefs.dart';
 import '../../../core/localization/language_switcher_tile.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
+import '../../../core/theme/theme_scope.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/edit_profile_screen.dart';
 import '../../support/change_password_screen.dart';
@@ -22,7 +24,7 @@ import 'company_details_screen.dart';
 /// me()), Cargo Motives Plus status/link (CompanyFeaturedRepository, the
 /// same repository CompanyProfileTab already uses), Terms/Privacy,
 /// Log out. Locally-stateful only: Availability/Notification toggles, the
-/// dark-mode preview swatch, 2FA. "Manage trucks"/"Manage drivers" point
+/// 2FA toggle. "Manage trucks"/"Manage drivers" point
 /// back to the real Fleet tab rather than duplicating navigation into a
 /// second copy of FleetScreen here.
 class CompanySettingsScreen extends StatefulWidget {
@@ -54,7 +56,6 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
   bool _payoutReleased = true;
   bool _driverOffRoute = false;
   bool _twoFactor = false;
-  bool _darkPreview = false;
   UserProfile? _profile;
   CompanyFeaturedStatus? _featuredStatus;
 
@@ -67,15 +68,38 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
   }
 
   Future<void> _loadToggles() async {
-    final acceptingLoads = await widget.prefs.getBool('company_settings.accepting_loads', defaultValue: true);
-    final autoDecline = await widget.prefs.getBool('company_settings.auto_decline_below_budget', defaultValue: false);
-    final shareGps = await widget.prefs.getBool('company_settings.share_gps', defaultValue: true);
-    final newMatchingLoads = await widget.prefs.getBool('company_settings.notif.new_matching_loads', defaultValue: true);
-    final bidAcceptedOrDeclined = await widget.prefs.getBool('company_settings.notif.bid_accepted_declined', defaultValue: true);
-    final payoutReleased = await widget.prefs.getBool('company_settings.notif.payout_released', defaultValue: true);
-    final driverOffRoute = await widget.prefs.getBool('company_settings.notif.driver_off_route', defaultValue: false);
-    final twoFactor = await widget.prefs.getBool('company_settings.two_factor', defaultValue: false);
-    final darkPreview = await widget.prefs.getBool('settings.dark_preview', defaultValue: false);
+    final acceptingLoads = await widget.prefs.getBool(
+      'company_settings.accepting_loads',
+      defaultValue: true,
+    );
+    final autoDecline = await widget.prefs.getBool(
+      'company_settings.auto_decline_below_budget',
+      defaultValue: false,
+    );
+    final shareGps = await widget.prefs.getBool(
+      'company_settings.share_gps',
+      defaultValue: true,
+    );
+    final newMatchingLoads = await widget.prefs.getBool(
+      'company_settings.notif.new_matching_loads',
+      defaultValue: true,
+    );
+    final bidAcceptedOrDeclined = await widget.prefs.getBool(
+      'company_settings.notif.bid_accepted_declined',
+      defaultValue: true,
+    );
+    final payoutReleased = await widget.prefs.getBool(
+      'company_settings.notif.payout_released',
+      defaultValue: true,
+    );
+    final driverOffRoute = await widget.prefs.getBool(
+      'company_settings.notif.driver_off_route',
+      defaultValue: false,
+    );
+    final twoFactor = await widget.prefs.getBool(
+      'company_settings.two_factor',
+      defaultValue: false,
+    );
     if (!mounted) return;
     setState(() {
       _acceptingLoads = acceptingLoads;
@@ -86,7 +110,6 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
       _payoutReleased = payoutReleased;
       _driverOffRoute = driverOffRoute;
       _twoFactor = twoFactor;
-      _darkPreview = darkPreview;
     });
   }
 
@@ -107,7 +130,6 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
         builder: (_) => EditProfileScreen(
           profile: profile,
           credential: ProfileCredential.phone,
-          showName: false,
           authRepository: widget.authRepository,
         ),
       ),
@@ -130,7 +152,9 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
   }
 
   void _openFleet() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => FleetScreen()));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => FleetScreen()));
   }
 
   void _openPreferredRoutes() {
@@ -138,13 +162,18 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
     if (status == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PreferredRoutesScreen(repository: widget.featuredRepository, initialRoutes: status.preferredRoutes),
+        builder: (_) => PreferredRoutesScreen(
+          repository: widget.featuredRepository,
+          initialRoutes: status.preferredRoutes,
+        ),
       ),
     );
   }
 
   void _openCompanyDetails() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyDetailsScreen()));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => CompanyDetailsScreen()));
   }
 
   String _maskPhone(String? raw) {
@@ -159,7 +188,13 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}$path');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open $uri')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.couldNotOpenUri(uri.toString()),
+          ),
+        ),
+      );
     }
   }
 
@@ -174,147 +209,214 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const SettingsSectionLabel('Availability'),
+          SettingsSectionLabel(l10n.availabilitySectionLabel),
           SettingsCard(
             children: [
               SettingsToggleRow(
-                title: 'Accepting loads',
-                subtitle: 'Turn off when your whole fleet is committed',
+                title: l10n.acceptingLoadsTitle,
+                subtitle: l10n.acceptingLoadsSubtitle,
                 value: _acceptingLoads,
-                onChanged: (v) => _setToggle('company_settings.accepting_loads', v, () => _acceptingLoads = v),
+                onChanged: (v) => _setToggle(
+                  'company_settings.accepting_loads',
+                  v,
+                  () => _acceptingLoads = v,
+                ),
               ),
-              const SettingsNavRow(title: 'Search radius', value: '80 km'),
+              SettingsNavRow(title: l10n.searchRadiusLabel, value: '80 km'),
               SettingsToggleRow(
-                title: 'Auto-decline below budget',
-                subtitle: 'Hide loads priced under your floor rate',
+                title: l10n.autoDeclineBelowBudgetTitle,
+                subtitle: l10n.autoDeclineBelowBudgetSubtitle,
                 value: _autoDeclineBelowBudget,
-                onChanged: (v) => _setToggle('company_settings.auto_decline_below_budget', v, () => _autoDeclineBelowBudget = v),
+                onChanged: (v) => _setToggle(
+                  'company_settings.auto_decline_below_budget',
+                  v,
+                  () => _autoDeclineBelowBudget = v,
+                ),
                 isLast: true,
               ),
             ],
           ),
           const SizedBox(height: 20),
-          const SettingsSectionLabel('Fleet & drivers'),
+          SettingsSectionLabel(l10n.fleetDriversSectionLabel),
           SettingsCard(
             children: [
-              SettingsNavRow(title: 'Manage trucks', onTap: _openFleet),
-              SettingsNavRow(title: 'Manage drivers', onTap: _openFleet),
+              SettingsNavRow(title: l10n.manageTrucksLabel, onTap: _openFleet),
+              SettingsNavRow(title: l10n.manageDriversLabel, onTap: _openFleet),
               SettingsToggleRow(
-                title: 'Share GPS with customers',
-                subtitle: 'Only while a job is active',
+                title: l10n.shareGpsTitle,
+                subtitle: l10n.shareGpsSubtitle,
                 value: _shareGpsWithCustomers,
-                onChanged: (v) => _setToggle('company_settings.share_gps', v, () => _shareGpsWithCustomers = v),
+                onChanged: (v) => _setToggle(
+                  'company_settings.share_gps',
+                  v,
+                  () => _shareGpsWithCustomers = v,
+                ),
               ),
-              const SettingsNavRow(title: 'Document expiry reminders', value: '30 days', isLast: true),
-            ],
-          ),
-          const SizedBox(height: 20),
-          const SettingsSectionLabel('Notifications'),
-          SettingsCard(
-            children: [
-              SettingsToggleRow(
-                title: 'New matching loads',
-                subtitle: 'On your lanes and return legs',
-                value: _newMatchingLoads,
-                onChanged: (v) => _setToggle('company_settings.notif.new_matching_loads', v, () => _newMatchingLoads = v),
-              ),
-              SettingsToggleRow(
-                title: 'Bid accepted or declined',
-                value: _bidAcceptedOrDeclined,
-                onChanged: (v) => _setToggle('company_settings.notif.bid_accepted_declined', v, () => _bidAcceptedOrDeclined = v),
-              ),
-              SettingsToggleRow(
-                title: 'Payout released',
-                value: _payoutReleased,
-                onChanged: (v) => _setToggle('company_settings.notif.payout_released', v, () => _payoutReleased = v),
-              ),
-              SettingsToggleRow(
-                title: 'Driver went off-route',
-                value: _driverOffRoute,
-                onChanged: (v) => _setToggle('company_settings.notif.driver_off_route', v, () => _driverOffRoute = v),
+              SettingsNavRow(
+                title: l10n.documentExpiryRemindersLabel,
+                value: '30 days',
                 isLast: true,
               ),
             ],
           ),
           const SizedBox(height: 20),
-          const SettingsSectionLabel('Company & billing'),
+          SettingsSectionLabel(l10n.notificationsSectionLabel),
           SettingsCard(
             children: [
-              SettingsNavRow(title: 'Company details & documents', onTap: _openCompanyDetails),
+              SettingsToggleRow(
+                title: l10n.newMatchingLoadsTitle,
+                subtitle: l10n.newMatchingLoadsSubtitle,
+                value: _newMatchingLoads,
+                onChanged: (v) => _setToggle(
+                  'company_settings.notif.new_matching_loads',
+                  v,
+                  () => _newMatchingLoads = v,
+                ),
+              ),
+              SettingsToggleRow(
+                title: l10n.bidAcceptedOrDeclinedTitle,
+                value: _bidAcceptedOrDeclined,
+                onChanged: (v) => _setToggle(
+                  'company_settings.notif.bid_accepted_declined',
+                  v,
+                  () => _bidAcceptedOrDeclined = v,
+                ),
+              ),
+              SettingsToggleRow(
+                title: l10n.payoutReleasedTitle,
+                value: _payoutReleased,
+                onChanged: (v) => _setToggle(
+                  'company_settings.notif.payout_released',
+                  v,
+                  () => _payoutReleased = v,
+                ),
+              ),
+              SettingsToggleRow(
+                title: l10n.driverOffRouteTitle,
+                value: _driverOffRoute,
+                onChanged: (v) => _setToggle(
+                  'company_settings.notif.driver_off_route',
+                  v,
+                  () => _driverOffRoute = v,
+                ),
+                isLast: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SettingsSectionLabel(l10n.companyBillingSectionLabel),
+          SettingsCard(
+            children: [
               SettingsNavRow(
-                title: 'Preferred lanes',
-                value: _featuredStatus == null ? null : '${_featuredStatus!.preferredRoutes.length} saved',
+                title: l10n.companyDetailsDocumentsLabel,
+                onTap: _openCompanyDetails,
+              ),
+              SettingsNavRow(
+                title: l10n.preferredLanesLabel,
+                value: _featuredStatus == null
+                    ? null
+                    : l10n.preferredLanesSavedCount(
+                        _featuredStatus!.preferredRoutes.length,
+                      ),
                 onTap: _featuredStatus == null ? null : _openPreferredRoutes,
               ),
-              const SettingsNavRow(title: 'Payout method', value: 'M-Pesa'),
+              SettingsNavRow(title: l10n.payoutMethodLabel, value: 'M-Pesa'),
               SettingsNavRow(
-                title: _featuredStatus?.isFeatured == true ? 'Cargo Motives Plus · active' : 'Cargo Motives Plus',
-                onTap: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => CompanyFeaturedScreen(repository: widget.featuredRepository))),
+                title: _featuredStatus?.isFeatured == true
+                    ? l10n.cargoMotivesPlusActiveLabel
+                    : l10n.cargoMotivesPlusLabel,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CompanyFeaturedScreen(
+                      repository: widget.featuredRepository,
+                    ),
+                  ),
+                ),
                 isLast: true,
               ),
             ],
           ),
           const SizedBox(height: 20),
-          const SettingsSectionLabel('Appearance & language'),
+          SettingsSectionLabel(l10n.appearanceLanguageSectionLabel),
           SettingsCard(
             children: [
               SettingsToggleRow(
-                title: 'Dark mode',
-                subtitle: 'Easier at night and on long hauls',
-                value: _darkPreview,
-                onChanged: (v) => _setToggle('settings.dark_preview', v, () => _darkPreview = v),
+                title: l10n.darkModeTitle,
+                subtitle: l10n.darkModeSubtitle,
+                value: ThemeScope.of(context).value,
+                onChanged: (v) => ThemeScope.of(context).setDarkMode(v),
               ),
               Padding(
                 padding: const EdgeInsets.all(13),
-                child: LanguageSwitcherTile(authRepository: widget.authRepository),
+                child: LanguageSwitcherTile(
+                  authRepository: widget.authRepository,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          const SettingsSectionLabel('Learn'),
+          SettingsSectionLabel(l10n.learnSectionLabel),
           SettingsCard(
             children: [
               SettingsNavRow(
-                title: 'How Cargo Motives works',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HowItWorksScreen())),
+                title: l10n.howCargoMotivesWorks,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HowItWorksScreen()),
+                ),
                 isLast: true,
               ),
             ],
           ),
           const SizedBox(height: 20),
-          const SettingsSectionLabel('Account'),
+          SettingsSectionLabel(l10n.accountSectionLabel),
           SettingsCard(
             children: [
               SettingsNavRow(
-                title: 'Registered phone',
-                value: _profile == null ? null : _maskPhone(_profile!.phoneNumber),
+                title: l10n.registeredPhoneLabel,
+                value: _profile == null
+                    ? null
+                    : _maskPhone(_profile!.phoneNumber),
                 onTap: _profile == null ? null : _openEditProfile,
               ),
               SettingsNavRow(
-                title: 'Change password',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),
+                title: l10n.changePasswordLabel,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ChangePasswordScreen(),
+                  ),
+                ),
               ),
               SettingsToggleRow(
-                title: 'Two-factor authentication',
+                title: l10n.twoFactorAuthLabel,
                 value: _twoFactor,
-                onChanged: (v) => _setToggle('company_settings.two_factor', v, () => _twoFactor = v),
+                onChanged: (v) => _setToggle(
+                  'company_settings.two_factor',
+                  v,
+                  () => _twoFactor = v,
+                ),
                 isLast: true,
               ),
             ],
           ),
           const SizedBox(height: 20),
-          const SettingsSectionLabel('Legal'),
+          SettingsSectionLabel(l10n.legalSectionLabel),
           SettingsCard(
             children: [
-              SettingsNavRow(title: 'Terms of service', onTap: () => _openLegal('/legal/terms')),
-              SettingsNavRow(title: 'Privacy policy', onTap: () => _openLegal('/legal/privacy'), isLast: true),
+              SettingsNavRow(
+                title: l10n.termsOfServiceLabel,
+                onTap: () => _openLegal('/legal/terms'),
+              ),
+              SettingsNavRow(
+                title: l10n.privacyPolicyLabel,
+                onTap: () => _openLegal('/legal/privacy'),
+                isLast: true,
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -324,16 +426,20 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
               onPressed: _logout,
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.statusError,
-                side: const BorderSide(color: Color(0xFFE8CFC8)),
+                side: BorderSide(color: AppColors.dangerBorder),
               ),
-              child: const Text('Log out'),
+              child: Text(l10n.logOutLabel),
             ),
           ),
           const SizedBox(height: 12),
           Center(
             child: Text(
               'Cargo Motives v1.0.0 · build 1',
-              style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.textTertiary),
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: AppColors.textTertiary,
+              ),
             ),
           ),
         ],

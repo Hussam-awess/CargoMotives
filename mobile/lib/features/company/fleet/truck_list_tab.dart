@@ -8,7 +8,8 @@ import 'add_truck_screen.dart';
 /// number, verification status, GPS status — a rejected truck is tappable
 /// to fix and resubmit.
 class TruckListTab extends StatefulWidget {
-  TruckListTab({super.key, TruckRepository? repository}) : repository = repository ?? TruckRepository();
+  TruckListTab({super.key, TruckRepository? repository})
+    : repository = repository ?? TruckRepository();
 
   final TruckRepository repository;
 
@@ -38,7 +39,10 @@ class TruckListTabState extends State<TruckListTab> {
   Future<void> _openAddTruck({Truck? resubmit}) async {
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => AddTruckScreen(repository: widget.repository, resubmitTruck: resubmit),
+        builder: (_) => AddTruckScreen(
+          repository: widget.repository,
+          resubmitTruck: resubmit,
+        ),
       ),
     );
     if (added == true) await _refresh();
@@ -60,7 +64,10 @@ class TruckListTabState extends State<TruckListTab> {
                 children: [
                   const Text('Could not load your trucks.'),
                   const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
+                  OutlinedButton(
+                    onPressed: _refresh,
+                    child: const Text('Try again'),
+                  ),
                 ],
               ),
             );
@@ -72,18 +79,29 @@ class TruckListTabState extends State<TruckListTab> {
               onRefresh: _refresh,
               child: ListView(
                 padding: const EdgeInsets.all(24),
-                children: const [
+                children: [
                   SizedBox(height: 80),
-                  Icon(Icons.local_shipping_outlined, size: 48, color: AppColors.textTertiary),
+                  Icon(
+                    Icons.local_shipping_outlined,
+                    size: 48,
+                    color: AppColors.textTertiary,
+                  ),
                   SizedBox(height: 16),
-                  Text('No trucks yet. Tap + to register your first one.', textAlign: TextAlign.center),
+                  Text(
+                    'No trucks yet. Tap + to register your first one.',
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             );
           }
 
-          final onJobCount = trucks.where((t) => t.currentStatus == 'on_job').length;
-          final pendingCount = trucks.where((t) => t.verificationStatus == 'pending').length;
+          final onJobCount = trucks
+              .where((t) => t.currentStatus == 'on_job')
+              .length;
+          final pendingCount = trucks
+              .where((t) => t.verificationStatus == 'pending')
+              .length;
 
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -93,26 +111,39 @@ class TruckListTabState extends State<TruckListTab> {
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return _FleetStatsBar(total: trucks.length, onJob: onJobCount, pendingVerification: pendingCount);
+                  return _FleetStatsBar(
+                    total: trucks.length,
+                    onJob: onJobCount,
+                    pendingVerification: pendingCount,
+                  );
                 }
                 final truck = trucks[index - 1];
 
                 return _TruckCard(
                   truck: truck,
-                  onTap: truck.isRejected ? () => _openAddTruck(resubmit: truck) : null,
+                  onTap: truck.isRejected
+                      ? () => _openAddTruck(resubmit: truck)
+                      : null,
                 );
               },
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(onPressed: () => _openAddTruck(), child: const Icon(Icons.add)),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openAddTruck(),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
 
 class _FleetStatsBar extends StatelessWidget {
-  const _FleetStatsBar({required this.total, required this.onJob, required this.pendingVerification});
+  const _FleetStatsBar({
+    required this.total,
+    required this.onJob,
+    required this.pendingVerification,
+  });
 
   final int total;
   final int onJob;
@@ -130,11 +161,11 @@ class _FleetStatsBar extends StatelessWidget {
           Expanded(
             child: _Stat(value: total, label: 'Trucks'),
           ),
-          Container(width: 1, height: 40, color: const Color(0xFFEDEDEF)),
+          Container(width: 1, height: 40, color: AppColors.border),
           Expanded(
             child: _Stat(value: onJob, label: 'On a job'),
           ),
-          Container(width: 1, height: 40, color: const Color(0xFFEDEDEF)),
+          Container(width: 1, height: 40, color: AppColors.border),
           Expanded(
             child: _Stat(value: pendingVerification, label: 'Pending'),
           ),
@@ -158,9 +189,17 @@ class _Stat extends StatelessWidget {
         children: [
           Text(
             '$value',
-            style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primary),
+            style: TextStyle(
+              fontFamily: 'Barlow Condensed',
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            ),
           ),
-          Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+          ),
         ],
       ),
     );
@@ -181,7 +220,7 @@ class _TruckCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE4E5E8)),
+          border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -193,8 +232,11 @@ class _TruckCard extends StatelessWidget {
                   ? Container(
                       width: 48,
                       height: 48,
-                      color: const Color(0xFFF0F1F3),
-                      child: const Icon(Icons.local_shipping_outlined, color: AppColors.textTertiary),
+                      color: AppColors.border,
+                      child: Icon(
+                        Icons.local_shipping_outlined,
+                        color: AppColors.textTertiary,
+                      ),
                     )
                   : Image.network(
                       truck.photoUrls.first,
@@ -204,8 +246,11 @@ class _TruckCard extends StatelessWidget {
                       errorBuilder: (_, _, _) => Container(
                         width: 48,
                         height: 48,
-                        color: const Color(0xFFF0F1F3),
-                        child: const Icon(Icons.broken_image_outlined, color: AppColors.textTertiary),
+                        color: AppColors.border,
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ),
             ),
@@ -216,17 +261,30 @@ class _TruckCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(truck.makeModel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      Text(
+                        truck.makeModel,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(width: 7),
                       Text(
                         truck.registrationNumber,
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
                   Text(
                     '${truck.vehicleType} · ${truck.capacityTons.toStringAsFixed(0)} t',
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -241,14 +299,21 @@ class _TruckCard extends StatelessWidget {
                             _ => AppColors.statusPending,
                           },
                           label: switch (truck.verificationStatus) {
-                            'approved' => truck.currentStatus == 'on_job' ? 'On a job' : 'Available',
+                            'approved' =>
+                              truck.currentStatus == 'on_job'
+                                  ? 'On a job'
+                                  : 'Available',
                             'rejected' => 'Rejected — tap to fix',
                             _ => 'Pending verification',
                           },
                         ),
                         _Chip(
-                          color: truck.gpsStatus == 'connected' ? AppColors.statusLive : AppColors.statusIdle,
-                          label: truck.gpsStatus == 'connected' ? 'GPS on' : 'GPS off',
+                          color: truck.gpsStatus == 'connected'
+                              ? AppColors.statusLive
+                              : AppColors.statusIdle,
+                          label: truck.gpsStatus == 'connected'
+                              ? 'GPS on'
+                              : 'GPS off',
                           filled: false,
                         ),
                       ],
@@ -290,7 +355,11 @@ class _Chip extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: filled ? color : AppColors.textLabel),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: filled ? color : AppColors.textLabel,
+            ),
           ),
         ],
       ),

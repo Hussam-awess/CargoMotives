@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
 import '../jobs/data/job_repository.dart';
 import '../jobs/job_detail_screen.dart';
@@ -12,10 +13,19 @@ import '../notifications/data/notification_repository.dart';
 import '../notifications/notifications_screen.dart';
 import 'shipments/customer_shipments_screen.dart';
 
-const _activeStatuses = {'assigned', 'en_route_pickup', 'picked_up', 'in_transit'};
+const _activeStatuses = {
+  'assigned',
+  'en_route_pickup',
+  'picked_up',
+  'in_transit',
+};
 
 class _DashboardData {
-  const _DashboardData({required this.jobs, required this.notifications, required this.profile});
+  const _DashboardData({
+    required this.jobs,
+    required this.notifications,
+    required this.profile,
+  });
 
   final List<Job> jobs;
   final List<AppNotification> notifications;
@@ -28,10 +38,15 @@ class _DashboardData {
 /// is derived from real data (jobs + notifications the customer already
 /// has) — nothing on this screen is a mockup placeholder value.
 class CustomerJobsTab extends StatefulWidget {
-  CustomerJobsTab({super.key, JobRepository? repository, NotificationRepository? notificationRepository, AuthRepository? authRepository})
-    : repository = repository ?? JobRepository(),
-      notificationRepository = notificationRepository ?? NotificationRepository(),
-      authRepository = authRepository ?? AuthRepository();
+  CustomerJobsTab({
+    super.key,
+    JobRepository? repository,
+    NotificationRepository? notificationRepository,
+    AuthRepository? authRepository,
+  }) : repository = repository ?? JobRepository(),
+       notificationRepository =
+           notificationRepository ?? NotificationRepository(),
+       authRepository = authRepository ?? AuthRepository();
 
   final JobRepository repository;
   final NotificationRepository notificationRepository;
@@ -50,7 +65,10 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
   void initState() {
     super.initState();
     _future = _load();
-    _searchController.addListener(() => setState(() => _query = _searchController.text.trim().toLowerCase()));
+    _searchController.addListener(
+      () =>
+          setState(() => _query = _searchController.text.trim().toLowerCase()),
+    );
   }
 
   @override
@@ -63,7 +81,11 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
     final jobs = await widget.repository.list();
     final notifications = await widget.notificationRepository.list();
     final profile = await widget.authRepository.me();
-    return _DashboardData(jobs: jobs, notifications: notifications, profile: profile);
+    return _DashboardData(
+      jobs: jobs,
+      notifications: notifications,
+      profile: profile,
+    );
   }
 
   /// Called by CustomerHomeShell after a job is posted, so the dashboard
@@ -75,27 +97,40 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
   }
 
   Future<void> _openPostJob() async {
-    final posted = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => PostJobScreen()));
+    final posted = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => PostJobScreen()));
     if (posted == true) refresh();
   }
 
   Future<void> _openJob(int jobId) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => JobDetailScreen(jobId: jobId)));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => JobDetailScreen(jobId: jobId)));
     refresh();
   }
 
   void _openTracking(Job job) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => LiveGpsTrackingScreen(job: job)));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => LiveGpsTrackingScreen(job: job)));
   }
 
   void _openShipments() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => CustomerShipmentsScreen(repository: widget.repository)));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CustomerShipmentsScreen(repository: widget.repository),
+      ),
+    );
   }
 
   Future<void> _openNotifications() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => NotificationsScreen(repository: widget.notificationRepository, onTapJob: _openJob),
+        builder: (_) => NotificationsScreen(
+          repository: widget.notificationRepository,
+          onTapJob: _openJob,
+        ),
       ),
     );
     refresh();
@@ -103,6 +138,7 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       body: SafeArea(
         child: FutureBuilder<_DashboardData>(
@@ -116,9 +152,12 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Could not load your dashboard.'),
+                    Text(l10n.couldNotLoadDashboard),
                     const SizedBox(height: 12),
-                    OutlinedButton(onPressed: refresh, child: const Text('Try again')),
+                    OutlinedButton(
+                      onPressed: refresh,
+                      child: Text(l10n.tryAgainLabel),
+                    ),
                   ],
                 ),
               );
@@ -133,7 +172,9 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                   _Header(
                     profile: data.profile,
                     onBell: _openNotifications,
-                    unreadCount: data.notifications.where((n) => n.isUnread).length,
+                    unreadCount: data.notifications
+                        .where((n) => n.isUnread)
+                        .length,
                   ),
                   const SizedBox(height: 14),
                   Padding(
@@ -147,7 +188,11 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                         if (active != null) {
                           _openTracking(active);
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No active shipment to track yet.')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(l10n.noActiveShipmentToTrack),
+                            ),
+                          );
                         }
                       },
                     ),
@@ -157,15 +202,31 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                     child: _SearchBar(controller: _searchController),
                   ),
                   if (_query.isNotEmpty)
-                    _SearchResults(jobs: _filterJobs(data.jobs, _query), onTapJob: _openJob)
+                    _SearchResults(
+                      jobs: _filterJobs(data.jobs, _query),
+                      onTapJob: _openJob,
+                    )
                   else ...[
-                    _SectionHeader(title: 'Active Shipment', onSeeAll: _openShipments),
+                    _SectionHeader(
+                      title: l10n.activeShipmentSectionLabel,
+                      onSeeAll: _openShipments,
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _ActiveShipmentCard(job: _mostRecentActive(data.jobs), onOpenDetail: _openJob, onTrack: _openTracking),
+                      child: _ActiveShipmentCard(
+                        job: _mostRecentActive(data.jobs),
+                        onOpenDetail: _openJob,
+                        onTrack: _openTracking,
+                      ),
                     ),
-                    _SectionHeader(title: 'Recent Activity', onSeeAll: _openNotifications),
-                    _RecentActivity(notifications: data.notifications.take(4).toList(), onTap: _openNotification),
+                    _SectionHeader(
+                      title: l10n.recentActivitySectionLabel,
+                      onSeeAll: _openNotifications,
+                    ),
+                    _RecentActivity(
+                      notifications: data.notifications.take(4).toList(),
+                      onTap: _openNotification,
+                    ),
                   ],
                 ],
               ),
@@ -177,7 +238,8 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
   }
 
   Future<void> _openNotification(AppNotification notification) async {
-    if (notification.isUnread) await widget.notificationRepository.markRead(notification.id);
+    if (notification.isUnread)
+      await widget.notificationRepository.markRead(notification.id);
     if (notification.relatedJobId != null) {
       await _openJob(notification.relatedJobId!);
     } else {
@@ -186,7 +248,9 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
   }
 
   Job? _mostRecentActive(List<Job> jobs) {
-    final active = jobs.where((j) => _activeStatuses.contains(j.status)).toList()..sort((a, b) => b.id.compareTo(a.id));
+    final active =
+        jobs.where((j) => _activeStatuses.contains(j.status)).toList()
+          ..sort((a, b) => b.id.compareTo(a.id));
     return active.isEmpty ? null : active.first;
   }
 
@@ -204,7 +268,11 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.profile, required this.onBell, required this.unreadCount});
+  const _Header({
+    required this.profile,
+    required this.onBell,
+    required this.unreadCount,
+  });
 
   final UserProfile profile;
   final VoidCallback onBell;
@@ -213,8 +281,13 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = profile.fullName?.trim();
-    final firstName = (name == null || name.isEmpty) ? null : name.split(' ').first;
-    final initial = (name == null || name.isEmpty) ? '?' : name.trim()[0].toUpperCase();
+    final firstName = (name == null || name.isEmpty)
+        ? null
+        : name.split(' ').first;
+    final initial = (name == null || name.isEmpty)
+        ? '?'
+        : name.trim()[0].toUpperCase();
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
@@ -223,11 +296,19 @@ class _Header extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: AppColors.infoTint,
+              borderRadius: BorderRadius.circular(8),
+            ),
             alignment: Alignment.center,
             child: Text(
               initial,
-              style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
+              style: const TextStyle(
+                fontFamily: 'Barlow Condensed',
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ctaBlue,
+              ),
             ),
           ),
           const SizedBox(width: 11),
@@ -236,8 +317,10 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  firstName == null ? 'Hello 👋' : 'Hello, $firstName 👋',
-                  style: const TextStyle(
+                  firstName == null
+                      ? l10n.helloGreeting
+                      : l10n.helloGreetingWithName(firstName),
+                  style: TextStyle(
                     fontFamily: 'Barlow Condensed',
                     fontSize: 21,
                     fontWeight: FontWeight.w600,
@@ -245,7 +328,13 @@ class _Header extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 1),
-                const Text('Tanzania', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                Text(
+                  'Tanzania',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -262,7 +351,11 @@ class _Header extends StatelessWidget {
               child: Badge(
                 label: Text('$unreadCount'),
                 isLabelVisible: unreadCount > 0,
-                child: const Icon(Icons.notifications_outlined, size: 20, color: AppColors.primary),
+                child: Icon(
+                  Icons.notifications_outlined,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ),
@@ -273,7 +366,12 @@ class _Header extends StatelessWidget {
 }
 
 class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({required this.jobs, required this.onSeeAll, required this.onNewShipment, required this.onTrackShipment});
+  const _ActivityCard({
+    required this.jobs,
+    required this.onSeeAll,
+    required this.onNewShipment,
+    required this.onTrackShipment,
+  });
 
   final List<Job> jobs;
   final VoidCallback onSeeAll;
@@ -282,14 +380,22 @@ class _ActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onTheRoad = jobs.where((j) => _activeStatuses.contains(j.status)).length;
-    final awaitingPickup = jobs.where((j) => j.status == 'assigned' || j.status == 'en_route_pickup').length;
+    final l10n = AppLocalizations.of(context)!;
+    final onTheRoad = jobs
+        .where((j) => _activeStatuses.contains(j.status))
+        .length;
+    final awaitingPickup = jobs
+        .where((j) => j.status == 'assigned' || j.status == 'en_route_pickup')
+        .length;
     final biddingOpen = jobs.where((j) => j.status == 'open').length;
     final completed = jobs.where((j) => j.status == 'completed').length;
 
     return Container(
       padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: AppColors.brandChip,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -300,7 +406,14 @@ class _ActivityCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Activity', style: TextStyle(fontSize: 12.5, color: AppColors.lightBlue, letterSpacing: 0.4)),
+                    Text(
+                      l10n.activityLabel,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.lightBlue,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.only(top: 1),
                       child: Row(
@@ -317,7 +430,13 @@ class _ActivityCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 9),
-                          const Text('shipment(s) on the road', style: TextStyle(fontSize: 13, color: AppColors.lightBlue)),
+                          Text(
+                            l10n.shipmentsOnTheRoad,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.lightBlue,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -328,27 +447,39 @@ class _ActivityCard extends StatelessWidget {
                 onPressed: onSeeAll,
                 style: OutlinedButton.styleFrom(
                   minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   side: BorderSide(color: Colors.white.withValues(alpha: 0.26)),
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('See all', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                child: Text(
+                  l10n.seeAllLabel,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              _Stat(label: 'Awaiting pickup', value: awaitingPickup),
+              _Stat(label: l10n.awaitingPickupLabel, value: awaitingPickup),
               const SizedBox(width: 22),
-              _Stat(label: 'Bidding open', value: biddingOpen),
+              _Stat(label: l10n.biddingOpenLabel, value: biddingOpen),
               const SizedBox(width: 22),
-              _Stat(label: 'Completed', value: completed),
+              _Stat(label: l10n.completedLabel, value: completed),
             ],
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 13),
-            child: Container(height: 1, color: Colors.white.withValues(alpha: 0.13)),
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.13),
+            ),
           ),
           Row(
             children: [
@@ -358,9 +489,13 @@ class _ActivityCard extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.ctaBlue,
                     minimumSize: const Size.fromHeight(44),
-                    textStyle: const TextStyle(fontFamily: 'Barlow', fontSize: 14, fontWeight: FontWeight.w600),
+                    textStyle: const TextStyle(
+                      fontFamily: 'Barlow',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  child: const Text('New Shipment'),
+                  child: Text(l10n.newShipmentLabel),
                 ),
               ),
               const SizedBox(width: 10),
@@ -370,11 +505,17 @@ class _ActivityCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(44),
                     foregroundColor: Colors.white,
-                    side: BorderSide(color: Colors.white.withValues(alpha: 0.16)),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.16),
+                    ),
                     backgroundColor: Colors.white.withValues(alpha: 0.09),
-                    textStyle: const TextStyle(fontFamily: 'Barlow', fontSize: 14, fontWeight: FontWeight.w600),
+                    textStyle: const TextStyle(
+                      fontFamily: 'Barlow',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  child: const Text('Track Shipment'),
+                  child: Text(l10n.trackShipmentLabel),
                 ),
               ),
             ],
@@ -396,10 +537,18 @@ class _Stat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue),
+        ),
         Text(
           '$value',
-          style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+          style: const TextStyle(
+            fontFamily: 'Barlow Condensed',
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ],
     );
@@ -423,13 +572,17 @@ class _SearchBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.search, size: 18, color: AppColors.textTertiary),
+          Icon(Icons.search, size: 18, color: AppColors.textTertiary),
           const SizedBox(width: 9),
           Expanded(
             child: TextField(
               controller: controller,
               style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(isCollapsed: true, border: InputBorder.none, hintText: 'Search shipments, tracking ID...'),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                hintText: AppLocalizations.of(context)!.searchShipmentsHint,
+              ),
             ),
           ),
         ],
@@ -455,13 +608,22 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.primary),
+            style: TextStyle(
+              fontFamily: 'Barlow Condensed',
+              fontSize: 19,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            ),
           ),
           GestureDetector(
             onTap: onSeeAll,
-            child: const Text(
-              'See all',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
+            child: Text(
+              AppLocalizations.of(context)!.seeAllLabel,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ctaBlue,
+              ),
             ),
           ),
         ],
@@ -471,7 +633,11 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _ActiveShipmentCard extends StatelessWidget {
-  const _ActiveShipmentCard({required this.job, required this.onOpenDetail, required this.onTrack});
+  const _ActiveShipmentCard({
+    required this.job,
+    required this.onOpenDetail,
+    required this.onTrack,
+  });
 
   final Job? job;
   final void Function(int jobId) onOpenDetail;
@@ -487,8 +653,11 @@ class _ActiveShipmentCard extends StatelessWidget {
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Center(
-          child: Text('No active shipment right now.', style: TextStyle(color: AppColors.textSecondary)),
+        child: Center(
+          child: Text(
+            AppLocalizations.of(context)!.noActiveShipmentMessage,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
         ),
       );
     }
@@ -505,9 +674,15 @@ class _ActiveShipmentCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE4E5E8)),
+          border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(10),
-          boxShadow: const [BoxShadow(color: Color(0x0D1D2D3D), blurRadius: 2, offset: Offset(0, 1))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D1D2D3D),
+              blurRadius: 2,
+              offset: Offset(0, 1),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,23 +692,41 @@ class _ActiveShipmentCard extends StatelessWidget {
               children: [
                 Text(
                   'CM-${job.id.toString().padLeft(4, '0')}',
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: AppColors.textSecondary, letterSpacing: 0.3),
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.3,
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(4)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.infoTint,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         width: 5,
                         height: 5,
-                        decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.ctaBlue),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.ctaBlue,
+                        ),
                       ),
                       const SizedBox(width: 5),
                       Text(
                         jobStatusLabel(job.status),
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ctaBluePressed,
+                        ),
                       ),
                     ],
                   ),
@@ -543,7 +736,7 @@ class _ActiveShipmentCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               '${job.pickupAddress} → ${job.dropoffAddress}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Barlow Condensed',
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
@@ -554,21 +747,32 @@ class _ActiveShipmentCard extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               '${job.containerType} · ${job.containerSize}${job.assignedCompanyName != null ? ' · ${job.assignedCompanyName}' : ''}',
-              style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 17),
-            _ProgressTracker(stage: stage, pickupTime: job.preferredPickupWindowStart, statusLabel: jobStatusLabel(job.status)),
+            _ProgressTracker(
+              stage: stage,
+              pickupTime: job.preferredPickupWindowStart,
+              statusLabel: jobStatusLabel(job.status),
+            ),
             const SizedBox(height: 15),
             InkWell(
               onTap: () => onTrack(job),
               borderRadius: BorderRadius.circular(7),
               child: Container(
                 height: 42,
-                decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(7)),
+                decoration: BoxDecoration(
+                  color: AppColors.infoTint,
+                  borderRadius: BorderRadius.circular(7),
+                ),
                 alignment: Alignment.center,
-                child: const Text(
-                  'Track Shipment',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                child: Text(
+                  AppLocalizations.of(context)!.trackShipmentLabel,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ctaBluePressed,
+                  ),
                 ),
               ),
             ),
@@ -580,7 +784,11 @@ class _ActiveShipmentCard extends StatelessWidget {
 }
 
 class _ProgressTracker extends StatelessWidget {
-  const _ProgressTracker({required this.stage, required this.pickupTime, required this.statusLabel});
+  const _ProgressTracker({
+    required this.stage,
+    required this.pickupTime,
+    required this.statusLabel,
+  });
 
   final int stage; // 0 = pickup, 1 = in transit, 2 = delivered
   final DateTime pickupTime;
@@ -593,17 +801,37 @@ class _ProgressTracker extends StatelessWidget {
       height: 10,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: filled ? AppColors.ctaBlue : Colors.white,
-        border: filled ? null : Border.all(color: const Color(0xFFD4D4D7), width: 2),
-        boxShadow: current ? const [BoxShadow(color: Color(0xFFDCE9F7), blurRadius: 0, spreadRadius: 4)] : null,
+        color: filled ? AppColors.ctaBlue : AppColors.surface,
+        border: filled ? null : Border.all(color: AppColors.border, width: 2),
+        boxShadow: current
+            ? const [
+                BoxShadow(
+                  color: Color(0xFFDCE9F7),
+                  blurRadius: 0,
+                  spreadRadius: 4,
+                ),
+              ]
+            : null,
       ),
     );
-    Widget line(bool filled) => Expanded(child: Container(height: 2, color: filled ? AppColors.ctaBlue : const Color(0xFFE4E5E8)));
+    Widget line(bool filled) => Expanded(
+      child: Container(
+        height: 2,
+        color: filled ? AppColors.ctaBlue : AppColors.border,
+      ),
+    );
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       children: [
         Row(
-          children: [dot(true, stage == 0), line(stage >= 1), dot(stage >= 1, stage == 1), line(stage >= 2), dot(stage >= 2, stage == 2)],
+          children: [
+            dot(true, stage == 0),
+            line(stage >= 1),
+            dot(stage >= 1, stage == 1),
+            line(stage >= 2),
+            dot(stage >= 2, stage == 2),
+          ],
         ),
         const SizedBox(height: 7),
         Row(
@@ -612,18 +840,32 @@ class _ProgressTracker extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Pickup',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                Text(
+                  l10n.progressPickupLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
-                Text(DateFormat('d MMM, HH:mm').format(pickupTime), style: const TextStyle(fontSize: 11.5, color: AppColors.textTertiary)),
+                Text(
+                  DateFormat('d MMM, HH:mm').format(pickupTime),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textTertiary,
+                  ),
+                ),
               ],
             ),
             Column(
               children: [
                 Text(
-                  stage == 1 ? statusLabel : 'In Transit',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                  stage == 1 ? statusLabel : l10n.progressInTransitLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -631,11 +873,13 @@ class _ProgressTracker extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  'Delivered',
+                  l10n.progressDeliveredLabel,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: stage == 2 ? AppColors.primary : AppColors.textTertiary,
+                    color: stage == 2
+                        ? AppColors.primary
+                        : AppColors.textTertiary,
                   ),
                 ),
               ],
@@ -656,9 +900,12 @@ class _RecentActivity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (notifications.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('No recent activity.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(
+          AppLocalizations.of(context)!.noRecentActivityMessage,
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
       );
     }
 
@@ -671,8 +918,10 @@ class _RecentActivity extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 11),
               decoration: i == notifications.length - 1
                   ? null
-                  : const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: Color(0xFFF0F0F2))),
+                  : BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: AppColors.border),
+                      ),
                     ),
               child: InkWell(
                 onTap: () => onTap(notifications[i]),
@@ -681,10 +930,15 @@ class _RecentActivity extends StatelessWidget {
                     Container(
                       width: 34,
                       height: 34,
-                      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(7)),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
                       alignment: Alignment.center,
                       child: Icon(
-                        notifications[i].relatedJobId != null ? Icons.local_shipping_outlined : Icons.info_outline,
+                        notifications[i].relatedJobId != null
+                            ? Icons.local_shipping_outlined
+                            : Icons.info_outline,
                         size: 16,
                         color: AppColors.textPrimary,
                       ),
@@ -698,13 +952,18 @@ class _RecentActivity extends StatelessWidget {
                             notifications[i].title,
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: notifications[i].isUnread ? FontWeight.w700 : FontWeight.w600,
+                              fontWeight: notifications[i].isUnread
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
                           ),
                           Text(
                             _relativeTime(notifications[i].createdAt),
-                            style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textTertiary,
+                            ),
                           ),
                         ],
                       ),
@@ -723,7 +982,9 @@ class _RecentActivity extends StatelessWidget {
     final now = DateTime.now();
     final diff = now.difference(local);
     if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (local.year == now.year && local.month == now.month && local.day == now.day) {
+    if (local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day) {
       return 'Today, ${DateFormat('HH:mm').format(local)}';
     }
     return DateFormat('d MMM').format(local);
@@ -739,9 +1000,12 @@ class _SearchResults extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (jobs.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
-        child: Text('No shipments match your search.', style: TextStyle(color: AppColors.textSecondary)),
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        child: Text(
+          AppLocalizations.of(context)!.noShipmentsMatchSearch,
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
       );
     }
 
@@ -754,7 +1018,9 @@ class _SearchResults extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 title: Text('${job.pickupAddress} → ${job.dropoffAddress}'),
-                subtitle: Text('CM-${job.id.toString().padLeft(4, '0')} · ${jobStatusLabel(job.status)}'),
+                subtitle: Text(
+                  'CM-${job.id.toString().padLeft(4, '0')} · ${jobStatusLabel(job.status)}',
+                ),
                 onTap: () => onTapJob(job.id),
               ),
             ),

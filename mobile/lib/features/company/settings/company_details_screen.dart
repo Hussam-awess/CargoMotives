@@ -11,7 +11,8 @@ import '../data/company_repository.dart';
 /// read-only: editing any of this is a resubmission (CompanyVerification
 /// Screen), a different, heavier flow than a settings row should trigger.
 class CompanyDetailsScreen extends StatefulWidget {
-  CompanyDetailsScreen({super.key, CompanyRepository? repository}) : repository = repository ?? CompanyRepository();
+  CompanyDetailsScreen({super.key, CompanyRepository? repository})
+    : repository = repository ?? CompanyRepository();
 
   final CompanyRepository repository;
 
@@ -40,22 +41,34 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
           }
           final company = snapshot.data;
           if (snapshot.hasError || company == null) {
-            return const Center(child: Text('Could not load your company details.'));
+            return const Center(
+              child: Text('Could not load your company details.'),
+            );
           }
 
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
               _DetailRow(label: 'Company name', value: company.companyName),
-              _DetailRow(label: 'Registration number', value: company.registrationNumber),
+              _DetailRow(
+                label: 'Registration number',
+                value: company.registrationNumber,
+              ),
               _DetailRow(label: 'TIN', value: company.tin),
-              _DetailRow(label: 'Physical address', value: company.physicalAddress),
+              _DetailRow(
+                label: 'Physical address',
+                value: company.physicalAddress,
+              ),
               _DetailRow(label: 'Company phone', value: company.companyPhone),
               _DetailRow(label: 'Company email', value: company.companyEmail),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Representative',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textLabel),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textLabel,
+                ),
               ),
               const SizedBox(height: 8),
               _DetailRow(label: 'Name', value: company.repFullName),
@@ -83,10 +96,19 @@ class _DetailRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 140,
-            child: Text(label, style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+            ),
           ),
           Expanded(
-            child: Text(value ?? '—', style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500)),
+            child: Text(
+              value ?? '—',
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),

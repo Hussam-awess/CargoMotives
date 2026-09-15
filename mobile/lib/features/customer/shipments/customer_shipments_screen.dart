@@ -9,12 +9,14 @@ import '../../jobs/job_status.dart';
 /// just the one active one shown on the Home dashboard. Reached from
 /// Home's "See all" links.
 class CustomerShipmentsScreen extends StatefulWidget {
-  CustomerShipmentsScreen({super.key, JobRepository? repository}) : repository = repository ?? JobRepository();
+  CustomerShipmentsScreen({super.key, JobRepository? repository})
+    : repository = repository ?? JobRepository();
 
   final JobRepository repository;
 
   @override
-  State<CustomerShipmentsScreen> createState() => _CustomerShipmentsScreenState();
+  State<CustomerShipmentsScreen> createState() =>
+      _CustomerShipmentsScreenState();
 }
 
 class _CustomerShipmentsScreenState extends State<CustomerShipmentsScreen> {
@@ -49,7 +51,10 @@ class _CustomerShipmentsScreenState extends State<CustomerShipmentsScreen> {
                 children: [
                   const Text('Could not load your shipments.'),
                   const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
+                  OutlinedButton(
+                    onPressed: _refresh,
+                    child: const Text('Try again'),
+                  ),
                 ],
               ),
             );
@@ -61,9 +66,13 @@ class _CustomerShipmentsScreenState extends State<CustomerShipmentsScreen> {
               onRefresh: () async => _refresh(),
               child: ListView(
                 padding: const EdgeInsets.all(24),
-                children: const [
+                children: [
                   SizedBox(height: 80),
-                  Icon(Icons.local_shipping_outlined, size: 48, color: AppColors.textTertiary),
+                  Icon(
+                    Icons.local_shipping_outlined,
+                    size: 48,
+                    color: AppColors.textTertiary,
+                  ),
                   SizedBox(height: 16),
                   Text('No shipments yet.', textAlign: TextAlign.center),
                 ],
@@ -83,7 +92,11 @@ class _CustomerShipmentsScreenState extends State<CustomerShipmentsScreen> {
                 return _ShipmentTile(
                   job: job,
                   onTap: () async {
-                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => JobDetailScreen(jobId: job.id)));
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => JobDetailScreen(jobId: job.id),
+                      ),
+                    );
                     _refresh();
                   },
                 );
@@ -122,14 +135,28 @@ class _ShipmentTile extends StatelessWidget {
               children: [
                 Text(
                   'CM-${job.id.toString().padLeft(4, '0')}',
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(4)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.infoTint,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                   child: Text(
                     jobStatusLabel(job.status),
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: jobStatusColor(job.status)),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: jobStatusColor(job.status),
+                    ),
                   ),
                 ),
               ],
@@ -137,7 +164,7 @@ class _ShipmentTile extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               '${job.pickupAddress} → ${job.dropoffAddress}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Barlow Condensed',
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -147,7 +174,7 @@ class _ShipmentTile extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               '${job.containerType} · ${job.containerSize}${job.assignedCompanyName != null ? ' · ${job.assignedCompanyName}' : ''}',
-              style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
           ],
         ),

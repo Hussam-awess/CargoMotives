@@ -59,7 +59,10 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
     });
 
     try {
-      final token = await widget.repository.login(email: email, password: password);
+      final token = await widget.repository.login(
+        email: email,
+        password: password,
+      );
       await widget.sessionStore.save(token: token, role: AccountRole.customer);
       if (!mounted) return;
       context.go('/customer');
@@ -108,14 +111,17 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(l10n.logIn),
             ),
             const SizedBox(height: 12),
             Center(
               child: TextButton(
-                onPressed: () => context.go('/customer-register'),
+                onPressed: () => context.push('/customer-register'),
                 child: Text('${l10n.dontHaveAnAccount} ${l10n.signUp}'),
               ),
             ),

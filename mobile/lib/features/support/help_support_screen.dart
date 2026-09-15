@@ -54,7 +54,10 @@ class HelpSupportScreen extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: AppColors.brandChip,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -63,16 +66,32 @@ class HelpSupportScreen extends StatelessWidget {
                     const Expanded(
                       child: Text(
                         'Need help with a shipment?',
-                        style: TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
+                        style: TextStyle(
+                          fontFamily: 'Barlow Condensed',
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                     if (isFeatured)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(5)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
                         child: const Text(
                           'PRIORITY',
-                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.accent, letterSpacing: 0.5),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.accent,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
                   ],
@@ -80,7 +99,11 @@ class HelpSupportScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 const Text(
                   'Open the shipment in question and use its Messages button to reach the transporter directly.',
-                  style: TextStyle(fontSize: 13, color: AppColors.lightBlue, height: 1.5),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.lightBlue,
+                    height: 1.5,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -89,7 +112,9 @@ class HelpSupportScreen extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Open a shipment from My Shipments, then tap the chat icon to message that transporter.'),
+                            content: Text(
+                              'Open a shipment from My Shipments, then tap the chat icon to message that transporter.',
+                            ),
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
@@ -103,9 +128,13 @@ class HelpSupportScreen extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(const SnackBar(content: Text('A support phone line isn\'t set up yet — use in-app chat for now.'))),
+                        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'A support phone line isn\'t set up yet — use in-app chat for now.',
+                            ),
+                          ),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: const BorderSide(color: Color(0x29FFFFFF)),
@@ -120,9 +149,14 @@ class HelpSupportScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          const Text(
+          Text(
             'COMMON QUESTIONS',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textLabel,
+              letterSpacing: 0.7,
+            ),
           ),
           const SizedBox(height: 8),
           Container(
@@ -132,7 +166,9 @@ class HelpSupportScreen extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: Theme(
-              data: Theme.of(context).copyWith(dividerColor: AppColors.background),
+              data: Theme.of(
+                context,
+              ).copyWith(dividerColor: AppColors.background),
               child: Column(
                 children: [
                   for (final faq in _faqs)
@@ -140,8 +176,23 @@ class HelpSupportScreen extends StatelessWidget {
                       tilePadding: const EdgeInsets.symmetric(horizontal: 13),
                       childrenPadding: const EdgeInsets.fromLTRB(13, 0, 13, 13),
                       expandedAlignment: Alignment.centerLeft,
-                      title: Text(faq.$1, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
-                      children: [Text(faq.$2, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.55))],
+                      title: Text(
+                        faq.$1,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      children: [
+                        Text(
+                          faq.$2,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.55,
+                          ),
+                        ),
+                      ],
                     ),
                 ],
               ),
@@ -151,9 +202,14 @@ class HelpSupportScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'LEARN',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textLabel,
+                  letterSpacing: 0.7,
+                ),
               ),
             ],
           ),
@@ -164,23 +220,43 @@ class HelpSupportScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: ListTile(
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HowItWorksScreen())),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const HowItWorksScreen()),
+              ),
               leading: Container(
                 width: 30,
                 height: 30,
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 alignment: Alignment.center,
                 child: const Icon(Icons.menu_book_outlined, size: 15),
               ),
-              title: const Text('How Cargo Motives works', style: TextStyle(fontSize: 14.5)),
-              subtitle: const Text('The four-step guide, any time', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
-              trailing: const Icon(Icons.chevron_right, size: 18, color: AppColors.textTertiary),
+              title: const Text(
+                'How Cargo Motives works',
+                style: TextStyle(fontSize: 14.5),
+              ),
+              subtitle: Text(
+                'The four-step guide, any time',
+                style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: AppColors.textTertiary,
+              ),
             ),
           ),
           const SizedBox(height: 22),
-          const Text(
+          Text(
             'YOUR TICKETS',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textLabel,
+              letterSpacing: 0.7,
+            ),
           ),
           const SizedBox(height: 8),
           Container(
@@ -189,7 +265,7 @@ class HelpSupportScreen extends StatelessWidget {
               border: Border.all(color: AppColors.border),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text(
+            child: Text(
               'No tickets yet. Reporting a problem on a delivered shipment opens one for our team to review.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),

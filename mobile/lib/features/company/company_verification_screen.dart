@@ -47,6 +47,7 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
   PlatformFile? _registrationCertificate;
   PlatformFile? _tinCertificate;
   List<PlatformFile> _otherDocuments = [];
+  PlatformFile? _logo;
   PlatformFile? _repIdDocument;
 
   bool _isSubmitting = false;
@@ -82,6 +83,15 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
     if (file != null) {
       setState(() => onPicked(file));
     }
+  }
+
+  Future<void> _pickLogo() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    final file = result?.files.singleOrNull;
+    if (file != null) setState(() => _logo = file);
   }
 
   Future<void> _pickOtherDocuments() async {
@@ -155,6 +165,7 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
           registrationCertificate: _registrationCertificate!,
           tinCertificate: _tinCertificate!,
           otherDocuments: _otherDocuments,
+          logo: _logo,
           repFullName: _repFullName.text.trim(),
           repPosition: _repPosition.text.trim(),
           repNationalIdNumber: _repNationalIdNumber.text.trim(),
@@ -255,6 +266,12 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
                   labelText: 'Company email (optional)',
                 ),
                 keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _pickLogo,
+                icon: const Icon(Icons.image_outlined),
+                label: Text(_logo?.name ?? 'Upload company logo (optional)'),
               ),
               const SizedBox(height: 12),
               _FilePickerTile(
@@ -358,7 +375,8 @@ class _FilePickerTile extends StatelessWidget {
 
   String get _displayText {
     if (file != null) return file!.name;
-    if (fileCount > 0) return '$fileCount file${fileCount == 1 ? '' : 's'} selected';
+    if (fileCount > 0)
+      return '$fileCount file${fileCount == 1 ? '' : 's'} selected';
 
     return label;
   }

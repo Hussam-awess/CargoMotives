@@ -206,5 +206,304 @@
   "@markAllRead": {"description": "Button on the Notifications screen."},
 
   "noNotificationsYet": "No notifications yet.",
-  "@noNotificationsYet": {"description": "Empty state on the Notifications screen."}
+  "@noNotificationsYet": {"description": "Empty state on the Notifications screen."},
+
+  "settingsTitle": "Settings",
+  "@settingsTitle": {"description": "AppBar title on both Settings screens."},
+
+  "notificationsSectionLabel": "Notifications",
+  "@notificationsSectionLabel": {"description": "Settings section heading, both Customer and Company."},
+
+  "appearanceLanguageSectionLabel": "Appearance & language",
+  "@appearanceLanguageSectionLabel": {"description": "Settings section heading, both Customer and Company."},
+
+  "darkModeTitle": "Dark mode",
+  "@darkModeTitle": {"description": "Settings toggle row title, both Customer and Company."},
+
+  "darkModeSubtitle": "Easier at night and on long hauls",
+  "@darkModeSubtitle": {"description": "Settings toggle row subtitle, both Customer and Company."},
+
+  "learnSectionLabel": "Learn",
+  "@learnSectionLabel": {"description": "Settings section heading, both Customer and Company."},
+
+  "howCargoMotivesWorks": "How Cargo Motives works",
+  "@howCargoMotivesWorks": {"description": "Settings nav row, both Customer and Company."},
+
+  "preferencesSectionLabel": "Preferences",
+  "@preferencesSectionLabel": {"description": "Customer Settings section heading."},
+
+  "currencyLabel": "Currency",
+  "@currencyLabel": {"description": "Customer Settings nav row title."},
+
+  "distanceUnitsLabel": "Distance units",
+  "@distanceUnitsLabel": {"description": "Customer Settings nav row title."},
+
+  "kilometresValue": "Kilometres",
+  "@kilometresValue": {"description": "Customer Settings — Distance units value."},
+
+  "accountSectionLabel": "Account",
+  "@accountSectionLabel": {"description": "Settings section heading, both Customer and Company."},
+
+  "registeredPhoneLabel": "Registered phone",
+  "@registeredPhoneLabel": {"description": "Settings nav row title, both Customer and Company."},
+
+  "securitySectionLabel": "Security",
+  "@securitySectionLabel": {"description": "Settings section heading, both Customer and Company."},
+
+  "changePasswordLabel": "Change password",
+  "@changePasswordLabel": {"description": "Settings nav row title, both Customer and Company."},
+
+  "twoFactorAuthLabel": "Two-factor authentication",
+  "@twoFactorAuthLabel": {"description": "Settings toggle row title, both Customer and Company."},
+
+  "twoFactorAuthSubtitle": "SMS code on new devices",
+  "@twoFactorAuthSubtitle": {"description": "Customer Settings two-factor toggle subtitle."},
+
+  "activeSessionsLabel": "Active sessions",
+  "@activeSessionsLabel": {"description": "Customer Settings nav row title, also the not-available dialog title."},
+
+  "legalSectionLabel": "Legal",
+  "@legalSectionLabel": {"description": "Settings section heading, both Customer and Company."},
+
+  "termsOfServiceLabel": "Terms of service",
+  "@termsOfServiceLabel": {"description": "Settings nav row title, both Customer and Company."},
+
+  "privacyPolicyLabel": "Privacy policy",
+  "@privacyPolicyLabel": {"description": "Settings nav row title, both Customer and Company."},
+
+  "logOutLabel": "Log out",
+  "@logOutLabel": {"description": "Settings button, both Customer and Company."},
+
+  "deleteAccountLabel": "Delete account",
+  "@deleteAccountLabel": {"description": "Customer Settings button, also the not-available dialog title."},
+
+  "activeSessionsUnavailableMessage": "Viewing and managing active sessions isn't available in the app yet.",
+  "@activeSessionsUnavailableMessage": {"description": "Customer Settings — Active sessions not-available dialog body."},
+
+  "deleteAccountUnavailableMessage": "Account deletion isn't available in the app yet. Contact support to request it.",
+  "@deleteAccountUnavailableMessage": {"description": "Customer Settings — Delete account not-available dialog body."},
+
+  "okLabel": "OK",
+  "@okLabel": {"description": "A generic dialog dismiss button."},
+
+  "couldNotOpenUri": "Could not open {uri}",
+  "@couldNotOpenUri": {
+    "description": "Snackbar shown when a legal-page link fails to open.",
+    "placeholders": {
+      "uri": {"type": "String"}
+    }
+  },
+
+  "shipmentUpdatesTitle": "Shipment updates",
+  "@shipmentUpdatesTitle": {"description": "Customer Settings notification toggle title."},
+
+  "shipmentUpdatesSubtitle": "Pickup, transit, delivery",
+  "@shipmentUpdatesSubtitle": {"description": "Customer Settings notification toggle subtitle."},
+
+  "newOffersTitle": "New offers",
+  "@newOffersTitle": {"description": "Customer Settings notification toggle title."},
+
+  "newOffersSubtitle": "When transporters bid on your cargo",
+  "@newOffersSubtitle": {"description": "Customer Settings notification toggle subtitle."},
+
+  "smsAlertsTitle": "SMS alerts",
+  "@smsAlertsTitle": {"description": "Customer Settings notification toggle title."},
+
+  "smsAlertsSubtitle": "Charges may apply",
+  "@smsAlertsSubtitle": {"description": "Customer Settings notification toggle subtitle."},
+
+  "promotionsTitle": "Promotions",
+  "@promotionsTitle": {"description": "Customer Settings notification toggle title."},
+
+  "availabilitySectionLabel": "Availability",
+  "@availabilitySectionLabel": {"description": "Company Settings section heading."},
+
+  "acceptingLoadsTitle": "Accepting loads",
+  "@acceptingLoadsTitle": {"description": "Company Settings toggle row title."},
+
+  "acceptingLoadsSubtitle": "Turn off when your whole fleet is committed",
+  "@acceptingLoadsSubtitle": {"description": "Company Settings toggle row subtitle."},
+
+  "searchRadiusLabel": "Search radius",
+  "@searchRadiusLabel": {"description": "Company Settings nav row title."},
+
+  "autoDeclineBelowBudgetTitle": "Auto-decline below budget",
+  "@autoDeclineBelowBudgetTitle": {"description": "Company Settings toggle row title."},
+
+  "autoDeclineBelowBudgetSubtitle": "Hide loads priced under your floor rate",
+  "@autoDeclineBelowBudgetSubtitle": {"description": "Company Settings toggle row subtitle."},
+
+  "fleetDriversSectionLabel": "Fleet & drivers",
+  "@fleetDriversSectionLabel": {"description": "Company Settings section heading."},
+
+  "manageTrucksLabel": "Manage trucks",
+  "@manageTrucksLabel": {"description": "Company Settings nav row title."},
+
+  "manageDriversLabel": "Manage drivers",
+  "@manageDriversLabel": {"description": "Company Settings nav row title."},
+
+  "shareGpsTitle": "Share GPS with customers",
+  "@shareGpsTitle": {"description": "Company Settings toggle row title."},
+
+  "shareGpsSubtitle": "Only while a job is active",
+  "@shareGpsSubtitle": {"description": "Company Settings toggle row subtitle."},
+
+  "documentExpiryRemindersLabel": "Document expiry reminders",
+  "@documentExpiryRemindersLabel": {"description": "Company Settings nav row title."},
+
+  "newMatchingLoadsTitle": "New matching loads",
+  "@newMatchingLoadsTitle": {"description": "Company Settings notification toggle title."},
+
+  "newMatchingLoadsSubtitle": "On your lanes and return legs",
+  "@newMatchingLoadsSubtitle": {"description": "Company Settings notification toggle subtitle."},
+
+  "bidAcceptedOrDeclinedTitle": "Bid accepted or declined",
+  "@bidAcceptedOrDeclinedTitle": {"description": "Company Settings notification toggle title."},
+
+  "payoutReleasedTitle": "Payout released",
+  "@payoutReleasedTitle": {"description": "Company Settings notification toggle title."},
+
+  "driverOffRouteTitle": "Driver went off-route",
+  "@driverOffRouteTitle": {"description": "Company Settings notification toggle title."},
+
+  "companyBillingSectionLabel": "Company & billing",
+  "@companyBillingSectionLabel": {"description": "Company Settings section heading."},
+
+  "companyDetailsDocumentsLabel": "Company details & documents",
+  "@companyDetailsDocumentsLabel": {"description": "Company Settings nav row title."},
+
+  "preferredLanesLabel": "Preferred lanes",
+  "@preferredLanesLabel": {"description": "Company Settings nav row title."},
+
+  "preferredLanesSavedCount": "{count} saved",
+  "@preferredLanesSavedCount": {
+    "description": "Company Settings — Preferred lanes value, counting saved routes.",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+
+  "payoutMethodLabel": "Payout method",
+  "@payoutMethodLabel": {"description": "Company Settings nav row title."},
+
+  "cargoMotivesPlusLabel": "Cargo Motives Plus",
+  "@cargoMotivesPlusLabel": {"description": "Company Settings nav row title, not currently subscribed."},
+
+  "cargoMotivesPlusActiveLabel": "Cargo Motives Plus · active",
+  "@cargoMotivesPlusActiveLabel": {"description": "Company Settings nav row title, currently subscribed."},
+
+  "helloGreeting": "Hello 👋",
+  "@helloGreeting": {"description": "Customer/Company Home header greeting, no name available."},
+
+  "helloGreetingWithName": "Hello, {name} 👋",
+  "@helloGreetingWithName": {
+    "description": "Customer/Company Home header greeting, naming the user.",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "seeAllLabel": "See all",
+  "@seeAllLabel": {"description": "Section-header link, both Customer and Company Home."},
+
+  "activityLabel": "Activity",
+  "@activityLabel": {"description": "Customer Home activity card heading."},
+
+  "shipmentsOnTheRoad": "shipment(s) on the road",
+  "@shipmentsOnTheRoad": {"description": "Customer Home activity card, follows the on-the-road count."},
+
+  "awaitingPickupLabel": "Awaiting pickup",
+  "@awaitingPickupLabel": {"description": "Customer Home activity card stat label."},
+
+  "biddingOpenLabel": "Bidding open",
+  "@biddingOpenLabel": {"description": "Customer Home activity card stat label."},
+
+  "completedLabel": "Completed",
+  "@completedLabel": {"description": "Customer Home activity card stat label."},
+
+  "newShipmentLabel": "New Shipment",
+  "@newShipmentLabel": {"description": "Customer Home activity card button."},
+
+  "trackShipmentLabel": "Track Shipment",
+  "@trackShipmentLabel": {"description": "Button label, both the activity card and the active-shipment card."},
+
+  "searchShipmentsHint": "Search shipments, tracking ID...",
+  "@searchShipmentsHint": {"description": "Customer Home search field placeholder."},
+
+  "activeShipmentSectionLabel": "Active Shipment",
+  "@activeShipmentSectionLabel": {"description": "Customer Home section heading."},
+
+  "recentActivitySectionLabel": "Recent Activity",
+  "@recentActivitySectionLabel": {"description": "Customer Home section heading."},
+
+  "noActiveShipmentMessage": "No active shipment right now.",
+  "@noActiveShipmentMessage": {"description": "Customer Home empty state."},
+
+  "noRecentActivityMessage": "No recent activity.",
+  "@noRecentActivityMessage": {"description": "Customer Home empty state."},
+
+  "noShipmentsMatchSearch": "No shipments match your search.",
+  "@noShipmentsMatchSearch": {"description": "Customer Home search empty state."},
+
+  "noActiveShipmentToTrack": "No active shipment to track yet.",
+  "@noActiveShipmentToTrack": {"description": "Customer Home snackbar when Track Shipment is tapped with nothing active."},
+
+  "couldNotLoadDashboard": "Could not load your dashboard.",
+  "@couldNotLoadDashboard": {"description": "Customer Home error state."},
+
+  "tryAgainLabel": "Try again",
+  "@tryAgainLabel": {"description": "Generic retry button, Customer Home error state."},
+
+  "progressPickupLabel": "Pickup",
+  "@progressPickupLabel": {"description": "Active-shipment progress tracker stage label."},
+
+  "progressInTransitLabel": "In Transit",
+  "@progressInTransitLabel": {"description": "Active-shipment progress tracker stage label (fallback when not the current stage)."},
+
+  "progressDeliveredLabel": "Delivered",
+  "@progressDeliveredLabel": {"description": "Active-shipment progress tracker stage label."},
+
+  "findJobsLabel": "Find jobs",
+  "@findJobsLabel": {"description": "Company Home quick-action button."},
+
+  "manageFleetLabel": "Manage fleet",
+  "@manageFleetLabel": {"description": "Company Home quick-action button."},
+
+  "addTruckLabel": "Add truck",
+  "@addTruckLabel": {"description": "Company Home quick-action button."},
+
+  "activeJobSectionLabel": "Active Job",
+  "@activeJobSectionLabel": {"description": "Company Home section heading."},
+
+  "openActionLabel": "Open",
+  "@openActionLabel": {"description": "Company Home Active Job section — link to open the job."},
+
+  "matchingLoadsSectionLabel": "Matching Loads",
+  "@matchingLoadsSectionLabel": {"description": "Company Home section heading."},
+
+  "tripsOnTheRoad": "trip(s) on the road",
+  "@tripsOnTheRoad": {"description": "Company Home activity card, follows the on-the-road count."},
+
+  "openBidsLabel": "Open bids",
+  "@openBidsLabel": {"description": "Company Home activity card stat label."},
+
+  "fleetSizeLabel": "Fleet size",
+  "@fleetSizeLabel": {"description": "Company Home activity card stat label."},
+
+  "activeDriversLabel": "Active drivers",
+  "@activeDriversLabel": {"description": "Company Home activity card stat label."},
+
+  "noActiveJobMessage": "No active job right now.",
+  "@noActiveJobMessage": {"description": "Company Home empty state."},
+
+  "noOpenLoadsMessage": "No open loads right now.",
+  "@noOpenLoadsMessage": {"description": "Company Home empty state."},
+
+  "bidsCountTag": "{count} bids",
+  "@bidsCountTag": {
+    "description": "Company Home matching-load card tag, counting bids so far.",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
 }

@@ -10,7 +10,11 @@ import 'data/message_repository.dart';
 /// isn't either). Shared between Customer and Company since both hit the
 /// same endpoint for the same job.
 class MessagesScreen extends StatefulWidget {
-  MessagesScreen({super.key, required this.jobId, MessageRepository? repository}) : repository = repository ?? MessageRepository();
+  MessagesScreen({
+    super.key,
+    required this.jobId,
+    MessageRepository? repository,
+  }) : repository = repository ?? MessageRepository();
 
   final int jobId;
   final MessageRepository repository;
@@ -68,7 +72,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
       });
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not send that message. Try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not send that message. Try again.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -91,7 +99,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       children: [
                         Text(_loadError!),
                         const SizedBox(height: 12),
-                        OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                        OutlinedButton(
+                          onPressed: _load,
+                          child: const Text('Try again'),
+                        ),
                       ],
                     ),
                   )
@@ -104,13 +115,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               padding: const EdgeInsets.all(24),
                               children: const [
                                 SizedBox(height: 80),
-                                Center(child: Text('No messages yet. Say hello!')),
+                                Center(
+                                  child: Text('No messages yet. Say hello!'),
+                                ),
                               ],
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.all(16),
                               itemCount: _messages.length,
-                              itemBuilder: (context, index) => _MessageBubble(message: _messages[index]),
+                              itemBuilder: (context, index) =>
+                                  _MessageBubble(message: _messages[index]),
                             ),
                     ),
                   ),
@@ -119,7 +133,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             top: false,
             child: Container(
               padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.surface,
                 border: Border(top: BorderSide(color: AppColors.background)),
               ),
@@ -128,7 +142,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   Expanded(
                     child: TextField(
                       controller: _bodyController,
-                      decoration: const InputDecoration(hintText: 'Type a message…'),
+                      decoration: const InputDecoration(
+                        hintText: 'Type a message…',
+                      ),
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
                     ),
@@ -140,11 +156,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     child: Container(
                       width: 40,
                       height: 40,
-                      decoration: BoxDecoration(color: AppColors.ctaBlue, borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(
+                        color: AppColors.ctaBlue,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       alignment: Alignment.center,
                       child: _isSending
-                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.send, color: Colors.white, size: 18),
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                     ),
                   ),
                 ],
@@ -169,10 +199,12 @@ class _MessageBubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.76),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.76,
+        ),
         decoration: BoxDecoration(
           color: message.isMine ? AppColors.ctaBlue : AppColors.surface,
-          border: message.isMine ? null : Border.all(color: const Color(0xFFE4E5E8)),
+          border: message.isMine ? null : Border.all(color: AppColors.border),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(12),
             topRight: const Radius.circular(12),
@@ -184,11 +216,23 @@ class _MessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(message.body, style: TextStyle(fontSize: 14, height: 1.45, color: message.isMine ? Colors.white : AppColors.textPrimary)),
+            Text(
+              message.body,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.45,
+                color: message.isMine ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
               DateFormat('HH:mm').format(message.createdAt.toLocal()),
-              style: TextStyle(fontSize: 10.5, color: message.isMine ? Colors.white.withValues(alpha: 0.75) : AppColors.textTertiary),
+              style: TextStyle(
+                fontSize: 10.5,
+                color: message.isMine
+                    ? Colors.white.withValues(alpha: 0.75)
+                    : AppColors.textTertiary,
+              ),
             ),
           ],
         ),

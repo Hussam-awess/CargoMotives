@@ -42,11 +42,15 @@ final _openJob = Job(
 );
 
 void main() {
-  testWidgets('shows the Open tab by default with its own empty state', (tester) async {
+  testWidgets('shows the Open tab by default with its own empty state', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _appUnder(
         CompanyJobsScreen(
-          repository: FakeCompanyJobRepository(onOpen: ({usePreferredRoutes = false}) async => []),
+          repository: FakeCompanyJobRepository(
+            onOpen: ({usePreferredRoutes = false}) async => [],
+          ),
           featuredRepository: FakeCompanyFeaturedRepository(),
           notificationRepository: FakeNotificationRepository(),
         ),
@@ -58,7 +62,9 @@ void main() {
     expect(find.text('My preferred routes only'), findsNothing);
   });
 
-  testWidgets('switching to My Bids and Active tabs loads their own feeds', (tester) async {
+  testWidgets('switching to My Bids and Active tabs loads their own feeds', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _appUnder(
         CompanyJobsScreen(
@@ -74,7 +80,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Dry Van · 40ft · 12 t'), findsOneWidget);
+    // Phase 10.19+: open-tab cards fold the live bid count into this same
+    // detail line (real-time context for the transporter) rather than a
+    // separate widget.
+    expect(find.text('Dry Van · 40ft · 12 t · 0 bids'), findsOneWidget);
 
     await tester.tap(find.text('My Bids'));
     await tester.pumpAndSettle();
@@ -85,33 +94,41 @@ void main() {
     expect(find.text('No active jobs yet.'), findsOneWidget);
   });
 
-  testWidgets('a Featured company sees and can use the preferred-routes toggle', (tester) async {
-    bool? capturedUsePreferredRoutes;
-    await tester.pumpWidget(
-      _appUnder(
-        CompanyJobsScreen(
-          repository: FakeCompanyJobRepository(
-            onOpen: ({usePreferredRoutes = false}) async {
-              capturedUsePreferredRoutes = usePreferredRoutes;
-              return [_openJob];
-            },
+  testWidgets(
+    'a Featured company sees and can use the preferred-routes toggle',
+    (tester) async {
+      bool? capturedUsePreferredRoutes;
+      await tester.pumpWidget(
+        _appUnder(
+          CompanyJobsScreen(
+            repository: FakeCompanyJobRepository(
+              onOpen: ({usePreferredRoutes = false}) async {
+                capturedUsePreferredRoutes = usePreferredRoutes;
+                return [_openJob];
+              },
+            ),
+            featuredRepository: FakeCompanyFeaturedRepository(
+              onStatus: () async => const CompanyFeaturedStatus(
+                isFeatured: true,
+                featuredUntil: null,
+                price: 50000,
+                durationDays: 30,
+                preferredRoutes: [],
+              ),
+            ),
+            notificationRepository: FakeNotificationRepository(),
           ),
-          featuredRepository: FakeCompanyFeaturedRepository(
-            onStatus: () async =>
-                const CompanyFeaturedStatus(isFeatured: true, featuredUntil: null, price: 50000, durationDays: 30, preferredRoutes: []),
-          ),
-          notificationRepository: FakeNotificationRepository(),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('My preferred routes only'), findsOneWidget);
-    expect(capturedUsePreferredRoutes, false);
+      expect(find.text('My preferred routes only'), findsOneWidget);
+      expect(capturedUsePreferredRoutes, false);
 
-    await tester.tap(find.text('My preferred routes only'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('My preferred routes only'));
+      await tester.pumpAndSettle();
 
-    expect(capturedUsePreferredRoutes, true);
-  });
+      expect(capturedUsePreferredRoutes, true);
+    },
+  );
 }

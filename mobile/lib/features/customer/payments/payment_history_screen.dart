@@ -55,11 +55,17 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(17),
-            decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: AppColors.brandChip,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Paid for shipments this month', style: TextStyle(fontSize: 12.5, color: AppColors.lightBlue)),
+                Text(
+                  'Paid for shipments this month',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.lightBlue),
+                ),
                 Text(
                   'TZS 3,560,000',
                   style: TextStyle(
@@ -80,7 +86,10 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                       padding: EdgeInsets.only(top: 12),
                       child: Row(
                         children: [
-                          _Stat(label: 'Latest payment', value: 'TZS 1,173,000'),
+                          _Stat(
+                            label: 'Latest payment',
+                            value: 'TZS 1,173,000',
+                          ),
                           SizedBox(width: 20),
                           _Stat(label: 'Shipments paid', value: '4'),
                         ],
@@ -98,7 +107,11 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                       padding: EdgeInsets.only(top: 12),
                       child: Text(
                         'Cargo Motives holds no balance for you. Each shipment is paid directly from your mobile money or bank at the time you book it.',
-                        style: TextStyle(fontSize: 12, color: AppColors.lightBlue, height: 1.5),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.lightBlue,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -118,11 +131,14 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 Container(
                   width: 34,
                   height: 34,
-                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                   alignment: Alignment.center,
                   child: Text(
                     _initialsFor(_defaultMethod),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Barlow Condensed',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -135,32 +151,55 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_defaultMethod, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                      const Text('Default payment method', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text(
+                        _defaultMethod,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Default payment method',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                TextButton(onPressed: _changeMethod, child: const Text('Change')),
+                TextButton(
+                  onPressed: _changeMethod,
+                  child: const Text('Change'),
+                ),
               ],
             ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(0, 24, 0, 6),
-            child: Text('Transactions', style: Theme.of(context).textTheme.titleLarge),
+            child: Text(
+              'Transactions',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
           ),
-          const Text(
+          Text(
             'SEPTEMBER',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textTertiary, letterSpacing: 0.7),
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textTertiary,
+              letterSpacing: 0.7,
+            ),
           ),
           const SizedBox(height: 4),
-          const _TransactionRow(
+          _TransactionRow(
             icon: Icons.arrow_downward,
             title: 'Payment · CM-421-Q01',
             subtitle: '12 Sep, 07:02 · M-Pesa · Paid',
             amount: '1,173,000',
             color: AppColors.textPrimary,
           ),
-          const _TransactionRow(
+          _TransactionRow(
             icon: Icons.arrow_downward,
             title: 'Payment · CM-418-M44',
             subtitle: '09 Sep, 12:30 · Bank transfer',
@@ -174,7 +213,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
             amount: '+15,600',
             color: AppColors.statusLive,
           ),
-          const _TransactionRow(
+          _TransactionRow(
             icon: Icons.arrow_downward,
             title: 'Payment · CM-388-K07',
             subtitle: '02 Sep, 16:44 · M-Pesa · Released',
@@ -207,10 +246,18 @@ class _Stat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue),
+        ),
         Text(
           value,
-          style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+          style: const TextStyle(
+            fontFamily: 'Barlow Condensed',
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ],
     );
@@ -240,15 +287,18 @@ class _TransactionRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 11),
       decoration: isLast
           ? null
-          : const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFF0F0F2))),
+          : BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
       child: Row(
         children: [
           Container(
             width: 34,
             height: 34,
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(7)),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(7),
+            ),
             alignment: Alignment.center,
             child: Icon(icon, size: 16, color: AppColors.textPrimary),
           ),
@@ -259,15 +309,27 @@ class _TransactionRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-                Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                ),
               ],
             ),
           ),
           Text(
             amount,
-            style: TextStyle(fontFamily: 'Barlow Condensed', fontSize: 16, fontWeight: FontWeight.w600, color: color),
+            style: TextStyle(
+              fontFamily: 'Barlow Condensed',
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -280,7 +342,12 @@ class _MethodPicker extends StatelessWidget {
 
   final String current;
 
-  static const _methods = ['M-Pesa', 'Airtel Money', 'Tigo Pesa', 'Bank transfer'];
+  static const _methods = [
+    'M-Pesa',
+    'Airtel Money',
+    'Tigo Pesa',
+    'Bank transfer',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +358,9 @@ class _MethodPicker extends StatelessWidget {
           for (final method in _methods)
             ListTile(
               title: Text(method),
-              trailing: method == current ? const Icon(Icons.check, color: AppColors.ctaBlue) : null,
+              trailing: method == current
+                  ? const Icon(Icons.check, color: AppColors.ctaBlue)
+                  : null,
               onTap: () => Navigator.of(context).pop(method),
             ),
         ],

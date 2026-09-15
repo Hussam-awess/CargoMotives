@@ -114,14 +114,17 @@ class _CompanyLoginScreenState extends State<CompanyLoginScreen> {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(l10n.logIn),
             ),
             const SizedBox(height: 12),
             Center(
               child: TextButton(
-                onPressed: () => context.go(
+                onPressed: () => context.push(
                   '/phone-entry',
                   extra: AccountRole.transporterCompany,
                 ),

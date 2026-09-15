@@ -53,7 +53,10 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final result = await FilePicker.pickFiles(type: FileType.image, withData: true);
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
     final file = result?.files.singleOrNull;
     if (file != null) setState(() => _logo = file);
   }
@@ -162,7 +165,9 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
             TextField(
               controller: _companyNameController,
               textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(hintText: l10n.companyNameOptionalHint),
+              decoration: InputDecoration(
+                hintText: l10n.companyNameOptionalHint,
+              ),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -217,14 +222,17 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(l10n.createAccount),
             ),
             const SizedBox(height: 12),
             Center(
               child: TextButton(
-                onPressed: () => context.go('/customer-login'),
+                onPressed: () => context.push('/customer-login'),
                 child: Text('${l10n.alreadyHaveAnAccount} ${l10n.logIn}'),
               ),
             ),

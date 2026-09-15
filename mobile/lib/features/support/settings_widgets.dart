@@ -15,7 +15,12 @@ class SettingsSectionLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textLabel,
+          letterSpacing: 0.7,
+        ),
       ),
     );
   }
@@ -43,7 +48,7 @@ class SettingsToggleRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
       decoration: isLast
           ? null
-          : const BoxDecoration(
+          : BoxDecoration(
               border: Border(bottom: BorderSide(color: AppColors.background)),
             ),
       child: Row(
@@ -53,11 +58,23 @@ class SettingsToggleRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: const TextStyle(fontSize: 14.5)),
-                if (subtitle != null) Text(subtitle!, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
               ],
             ),
           ),
-          Switch(value: value, onChanged: onChanged, activeThumbColor: Colors.white, activeTrackColor: AppColors.ctaBlue),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: Colors.white,
+            activeTrackColor: AppColors.ctaBlue,
+          ),
         ],
       ),
     );
@@ -65,7 +82,13 @@ class SettingsToggleRow extends StatelessWidget {
 }
 
 class SettingsNavRow extends StatelessWidget {
-  const SettingsNavRow({super.key, required this.title, this.value, this.onTap, this.isLast = false});
+  const SettingsNavRow({
+    super.key,
+    required this.title,
+    this.value,
+    this.onTap,
+    this.isLast = false,
+  });
 
   final String title;
   final String? value;
@@ -80,17 +103,30 @@ class SettingsNavRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
         decoration: isLast
             ? null
-            : const BoxDecoration(
+            : BoxDecoration(
                 border: Border(bottom: BorderSide(color: AppColors.background)),
               ),
         child: Row(
           children: [
-            Expanded(child: Text(title, style: const TextStyle(fontSize: 14.5))),
+            Expanded(
+              child: Text(title, style: const TextStyle(fontSize: 14.5)),
+            ),
             if (value != null) ...[
-              Text(value!, style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+              Text(
+                value!,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: AppColors.textSecondary,
+                ),
+              ),
               const SizedBox(width: 8),
             ],
-            if (onTap != null) const Icon(Icons.chevron_right, size: 18, color: AppColors.textTertiary),
+            if (onTap != null)
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: AppColors.textTertiary,
+              ),
           ],
         ),
       ),

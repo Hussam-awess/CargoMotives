@@ -147,7 +147,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
             const SizedBox(height: 8),
             Text(
               l10n.transporterSignUpStepLabel,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textSecondary,
@@ -208,7 +208,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
                       padding: const EdgeInsets.only(top: 14),
                       child: Text(
                         l10n.agreeToTermsText,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12.5,
                           color: AppColors.textLabel,
                           height: 1.4,

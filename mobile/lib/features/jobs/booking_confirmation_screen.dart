@@ -15,14 +15,20 @@ import 'data/job_repository.dart';
 /// price, paid directly to the transporter (the info banner below states
 /// exactly that).
 class BookingConfirmationScreen extends StatefulWidget {
-  const BookingConfirmationScreen({super.key, required this.job, required this.bid, required this.bidRepository});
+  const BookingConfirmationScreen({
+    super.key,
+    required this.job,
+    required this.bid,
+    required this.bidRepository,
+  });
 
   final Job job;
   final Bid bid;
   final BidRepository bidRepository;
 
   @override
-  State<BookingConfirmationScreen> createState() => _BookingConfirmationScreenState();
+  State<BookingConfirmationScreen> createState() =>
+      _BookingConfirmationScreenState();
 }
 
 class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
@@ -79,11 +85,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                               children: [
                                 Text(
                                   'CM-${job.id.toString().padLeft(4, '0')}',
-                                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5, color: AppColors.textSecondary),
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 11.5,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                                 Text(
                                   '${job.pickupAddress} → ${job.dropoffAddress}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: 'Barlow Condensed',
                                     fontSize: 21,
                                     fontWeight: FontWeight.w600,
@@ -92,7 +102,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                                 ),
                                 Text(
                                   '${job.containerType} · ${job.containerSize}${job.approxWeightTons != null ? ' · ${job.approxWeightTons!.toStringAsFixed(0)} t' : ''}',
-                                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                               ],
                             ),
@@ -100,10 +113,21 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                           _Row(
                             label: 'Transporter',
                             value: bid.company.name,
-                            trailingIcon: bid.company.verified ? Icons.check_circle : null,
+                            trailingIcon: bid.company.verified
+                                ? Icons.check_circle
+                                : null,
                           ),
-                          _Row(label: 'Pickup', value: DateFormat('d MMM, HH:mm').format(job.preferredPickupWindowStart)),
-                          _Row(label: 'Verified trucks', value: '${bid.company.truckCount}', isLast: true),
+                          _Row(
+                            label: 'Pickup',
+                            value: DateFormat(
+                              'd MMM, HH:mm',
+                            ).format(job.preferredPickupWindowStart),
+                          ),
+                          _Row(
+                            label: 'Verified trucks',
+                            value: '${bid.company.truckCount}',
+                            isLast: true,
+                          ),
                         ],
                       ),
                     ),
@@ -117,18 +141,25 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       child: Column(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 13,
+                              vertical: 12,
+                            ),
                             color: AppColors.surfaceSubtle,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'Total',
-                                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
                                 Text(
                                   'TZS ${bid.price.toStringAsFixed(0)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: 'Barlow Condensed',
                                     fontSize: 24,
                                     fontWeight: FontWeight.w600,
@@ -152,18 +183,29 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       child: const Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.info_outline, size: 16, color: AppColors.ctaBlue),
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: AppColors.ctaBlue,
+                          ),
                           SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'You pay the transporter directly. Cargo Motives never holds your money — we only record the booking.',
-                              style: TextStyle(fontSize: 12.5, color: AppColors.ctaBluePressed, height: 1.4),
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.ctaBluePressed,
+                                height: 1.4,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: const TextStyle(color: Colors.red))],
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                    ],
                   ],
                 ),
               ),
@@ -172,7 +214,14 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
             ElevatedButton(
               onPressed: _isConfirming ? null : _confirm,
               child: _isConfirming
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('CONFIRM BOOKING'),
             ),
           ],
@@ -183,7 +232,12 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value, this.trailingIcon, this.isLast = false});
+  const _Row({
+    required this.label,
+    required this.value,
+    this.trailingIcon,
+    this.isLast = false,
+  });
 
   final String label;
   final String value;
@@ -196,20 +250,30 @@ class _Row extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
       decoration: isLast
           ? null
-          : const BoxDecoration(
+          : BoxDecoration(
               border: Border(bottom: BorderSide(color: AppColors.background)),
             ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+          ),
           Row(
             children: [
               Text(
                 value,
-                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
               ),
-              if (trailingIcon != null) ...[const SizedBox(width: 5), Icon(trailingIcon, size: 14, color: AppColors.statusLive)],
+              if (trailingIcon != null) ...[
+                const SizedBox(width: 5),
+                Icon(trailingIcon, size: 14, color: AppColors.statusLive),
+              ],
             ],
           ),
         ],

@@ -15,7 +15,11 @@ import 'messages_screen.dart';
 /// endpoint on the backend, so this screen builds one client-side rather
 /// than fabricating conversation data.
 class _Conversation {
-  const _Conversation({required this.job, required this.counterparty, required this.lastMessage});
+  const _Conversation({
+    required this.job,
+    required this.counterparty,
+    required this.lastMessage,
+  });
 
   final Job job;
   final String counterparty;
@@ -36,7 +40,8 @@ class MessagesInboxScreen extends StatefulWidget {
     MessageRepository? messageRepository,
     SupportMessageRepository? supportMessageRepository,
   }) : messageRepository = messageRepository ?? MessageRepository(),
-       supportMessageRepository = supportMessageRepository ?? SupportMessageRepository();
+       supportMessageRepository =
+           supportMessageRepository ?? SupportMessageRepository();
 
   final Future<List<Job>> Function() fetchJobs;
   final String Function(Job job) counterpartyLabel;
@@ -67,11 +72,15 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
 
     try {
       final jobs = await widget.fetchJobs();
-      final withCounterparty = jobs.where((j) => j.status != 'open' && j.status != 'cancelled').toList();
+      final withCounterparty = jobs
+          .where((j) => j.status != 'open' && j.status != 'cancelled')
+          .toList();
 
       final conversations = await Future.wait(
         withCounterparty.map((job) async {
-          final enriched = widget.enrichJob == null ? job : await widget.enrichJob!(job.id);
+          final enriched = widget.enrichJob == null
+              ? job
+              : await widget.enrichJob!(job.id);
           final messages = await widget.messageRepository.forJob(job.id);
           return _Conversation(
             job: enriched,
@@ -82,8 +91,10 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
       );
 
       conversations.sort((a, b) {
-        final aTime = a.lastMessage?.createdAt ?? a.job.preferredPickupWindowStart;
-        final bTime = b.lastMessage?.createdAt ?? b.job.preferredPickupWindowStart;
+        final aTime =
+            a.lastMessage?.createdAt ?? a.job.preferredPickupWindowStart;
+        final bTime =
+            b.lastMessage?.createdAt ?? b.job.preferredPickupWindowStart;
         return bTime.compareTo(aTime);
       });
 
@@ -97,12 +108,21 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
   }
 
   Future<void> _open(_Conversation conversation) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => MessagesScreen(jobId: conversation.job.id)));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MessagesScreen(jobId: conversation.job.id),
+      ),
+    );
     if (mounted) _load();
   }
 
   void _openSupport() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => SupportThreadScreen(repository: widget.supportMessageRepository)));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            SupportThreadScreen(repository: widget.supportMessageRepository),
+      ),
+    );
   }
 
   @override
@@ -112,7 +132,7 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
       body: Column(
         children: [
           _SupportRow(onTap: _openSupport),
-          const Divider(height: 1, color: AppColors.background),
+          Divider(height: 1, color: AppColors.background),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -123,7 +143,10 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
                       children: [
                         Text(_loadError!),
                         const SizedBox(height: 12),
-                        OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                        OutlinedButton(
+                          onPressed: _load,
+                          child: const Text('Try again'),
+                        ),
                       ],
                     ),
                   )
@@ -140,9 +163,12 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
                         : ListView.separated(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             itemCount: _conversations.length,
-                            separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.background),
-                            itemBuilder: (context, index) =>
-                                _ConversationTile(conversation: _conversations[index], onTap: () => _open(_conversations[index])),
+                            separatorBuilder: (_, _) =>
+                                Divider(height: 1, color: AppColors.background),
+                            itemBuilder: (context, index) => _ConversationTile(
+                              conversation: _conversations[index],
+                              onTap: () => _open(_conversations[index]),
+                            ),
                           ),
                   ),
           ),
@@ -164,13 +190,19 @@ class _SupportRow extends StatelessWidget {
       leading: Container(
         width: 42,
         height: 42,
-        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+          color: AppColors.brandChip,
+          borderRadius: BorderRadius.circular(10),
+        ),
         alignment: Alignment.center,
         child: const Icon(Icons.support_agent, color: Colors.white, size: 20),
       ),
-      title: const Text('Cargo Motives Support', style: TextStyle(fontWeight: FontWeight.w600)),
+      title: const Text(
+        'Cargo Motives Support',
+        style: TextStyle(fontWeight: FontWeight.w600),
+      ),
       subtitle: const Text('Get help from our team'),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+      trailing: Icon(Icons.chevron_right, color: AppColors.textTertiary),
     );
   }
 }
@@ -185,29 +217,45 @@ class _ConversationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final last = conversation.lastMessage;
     final isUnread = last != null && !last.isMine && last.readAt == null;
-    final initial = conversation.counterparty.trim().isEmpty ? '?' : conversation.counterparty.trim()[0].toUpperCase();
+    final initial = conversation.counterparty.trim().isEmpty
+        ? '?'
+        : conversation.counterparty.trim()[0].toUpperCase();
 
     return ListTile(
       onTap: onTap,
       leading: Container(
         width: 42,
         height: 42,
-        decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+          color: AppColors.infoTint,
+          borderRadius: BorderRadius.circular(10),
+        ),
         alignment: Alignment.center,
         child: Text(
           initial,
-          style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
+          style: const TextStyle(
+            fontFamily: 'Barlow Condensed',
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: AppColors.ctaBlue,
+          ),
         ),
       ),
       title: Text(
         conversation.counterparty,
-        style: TextStyle(fontWeight: isUnread ? FontWeight.w700 : FontWeight.w500, color: AppColors.textPrimary),
+        style: TextStyle(
+          fontWeight: isUnread ? FontWeight.w700 : FontWeight.w500,
+          color: AppColors.textPrimary,
+        ),
       ),
       subtitle: Text(
         last == null ? 'No messages yet — say hello' : last.body,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: isUnread ? AppColors.textPrimary : AppColors.textSecondary, fontWeight: isUnread ? FontWeight.w600 : null),
+        style: TextStyle(
+          color: isUnread ? AppColors.textPrimary : AppColors.textSecondary,
+          fontWeight: isUnread ? FontWeight.w600 : null,
+        ),
       ),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
@@ -216,14 +264,17 @@ class _ConversationTile extends StatelessWidget {
           if (last != null)
             Text(
               DateFormat('MMM d').format(last.createdAt.toLocal()),
-              style: const TextStyle(fontSize: 11.5, color: AppColors.textTertiary),
+              style: TextStyle(fontSize: 11.5, color: AppColors.textTertiary),
             ),
           if (isUnread) ...[
             const SizedBox(height: 6),
             Container(
               width: 9,
               height: 9,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.ctaBlue),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.ctaBlue,
+              ),
             ),
           ],
         ],

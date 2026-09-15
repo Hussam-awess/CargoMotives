@@ -19,7 +19,8 @@ const _plusTextMuted = Color(0xFF8A6410);
 /// JobPostQuotaService already reads users.is_featured (Phase 4); this
 /// screen is only the purchase flow.
 class CustomerFeaturedScreen extends StatefulWidget {
-  CustomerFeaturedScreen({super.key, CustomerFeaturedRepository? repository}) : repository = repository ?? CustomerFeaturedRepository();
+  CustomerFeaturedScreen({super.key, CustomerFeaturedRepository? repository})
+    : repository = repository ?? CustomerFeaturedRepository();
 
   final CustomerFeaturedRepository repository;
 
@@ -48,7 +49,8 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
       final status = await widget.repository.status();
       if (mounted) setState(() => _status = status);
     } catch (_) {
-      if (mounted) setState(() => _loadError = 'Could not load Featured status.');
+      if (mounted)
+        setState(() => _loadError = 'Could not load Featured status.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -61,7 +63,11 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
       builder: (context) => _PurchaseSheet(repository: widget.repository),
     );
     if (purchased == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check your phone to approve the payment.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Check your phone to approve the payment.'),
+        ),
+      );
     }
   }
 
@@ -78,7 +84,10 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                 children: [
                   Text(_loadError!),
                   const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                  OutlinedButton(
+                    onPressed: _load,
+                    child: const Text('Try again'),
+                  ),
                 ],
               ),
             )
@@ -101,14 +110,20 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.check_circle, color: _plusTextDark),
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: _plusTextDark,
+                                  ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
                                       _status!.featuredUntil != null
                                           ? 'You\'re on Plus until ${_status!.featuredUntil!.toLocal().toString().split(' ').first}.'
                                           : 'You\'re on Plus.',
-                                      style: const TextStyle(color: _plusTextDark, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(
+                                        color: _plusTextDark,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -130,11 +145,17 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.baseline,
                                 textBaseline: TextBaseline.alphabetic,
                                 children: [
-                                  const Text('TZS', style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
+                                  Text(
+                                    'TZS',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     _status!.price.toStringAsFixed(0),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontFamily: 'Barlow Condensed',
                                       fontSize: 32,
                                       fontWeight: FontWeight.w600,
@@ -144,21 +165,30 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                                   const SizedBox(width: 6),
                                   Text(
                                     '/ ${_status!.durationDays} days',
-                                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 18),
-                            const Text(
+                            Text(
                               'WHAT YOU GET',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textLabel,
+                                letterSpacing: 0.7,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.all_inclusive,
                               title: 'A higher daily posting quota',
-                              body: 'Standard accounts have a limited number of new shipments per day — Plus raises that cap.',
+                              body:
+                                  'Standard accounts have a limited number of new shipments per day — Plus raises that cap.',
                             ),
                             const SizedBox(height: 10),
                             const _BenefitCard(
@@ -171,19 +201,22 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                             const _BenefitCard(
                               icon: Icons.swap_horiz,
                               title: 'One-tap return shipments',
-                              body: 'Once a shipment is completed, post the return leg in one tap — the route comes pre-filled, reversed.',
+                              body:
+                                  'Once a shipment is completed, post the return leg in one tap — the route comes pre-filled, reversed.',
                             ),
                             const SizedBox(height: 10),
                             const _BenefitCard(
                               icon: Icons.place_outlined,
                               title: 'Unlimited saved addresses',
-                              body: 'Standard accounts can save up to 3 addresses for quick re-use — Plus removes the limit.',
+                              body:
+                                  'Standard accounts can save up to 3 addresses for quick re-use — Plus removes the limit.',
                             ),
                             const SizedBox(height: 10),
                             const _BenefitCard(
                               icon: Icons.support_agent,
                               title: 'Priority support',
-                              body: 'Your Help & Support requests are flagged for faster handling by our team.',
+                              body:
+                                  'Your Help & Support requests are flagged for faster handling by our team.',
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
@@ -191,9 +224,13 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _plusInk,
                                 foregroundColor: _plusGold,
-                                side: const BorderSide(color: Color(0xFFC9A227)),
+                                side: const BorderSide(
+                                  color: Color(0xFFC9A227),
+                                ),
                               ),
-                              child: Text('GET PLUS · TZS ${_status!.price.toStringAsFixed(0)}'),
+                              child: Text(
+                                'GET PLUS · TZS ${_status!.price.toStringAsFixed(0)}',
+                              ),
                             ),
                           ],
                         ),
@@ -224,10 +261,16 @@ class _PlusHero extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.arrow_back, color: _plusGold, size: 18),
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: _plusGold,
+                    size: 18,
+                  ),
                   style: IconButton.styleFrom(
                     backgroundColor: _plusGold.withValues(alpha: 0.12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                   ),
                 ),
               ],
@@ -239,7 +282,10 @@ class _PlusHero extends StatelessWidget {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(color: _plusGold, borderRadius: BorderRadius.circular(9)),
+                  decoration: BoxDecoration(
+                    color: _plusGold,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
                   alignment: Alignment.center,
                   child: const Icon(Icons.bolt, color: _plusInk, size: 22),
                 ),
@@ -277,7 +323,11 @@ class _PlusHero extends StatelessWidget {
             const SizedBox(height: 12),
             const Text(
               'Post more, and never be blocked by the daily shipment cap.',
-              style: TextStyle(fontSize: 13.5, color: Color(0xFFC4B896), height: 1.5),
+              style: TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFFC4B896),
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -287,7 +337,11 @@ class _PlusHero extends StatelessWidget {
 }
 
 class _BenefitCard extends StatelessWidget {
-  const _BenefitCard({required this.icon, required this.title, required this.body});
+  const _BenefitCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
   final IconData icon;
   final String title;
@@ -308,7 +362,10 @@ class _BenefitCard extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(color: _plusInk, borderRadius: BorderRadius.circular(7)),
+            decoration: BoxDecoration(
+              color: _plusInk,
+              borderRadius: BorderRadius.circular(7),
+            ),
             alignment: Alignment.center,
             child: Icon(icon, size: 16, color: _plusGold),
           ),
@@ -319,10 +376,21 @@ class _BenefitCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: _plusTextDark),
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: _plusTextDark,
+                  ),
                 ),
                 const SizedBox(height: 2),
-                Text(body, style: const TextStyle(fontSize: 13, color: _plusTextMuted, height: 1.4)),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: _plusTextMuted,
+                    height: 1.4,
+                  ),
+                ),
               ],
             ),
           ),
@@ -365,12 +433,17 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
     });
 
     try {
-      final payment = await widget.repository.purchase(provider: _provider, phoneNumber: _phoneController.text.trim());
+      final payment = await widget.repository.purchase(
+        provider: _provider,
+        phoneNumber: _phoneController.text.trim(),
+      );
       if (!mounted) return;
       if (payment.isPending) {
         Navigator.of(context).pop(true);
       } else {
-        setState(() => _error = 'The payment could not be started. Please try again.');
+        setState(
+          () => _error = 'The payment could not be started. Please try again.',
+        );
       }
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -382,12 +455,20 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Pay via Mobile Money', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Pay via Mobile Money',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _provider,
@@ -395,7 +476,10 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
             items: const [
               DropdownMenuItem(value: 'mpesa', child: Text('M-Pesa')),
               DropdownMenuItem(value: 'tigopesa', child: Text('Tigo Pesa')),
-              DropdownMenuItem(value: 'airtelmoney', child: Text('Airtel Money')),
+              DropdownMenuItem(
+                value: 'airtelmoney',
+                child: Text('Airtel Money'),
+              ),
               DropdownMenuItem(value: 'other', child: Text('Other')),
             ],
             onChanged: (value) => setState(() => _provider = value!),
@@ -403,15 +487,27 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _phoneController,
-            decoration: const InputDecoration(labelText: 'Mobile money phone number'),
+            decoration: const InputDecoration(
+              labelText: 'Mobile money phone number',
+            ),
             keyboardType: TextInputType.phone,
           ),
-          if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: const TextStyle(color: Colors.red))],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+          ],
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submit,
             child: _isSubmitting
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Text('Pay now'),
           ),
         ],

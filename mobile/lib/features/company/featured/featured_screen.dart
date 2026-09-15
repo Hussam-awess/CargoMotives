@@ -22,7 +22,8 @@ const _plusTextMuted = Color(0xFF8A6410);
 /// fleet map/route filter/return-load: Phase 8's other endpoints) — this
 /// screen is only the purchase flow and the preferred-routes setting.
 class CompanyFeaturedScreen extends StatefulWidget {
-  CompanyFeaturedScreen({super.key, CompanyFeaturedRepository? repository}) : repository = repository ?? CompanyFeaturedRepository();
+  CompanyFeaturedScreen({super.key, CompanyFeaturedRepository? repository})
+    : repository = repository ?? CompanyFeaturedRepository();
 
   final CompanyFeaturedRepository repository;
 
@@ -51,7 +52,8 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
       final status = await widget.repository.status();
       if (mounted) setState(() => _status = status);
     } catch (_) {
-      if (mounted) setState(() => _loadError = 'Could not load Featured status.');
+      if (mounted)
+        setState(() => _loadError = 'Could not load Featured status.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -64,14 +66,21 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
       builder: (context) => _PurchaseSheet(repository: widget.repository),
     );
     if (purchased == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check your phone to approve the payment.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Check your phone to approve the payment.'),
+        ),
+      );
     }
   }
 
   Future<void> _editPreferredRoutes() async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => PreferredRoutesScreen(repository: widget.repository, initialRoutes: _status!.preferredRoutes),
+        builder: (_) => PreferredRoutesScreen(
+          repository: widget.repository,
+          initialRoutes: _status!.preferredRoutes,
+        ),
       ),
     );
     if (saved == true) _load();
@@ -90,7 +99,10 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                 children: [
                   Text(_loadError!),
                   const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                  OutlinedButton(
+                    onPressed: _load,
+                    child: const Text('Try again'),
+                  ),
                 ],
               ),
             )
@@ -113,27 +125,43 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.check_circle, color: _plusTextDark),
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: _plusTextDark,
+                                  ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
                                       _status!.featuredUntil != null
                                           ? 'You\'re on Plus until ${_status!.featuredUntil!.toLocal().toString().split(' ').first}.'
                                           : 'You\'re on Plus.',
-                                      style: const TextStyle(color: _plusTextDark, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(
+                                        color: _plusTextDark,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 20),
-                            const Text(
+                            Text(
                               'PREFERRED ROUTES',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textLabel,
+                                letterSpacing: 0.7,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             if (_status!.preferredRoutes.isEmpty)
-                              const Text('No preferred routes set.', style: TextStyle(color: AppColors.textSecondary))
+                              Text(
+                                'No preferred routes set.',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
                             else
                               Container(
                                 decoration: BoxDecoration(
@@ -143,22 +171,43 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                                 clipBehavior: Clip.antiAlias,
                                 child: Column(
                                   children: [
-                                    for (var i = 0; i < _status!.preferredRoutes.length; i++)
+                                    for (
+                                      var i = 0;
+                                      i < _status!.preferredRoutes.length;
+                                      i++
+                                    )
                                       Container(
                                         width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-                                        decoration: i == _status!.preferredRoutes.length - 1
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 13,
+                                          vertical: 12,
+                                        ),
+                                        decoration:
+                                            i ==
+                                                _status!
+                                                        .preferredRoutes
+                                                        .length -
+                                                    1
                                             ? null
-                                            : const BoxDecoration(
-                                                border: Border(bottom: BorderSide(color: AppColors.background)),
+                                            : BoxDecoration(
+                                                border: Border(
+                                                  bottom: BorderSide(
+                                                    color: AppColors.background,
+                                                  ),
+                                                ),
                                               ),
-                                        child: Text('${_status!.preferredRoutes[i].origin} → ${_status!.preferredRoutes[i].destination}'),
+                                        child: Text(
+                                          '${_status!.preferredRoutes[i].origin} → ${_status!.preferredRoutes[i].destination}',
+                                        ),
                                       ),
                                   ],
                                 ),
                               ),
                             const SizedBox(height: 12),
-                            OutlinedButton(onPressed: _editPreferredRoutes, child: const Text('Edit preferred routes')),
+                            OutlinedButton(
+                              onPressed: _editPreferredRoutes,
+                              child: const Text('Edit preferred routes'),
+                            ),
                           ],
                         )
                       : Column(
@@ -175,11 +224,17 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.baseline,
                                 textBaseline: TextBaseline.alphabetic,
                                 children: [
-                                  const Text('TZS', style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
+                                  Text(
+                                    'TZS',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     _status!.price.toStringAsFixed(0),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontFamily: 'Barlow Condensed',
                                       fontSize: 32,
                                       fontWeight: FontWeight.w600,
@@ -189,69 +244,86 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                                   const SizedBox(width: 6),
                                   Text(
                                     '/ ${_status!.durationDays} days',
-                                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 18),
-                            const Text(
+                            Text(
                               'WHAT YOU GET',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textLabel,
+                                letterSpacing: 0.7,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.gavel_outlined,
                               title: 'Higher, faster bid quota',
-                              body: 'Place more bids per day, with your allowance refreshing sooner.',
+                              body:
+                                  'Place more bids per day, with your allowance refreshing sooner.',
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.push_pin_outlined,
                               title: 'Priority placement on your bids',
-                              body: 'Your bids are pinned above the rest on every job you bid on.',
+                              body:
+                                  'Your bids are pinned above the rest on every job you bid on.',
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.map_outlined,
                               title: 'A map of your GPS-connected fleet',
-                              body: 'See every truck with GPS connected on one live map.',
+                              body:
+                                  'See every truck with GPS connected on one live map.',
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.route_outlined,
                               title: 'Filter Open Jobs to your routes',
-                              body: 'Save the lanes you run and filter the job board down to just those.',
+                              body:
+                                  'Save the lanes you run and filter the job board down to just those.',
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.replay_outlined,
                               title: 'Return-load suggestions',
-                              body: 'After a delivery, see other open jobs near where you just dropped off.',
+                              body:
+                                  'After a delivery, see other open jobs near where you just dropped off.',
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.workspace_premium_outlined,
                               title: 'Plus badge on your bids',
-                              body: 'Customers see a Cargo Motives Plus badge next to your company name on every bid you place.',
+                              body:
+                                  'Customers see a Cargo Motives Plus badge next to your company name on every bid you place.',
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.bolt_outlined,
                               title: 'Early visibility on new jobs',
-                              body: 'See newly posted jobs immediately — standard accounts see them a couple of minutes later.',
+                              body:
+                                  'See newly posted jobs immediately — standard accounts see them a couple of minutes later.',
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.verified_user_outlined,
                               title: 'Customer trust signal',
-                              body: "See a customer's completed-shipment count on the platform before you bid.",
+                              body:
+                                  "See a customer's completed-shipment count on the platform before you bid.",
                             ),
                             const SizedBox(height: 8),
                             const _BenefitCard(
                               icon: Icons.support_agent,
                               title: 'Priority support',
-                              body: 'Your Help & Support requests are flagged for faster handling by our team.',
+                              body:
+                                  'Your Help & Support requests are flagged for faster handling by our team.',
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
@@ -259,9 +331,13 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _plusInk,
                                 foregroundColor: _plusGold,
-                                side: const BorderSide(color: Color(0xFFC9A227)),
+                                side: const BorderSide(
+                                  color: Color(0xFFC9A227),
+                                ),
                               ),
-                              child: Text('GET PLUS · TZS ${_status!.price.toStringAsFixed(0)}'),
+                              child: Text(
+                                'GET PLUS · TZS ${_status!.price.toStringAsFixed(0)}',
+                              ),
                             ),
                           ],
                         ),
@@ -292,10 +368,16 @@ class _PlusHero extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.arrow_back, color: _plusGold, size: 18),
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: _plusGold,
+                    size: 18,
+                  ),
                   style: IconButton.styleFrom(
                     backgroundColor: _plusGold.withValues(alpha: 0.12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                   ),
                 ),
               ],
@@ -307,7 +389,10 @@ class _PlusHero extends StatelessWidget {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(color: _plusGold, borderRadius: BorderRadius.circular(9)),
+                  decoration: BoxDecoration(
+                    color: _plusGold,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
                   alignment: Alignment.center,
                   child: const Icon(Icons.bolt, color: _plusInk, size: 22),
                 ),
@@ -345,7 +430,11 @@ class _PlusHero extends StatelessWidget {
             const SizedBox(height: 12),
             const Text(
               'Bid more, win more, and get seen first on every job.',
-              style: TextStyle(fontSize: 13.5, color: Color(0xFFC4B896), height: 1.5),
+              style: TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFFC4B896),
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -355,7 +444,11 @@ class _PlusHero extends StatelessWidget {
 }
 
 class _BenefitCard extends StatelessWidget {
-  const _BenefitCard({required this.icon, required this.title, required this.body});
+  const _BenefitCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
   final IconData icon;
   final String title;
@@ -376,7 +469,10 @@ class _BenefitCard extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(color: _plusInk, borderRadius: BorderRadius.circular(7)),
+            decoration: BoxDecoration(
+              color: _plusInk,
+              borderRadius: BorderRadius.circular(7),
+            ),
             alignment: Alignment.center,
             child: Icon(icon, size: 16, color: _plusGold),
           ),
@@ -387,10 +483,21 @@ class _BenefitCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: _plusTextDark),
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: _plusTextDark,
+                  ),
                 ),
                 const SizedBox(height: 2),
-                Text(body, style: const TextStyle(fontSize: 13, color: _plusTextMuted, height: 1.4)),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: _plusTextMuted,
+                    height: 1.4,
+                  ),
+                ),
               ],
             ),
           ),
@@ -433,12 +540,17 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
     });
 
     try {
-      final payment = await widget.repository.purchase(provider: _provider, phoneNumber: _phoneController.text.trim());
+      final payment = await widget.repository.purchase(
+        provider: _provider,
+        phoneNumber: _phoneController.text.trim(),
+      );
       if (!mounted) return;
       if (payment.isPending) {
         Navigator.of(context).pop(true);
       } else {
-        setState(() => _error = 'The payment could not be started. Please try again.');
+        setState(
+          () => _error = 'The payment could not be started. Please try again.',
+        );
       }
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -450,12 +562,20 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Pay via Mobile Money', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Pay via Mobile Money',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             initialValue: _provider,
@@ -463,7 +583,10 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
             items: const [
               DropdownMenuItem(value: 'mpesa', child: Text('M-Pesa')),
               DropdownMenuItem(value: 'tigopesa', child: Text('Tigo Pesa')),
-              DropdownMenuItem(value: 'airtelmoney', child: Text('Airtel Money')),
+              DropdownMenuItem(
+                value: 'airtelmoney',
+                child: Text('Airtel Money'),
+              ),
               DropdownMenuItem(value: 'other', child: Text('Other')),
             ],
             onChanged: (value) => setState(() => _provider = value!),
@@ -471,15 +594,27 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _phoneController,
-            decoration: const InputDecoration(labelText: 'Mobile money phone number'),
+            decoration: const InputDecoration(
+              labelText: 'Mobile money phone number',
+            ),
             keyboardType: TextInputType.phone,
           ),
-          if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: const TextStyle(color: Colors.red))],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+          ],
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submit,
             child: _isSubmitting
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Text('Pay now'),
           ),
         ],
@@ -492,7 +627,11 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
 /// plain text fields, no map picker, matching the same lat/lng-as-text
 /// scope decision Post a Job made back in Phase 4.
 class PreferredRoutesScreen extends StatefulWidget {
-  const PreferredRoutesScreen({super.key, required this.repository, required this.initialRoutes});
+  const PreferredRoutesScreen({
+    super.key,
+    required this.repository,
+    required this.initialRoutes,
+  });
 
   final CompanyFeaturedRepository repository;
   final List<PreferredRoute> initialRoutes;
@@ -513,7 +652,10 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
   }
 
   Future<void> _addRoute() async {
-    final added = await showDialog<PreferredRoute>(context: context, builder: (context) => const _AddRouteDialog());
+    final added = await showDialog<PreferredRoute>(
+      context: context,
+      builder: (context) => const _AddRouteDialog(),
+    );
     if (added != null) setState(() => _routes.add(added));
   }
 
@@ -544,8 +686,11 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
           children: [
             Expanded(
               child: _routes.isEmpty
-                  ? const Center(
-                      child: Text('No preferred routes yet.', style: TextStyle(color: AppColors.textSecondary)),
+                  ? Center(
+                      child: Text(
+                        'No preferred routes yet.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
                     )
                   : ListView.separated(
                       itemCount: _routes.length,
@@ -556,10 +701,13 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
                         return Card(
                           margin: EdgeInsets.zero,
                           child: ListTile(
-                            title: Text('${route.origin} → ${route.destination}'),
+                            title: Text(
+                              '${route.origin} → ${route.destination}',
+                            ),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete_outline),
-                              onPressed: () => setState(() => _routes.removeAt(index)),
+                              onPressed: () =>
+                                  setState(() => _routes.removeAt(index)),
                             ),
                           ),
                         );
@@ -567,13 +715,26 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
                     ),
             ),
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: _addRoute, child: const Text('Add route')),
-            if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: const TextStyle(color: Colors.red))],
+            OutlinedButton(
+              onPressed: _addRoute,
+              child: const Text('Add route'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _isSaving ? null : _save,
               child: _isSaving
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('Save'),
             ),
           ],
@@ -620,13 +781,21 @@ class _AddRouteDialogState extends State<_AddRouteDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
         TextButton(
           onPressed: () {
-            if (_originController.text.trim().isEmpty || _destinationController.text.trim().isEmpty) return;
-            Navigator.of(
-              context,
-            ).pop(PreferredRoute(origin: _originController.text.trim(), destination: _destinationController.text.trim()));
+            if (_originController.text.trim().isEmpty ||
+                _destinationController.text.trim().isEmpty)
+              return;
+            Navigator.of(context).pop(
+              PreferredRoute(
+                origin: _originController.text.trim(),
+                destination: _destinationController.text.trim(),
+              ),
+            );
           },
           child: const Text('Add'),
         ),

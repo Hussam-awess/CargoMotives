@@ -6,7 +6,8 @@ import 'add_driver_screen.dart';
 
 /// "Fleet -> Drivers: simple roster" — AppFlow §2.2.
 class DriverListTab extends StatefulWidget {
-  DriverListTab({super.key, DriverRepository? repository}) : repository = repository ?? DriverRepository();
+  DriverListTab({super.key, DriverRepository? repository})
+    : repository = repository ?? DriverRepository();
 
   final DriverRepository repository;
 
@@ -32,7 +33,8 @@ class _DriverListTabState extends State<DriverListTab> {
   Future<void> _openAddDriver({Driver? edit}) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => AddDriverScreen(repository: widget.repository, editDriver: edit),
+        builder: (_) =>
+            AddDriverScreen(repository: widget.repository, editDriver: edit),
       ),
     );
     if (saved == true) await _refresh();
@@ -54,7 +56,10 @@ class _DriverListTabState extends State<DriverListTab> {
                 children: [
                   const Text('Could not load your drivers.'),
                   const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
+                  OutlinedButton(
+                    onPressed: _refresh,
+                    child: const Text('Try again'),
+                  ),
                 ],
               ),
             );
@@ -66,11 +71,18 @@ class _DriverListTabState extends State<DriverListTab> {
               onRefresh: _refresh,
               child: ListView(
                 padding: const EdgeInsets.all(24),
-                children: const [
+                children: [
                   SizedBox(height: 80),
-                  Icon(Icons.badge_outlined, size: 48, color: AppColors.textTertiary),
+                  Icon(
+                    Icons.badge_outlined,
+                    size: 48,
+                    color: AppColors.textTertiary,
+                  ),
                   SizedBox(height: 16),
-                  Text('No drivers yet. Tap + to add one.', textAlign: TextAlign.center),
+                  Text(
+                    'No drivers yet. Tap + to add one.',
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             );
@@ -94,7 +106,10 @@ class _DriverListTabState extends State<DriverListTab> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(onPressed: () => _openAddDriver(), child: const Icon(Icons.add)),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openAddDriver(),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
@@ -107,7 +122,9 @@ class _DriverCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = driver.fullName.trim().isEmpty ? '?' : driver.fullName.trim()[0].toUpperCase();
+    final initial = driver.fullName.trim().isEmpty
+        ? '?'
+        : driver.fullName.trim()[0].toUpperCase();
 
     return InkWell(
       onTap: onTap,
@@ -115,7 +132,7 @@ class _DriverCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE4E5E8)),
+          border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -123,11 +140,19 @@ class _DriverCard extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                color: AppColors.infoTint,
+                borderRadius: BorderRadius.circular(8),
+              ),
               alignment: Alignment.center,
               child: Text(
                 initial,
-                style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
+                style: const TextStyle(
+                  fontFamily: 'Barlow Condensed',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ctaBlue,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -135,10 +160,23 @@ class _DriverCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(driver.fullName, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
                   Text(
-                    [driver.phoneNumber, if (driver.licenseNumber != null) 'License ${driver.licenseNumber}'].join(' · '),
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    driver.fullName,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    [
+                      driver.phoneNumber,
+                      if (driver.licenseNumber != null)
+                        'License ${driver.licenseNumber}',
+                    ].join(' · '),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -146,7 +184,11 @@ class _DriverCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: (driver.isActive ? AppColors.statusLive : AppColors.statusIdle).withValues(alpha: 0.1),
+                color:
+                    (driver.isActive
+                            ? AppColors.statusLive
+                            : AppColors.statusIdle)
+                        .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -154,7 +196,9 @@ class _DriverCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: driver.isActive ? AppColors.statusLive : AppColors.textSecondary,
+                  color: driver.isActive
+                      ? AppColors.statusLive
+                      : AppColors.textSecondary,
                 ),
               ),
             ),

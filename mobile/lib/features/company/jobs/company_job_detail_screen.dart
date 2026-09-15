@@ -98,7 +98,8 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
         _quotaRemaining = remaining;
         _liveLocation = job.lastKnownLocation;
       });
-      if (job.isAssignedToViewer && (job.status == 'delivered' || job.status == 'completed')) {
+      if (job.isAssignedToViewer &&
+          (job.status == 'delivered' || job.status == 'completed')) {
         _loadReturnLoadSuggestions();
       }
     } catch (_) {
@@ -113,7 +114,9 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
   /// Featured" check needed here.
   Future<void> _loadReturnLoadSuggestions() async {
     try {
-      final suggestions = await widget.jobRepository.returnLoadSuggestions(widget.jobId);
+      final suggestions = await widget.jobRepository.returnLoadSuggestions(
+        widget.jobId,
+      );
       if (mounted) setState(() => _returnLoadSuggestions = suggestions);
     } catch (_) {
       // Silently skip — this is a bonus prompt, not core functionality.
@@ -136,7 +139,9 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
       final bid = await widget.bidRepository.place(
         jobId: widget.jobId,
         price: price,
-        note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
       );
       if (!mounted) return;
       setState(() {
@@ -158,7 +163,10 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
   Future<void> _openAssignScreen() async {
     final assigned = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => AssignJobScreen(job: _job!, assignmentRepository: widget.assignmentRepository),
+        builder: (_) => AssignJobScreen(
+          job: _job!,
+          assignmentRepository: widget.assignmentRepository,
+        ),
       ),
     );
     if (assigned == true) _load();
@@ -166,10 +174,14 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
 
   Future<void> _viewDriverLink() async {
     try {
-      final link = await widget.assignmentRepository.currentDriverLink(widget.jobId);
+      final link = await widget.assignmentRepository.currentDriverLink(
+        widget.jobId,
+      );
       if (!mounted) return;
       if (link == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No driver link yet.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No driver link yet.')));
         return;
       }
       await showDialog<void>(
@@ -185,29 +197,44 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
               },
               child: const Text('Copy'),
             ),
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
           ],
         ),
       );
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final job = _job;
-    final isActiveJob = job != null && job.isAssignedToViewer && job.isAssignable;
+    final isActiveJob =
+        job != null && job.isAssignedToViewer && job.isAssignable;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isActiveJob ? 'Active Job' : (job != null && job.isOpen ? 'Submit a Bid' : 'Job Detail')),
+        title: Text(
+          isActiveJob
+              ? 'Active Job'
+              : (job != null && job.isOpen ? 'Submit a Bid' : 'Job Detail'),
+        ),
         actions: [
           if (job?.isAssignedToViewer == true)
             IconButton(
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: 'Messages',
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MessagesScreen(jobId: widget.jobId))),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => MessagesScreen(jobId: widget.jobId),
+                ),
+              ),
             ),
         ],
       ),
@@ -220,7 +247,10 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                 children: [
                   Text(_loadError!),
                   const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
+                  OutlinedButton(
+                    onPressed: _load,
+                    child: const Text('Try again'),
+                  ),
                 ],
               ),
             )
@@ -229,7 +259,10 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (isActiveJob) _ActiveJobCard(job: job, liveLocation: _liveLocation) else _JobInfoCard(job: job!),
+                  if (isActiveJob)
+                    _ActiveJobCard(job: job, liveLocation: _liveLocation)
+                  else
+                    _JobInfoCard(job: job!),
                   const SizedBox(height: 16),
                   if (job.isAssignable && job.isAssignedToViewer) ...[
                     const _SectionLabel('Assignment'),
@@ -237,14 +270,24 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     _AssignmentCard(
                       job: job,
                       onAssign: _openAssignScreen,
-                      onViewDriverLink: job.assignedTruckRegistration != null ? _viewDriverLink : null,
+                      onViewDriverLink: job.assignedTruckRegistration != null
+                          ? _viewDriverLink
+                          : null,
                     ),
                     if (job.assignedTruckRegistration != null) ...[
                       const SizedBox(height: 16),
-                      GpsStatusCard(trackingActive: job.gpsTrackingActive, signalStatus: job.gpsSignalStatus, location: _liveLocation),
+                      GpsStatusCard(
+                        trackingActive: job.gpsTrackingActive,
+                        signalStatus: job.gpsSignalStatus,
+                        location: _liveLocation,
+                      ),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LiveGpsTrackingScreen(job: job))),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => LiveGpsTrackingScreen(job: job),
+                          ),
+                        ),
                         icon: const Icon(Icons.near_me_outlined, size: 16),
                         label: const Text('View route on map'),
                       ),
@@ -256,45 +299,74 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                       for (final suggestion in _returnLoadSuggestions)
                         _ReturnLoadTile(
                           job: suggestion,
-                          onTap: () =>
-                              Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: suggestion.id))),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  CompanyJobDetailScreen(jobId: suggestion.id),
+                            ),
+                          ),
                         ),
                     ],
                   ] else if (!job.isOpen)
-                    const Text('This job is no longer open for bidding.', style: TextStyle(color: AppColors.textSecondary))
+                    Text(
+                      'This job is no longer open for bidding.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    )
                   else if (_placedBid != null)
                     Container(
                       padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        color: AppColors.infoTint,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Text(
                         'Bid placed: TZS ${_placedBid!.price.toStringAsFixed(0)} — pending review.',
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ctaBluePressed,
+                        ),
                       ),
                     )
                   else ...[
                     Text(
                       'Your price',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textLabel,
+                      ),
                     ),
                     const SizedBox(height: 5),
                     Container(
                       height: 56,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.ctaBlue, width: 1.5),
+                        border: Border.all(
+                          color: AppColors.ctaBlue,
+                          width: 1.5,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          const Text('TZS', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                          Text(
+                            'TZS',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: TextField(
                               key: const Key('bidPriceField'),
                               controller: _priceController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Barlow Condensed',
                                 fontSize: 26,
                                 fontWeight: FontWeight.w600,
@@ -313,12 +385,22 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     ),
                     if (_quotaRemaining != null) ...[
                       const SizedBox(height: 6),
-                      Text('$_quotaRemaining bid(s) remaining', style: const TextStyle(fontSize: 11.5, color: AppColors.textTertiary)),
+                      Text(
+                        '$_quotaRemaining bid(s) remaining',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
                     ],
                     const SizedBox(height: 16),
                     Text(
                       'Note to customer',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textLabel,
+                      ),
                     ),
                     const SizedBox(height: 5),
                     TextField(
@@ -328,13 +410,25 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     ),
                     if (_submitError != null) ...[
                       const SizedBox(height: 12),
-                      Text(_submitError!, style: const TextStyle(color: Colors.red)),
+                      Text(
+                        _submitError!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
                     ],
                     const SizedBox(height: 18),
                     ElevatedButton(
-                      onPressed: (_isSubmitting || _quotaRemaining == 0) ? null : _placeBid,
+                      onPressed: (_isSubmitting || _quotaRemaining == 0)
+                          ? null
+                          : _placeBid,
                       child: _isSubmitting
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
                           : const Text('SUBMIT BID'),
                     ),
                   ],
@@ -354,7 +448,12 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+      style: TextStyle(
+        fontSize: 11.5,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textLabel,
+        letterSpacing: 0.7,
+      ),
     );
   }
 }
@@ -367,12 +466,29 @@ class _JobInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final distance = (job.pickupLat != null && job.pickupLng != null && job.dropoffLat != null && job.dropoffLng != null)
-        ? kmBetween(job.pickupLat!, job.pickupLng!, job.dropoffLat!, job.dropoffLng!)
+    final distance =
+        (job.pickupLat != null &&
+            job.pickupLng != null &&
+            job.dropoffLat != null &&
+            job.dropoffLng != null)
+        ? kmBetween(
+            job.pickupLat!,
+            job.pickupLng!,
+            job.dropoffLat!,
+            job.dropoffLng!,
+          )
         : null;
 
     final rows = <(String, String)>[
-      ('Pickup window', DateFormat('d MMM, HH:mm').format(job.preferredPickupWindowStart)),
+      if (job.budgetPrice != null)
+        (
+          'Customer\'s budget',
+          '${job.currency} ${job.budgetPrice!.toStringAsFixed(0)}',
+        ),
+      (
+        'Pickup window',
+        DateFormat('d MMM, HH:mm').format(job.preferredPickupWindowStart),
+      ),
       if (job.bidsCount != null) ('Current bids', '${job.bidsCount}'),
     ];
 
@@ -393,11 +509,15 @@ class _JobInfoCard extends StatelessWidget {
               children: [
                 Text(
                   'CM-${job.id.toString().padLeft(4, '0')}',
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11.5,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 Text(
                   '${job.pickupAddress} → ${job.dropoffAddress}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Barlow Condensed',
                     fontSize: 21,
                     fontWeight: FontWeight.w600,
@@ -408,7 +528,10 @@ class _JobInfoCard extends StatelessWidget {
                   '${job.containerType} · ${job.containerSize}'
                   '${job.approxWeightTons != null ? ' · ${job.approxWeightTons!.toStringAsFixed(0)} t' : ''}'
                   '${distance != null ? ' · ${distance.toStringAsFixed(0)} km' : ''}',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -418,16 +541,28 @@ class _JobInfoCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
               decoration: i == rows.length - 1
                   ? null
-                  : const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: AppColors.background)),
+                  : BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: AppColors.background),
+                      ),
                     ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(rows[i].$1, style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+                  Text(
+                    rows[i].$1,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                   Text(
                     rows[i].$2,
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ],
               ),
@@ -436,7 +571,10 @@ class _JobInfoCard extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(13, 0, 13, 13),
-              child: Text(job.cargoDescription!, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              child: Text(
+                job.cargoDescription!,
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
             ),
         ],
       ),
@@ -456,14 +594,25 @@ class _ActiveJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final remaining = (liveLocation != null && job.dropoffLat != null && job.dropoffLng != null)
-        ? kmBetween(liveLocation!.lat, liveLocation!.lng, job.dropoffLat!, job.dropoffLng!)
+    final remaining =
+        (liveLocation != null &&
+            job.dropoffLat != null &&
+            job.dropoffLng != null)
+        ? kmBetween(
+            liveLocation!.lat,
+            liveLocation!.lng,
+            job.dropoffLat!,
+            job.dropoffLng!,
+          )
         : null;
     final customer = job.customerCompanyName ?? job.customerName;
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: AppColors.brandChip,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -472,23 +621,37 @@ class _ActiveJobCard extends StatelessWidget {
             children: [
               Text(
                 'CM-${job.id.toString().padLeft(4, '0')}',
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: AppColors.lightBlue),
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  color: AppColors.lightBlue,
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       width: 5,
                       height: 5,
-                      decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.lightBlue),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.lightBlue,
+                      ),
                     ),
                     const SizedBox(width: 5),
                     Text(
                       jobStatusLabel(job.status),
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white),
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -498,22 +661,43 @@ class _ActiveJobCard extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             '${job.pickupAddress} → ${job.dropoffAddress}',
-            style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white),
+            style: const TextStyle(
+              fontFamily: 'Barlow Condensed',
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
-          if (customer != null) Text(customer, style: const TextStyle(fontSize: 12.5, color: AppColors.lightBlue)),
+          if (customer != null)
+            Text(
+              customer,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.lightBlue,
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(top: 14),
             child: Container(
               padding: const EdgeInsets.only(top: 13),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.13))),
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.13)),
+                ),
               ),
               child: Row(
                 children: [
-                  if (job.agreedPrice != null) _SummaryStat(label: 'You earn', value: job.agreedPrice!.toStringAsFixed(0)),
+                  if (job.agreedPrice != null)
+                    _SummaryStat(
+                      label: 'You earn',
+                      value: job.agreedPrice!.toStringAsFixed(0),
+                    ),
                   if (remaining != null) ...[
                     const SizedBox(width: 20),
-                    _SummaryStat(label: 'Remaining', value: '${remaining.toStringAsFixed(0)} km'),
+                    _SummaryStat(
+                      label: 'Remaining',
+                      value: '${remaining.toStringAsFixed(0)} km',
+                    ),
                   ],
                 ],
               ),
@@ -536,10 +720,18 @@ class _SummaryStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11.5, color: AppColors.lightBlue),
+        ),
         Text(
           value,
-          style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+          style: const TextStyle(
+            fontFamily: 'Barlow Condensed',
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ],
     );
@@ -547,7 +739,11 @@ class _SummaryStat extends StatelessWidget {
 }
 
 class _AssignmentCard extends StatelessWidget {
-  const _AssignmentCard({required this.job, required this.onAssign, required this.onViewDriverLink});
+  const _AssignmentCard({
+    required this.job,
+    required this.onAssign,
+    required this.onViewDriverLink,
+  });
 
   final Job job;
   final VoidCallback onAssign;
@@ -570,32 +766,61 @@ class _AssignmentCard extends StatelessWidget {
                 Container(
                   width: 34,
                   height: 34,
-                  decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(6)),
+                  decoration: BoxDecoration(
+                    color: AppColors.infoTint,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                   alignment: Alignment.center,
-                  child: const Icon(Icons.local_shipping_outlined, size: 17, color: AppColors.ctaBlue),
+                  child: const Icon(
+                    Icons.local_shipping_outlined,
+                    size: 17,
+                    color: AppColors.ctaBlue,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(job.assignedTruckRegistration!, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
-                      Text(job.assignedDriverName ?? '', style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                      Text(
+                        job.assignedTruckRegistration!,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        job.assignedDriverName ?? '',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             )
           else
-            const Text('No truck/driver assigned yet.', style: TextStyle(color: AppColors.textSecondary)),
+            Text(
+              'No truck/driver assigned yet.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: onAssign,
-            child: Text(job.assignedTruckRegistration != null ? 'Reassign truck & driver' : 'Assign truck & driver'),
+            child: Text(
+              job.assignedTruckRegistration != null
+                  ? 'Reassign truck & driver'
+                  : 'Assign truck & driver',
+            ),
           ),
           if (onViewDriverLink != null) ...[
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: onViewDriverLink, child: const Text('View driver link')),
+            OutlinedButton(
+              onPressed: onViewDriverLink,
+              child: const Text('View driver link'),
+            ),
           ],
         ],
       ),
@@ -630,7 +855,7 @@ class _ReturnLoadTile extends StatelessWidget {
                   children: [
                     Text(
                       '${job.pickupAddress} → ${job.dropoffAddress}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Barlow Condensed',
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
@@ -639,12 +864,15 @@ class _ReturnLoadTile extends StatelessWidget {
                     ),
                     Text(
                       '${job.containerType} · ${job.containerSize}',
-                      style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+              Icon(Icons.chevron_right, color: AppColors.textTertiary),
             ],
           ),
         ),

@@ -69,7 +69,6 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
         builder: (_) => EditProfileScreen(
           profile: profile,
           credential: ProfileCredential.phone,
-          showName: false,
           authRepository: widget.authRepository,
         ),
       ),
@@ -86,18 +85,23 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
         children: [
           FutureBuilder<CompanyVerification?>(
             future: _verificationFuture,
-            builder: (context, verificationSnapshot) => FutureBuilder<UserProfile>(
-              future: _profileFuture,
-              builder: (context, profileSnapshot) => FutureBuilder<CompanyFeaturedStatus>(
-                future: _featuredFuture,
-                builder: (context, featuredSnapshot) => _CompanyCard(
-                  verification: verificationSnapshot.data,
-                  profile: profileSnapshot.data,
-                  isFeatured: featuredSnapshot.data?.isFeatured ?? false,
-                  onTap: profileSnapshot.data == null ? null : () => _openEditProfile(profileSnapshot.data!),
+            builder: (context, verificationSnapshot) =>
+                FutureBuilder<UserProfile>(
+                  future: _profileFuture,
+                  builder: (context, profileSnapshot) =>
+                      FutureBuilder<CompanyFeaturedStatus>(
+                        future: _featuredFuture,
+                        builder: (context, featuredSnapshot) => _CompanyCard(
+                          verification: verificationSnapshot.data,
+                          profile: profileSnapshot.data,
+                          isFeatured:
+                              featuredSnapshot.data?.isFeatured ?? false,
+                          onTap: profileSnapshot.data == null
+                              ? null
+                              : () => _openEditProfile(profileSnapshot.data!),
+                        ),
+                      ),
                 ),
-              ),
-            ),
           ),
           const SizedBox(height: 20),
           const _SectionLabel('Account'),
@@ -109,14 +113,19 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
                 label: 'Settings',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => CompanySettingsScreen(authRepository: widget.authRepository, sessionStore: widget.sessionStore),
+                    builder: (_) => CompanySettingsScreen(
+                      authRepository: widget.authRepository,
+                      sessionStore: widget.sessionStore,
+                    ),
                   ),
                 ),
               ),
               _AccountRow(
                 icon: Icons.workspace_premium_outlined,
                 label: 'Cargo Motives Plus',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyFeaturedScreen())),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => CompanyFeaturedScreen()),
+                ),
                 highlighted: true,
               ),
               _AccountRow(
@@ -125,7 +134,12 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
                 onTap: () async {
                   final status = await _featuredFuture;
                   if (!context.mounted) return;
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => HelpSupportScreen(isFeatured: status.isFeatured)));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          HelpSupportScreen(isFeatured: status.isFeatured),
+                    ),
+                  );
                 },
               ),
             ],
@@ -137,10 +151,14 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
               onPressed: _isLoggingOut ? null : _logout,
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.statusError,
-                side: const BorderSide(color: Color(0xFFE8CFC8)),
+                side: BorderSide(color: AppColors.dangerBorder),
               ),
               child: _isLoggingOut
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Log out'),
             ),
           ),
@@ -151,7 +169,12 @@ class _CompanyProfileTabState extends State<CompanyProfileTab> {
 }
 
 class _CompanyCard extends StatelessWidget {
-  const _CompanyCard({required this.verification, required this.profile, required this.isFeatured, this.onTap});
+  const _CompanyCard({
+    required this.verification,
+    required this.profile,
+    required this.isFeatured,
+    this.onTap,
+  });
 
   final CompanyVerification? verification;
   final UserProfile? profile;
@@ -168,7 +191,9 @@ class _CompanyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = verification?.companyName;
-    final initial = (name == null || name.isEmpty) ? '?' : name[0].toUpperCase();
+    final initial = (name == null || name.isEmpty)
+        ? '?'
+        : name[0].toUpperCase();
 
     return InkWell(
       onTap: onTap,
@@ -184,11 +209,19 @@ class _CompanyCard extends StatelessWidget {
             Container(
               width: 56,
               height: 56,
-              decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(
+                color: AppColors.infoTint,
+                borderRadius: BorderRadius.circular(10),
+              ),
               alignment: Alignment.center,
               child: Text(
                 initial,
-                style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
+                style: const TextStyle(
+                  fontFamily: 'Barlow Condensed',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ctaBlue,
+                ),
               ),
             ),
             const SizedBox(width: 14),
@@ -198,7 +231,7 @@ class _CompanyCard extends StatelessWidget {
                 children: [
                   Text(
                     name ?? '—',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Barlow Condensed',
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
@@ -206,23 +239,37 @@ class _CompanyCard extends StatelessWidget {
                     ),
                   ),
                   if (profile?.phoneNumber != null)
-                    Text(profile!.phoneNumber!, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    Text(
+                      profile!.phoneNumber!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   if (verification != null) ...[
                     const SizedBox(height: 5),
                     Row(
                       children: [
                         Icon(
-                          verification!.isApproved ? Icons.check_circle : Icons.pending_outlined,
+                          verification!.isApproved
+                              ? Icons.check_circle
+                              : Icons.pending_outlined,
                           size: 14,
-                          color: verification!.isApproved ? AppColors.ctaBlue : AppColors.statusPending,
+                          color: verification!.isApproved
+                              ? AppColors.ctaBlue
+                              : AppColors.statusPending,
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          verification!.isApproved ? 'Verified transporter company' : 'Verification pending',
+                          verification!.isApproved
+                              ? 'Verified transporter company'
+                              : 'Verification pending',
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
-                            color: verification!.isApproved ? AppColors.ctaBlue : AppColors.statusPending,
+                            color: verification!.isApproved
+                                ? AppColors.ctaBlue
+                                : AppColors.statusPending,
                           ),
                         ),
                       ],
@@ -232,11 +279,19 @@ class _CompanyCard extends StatelessWidget {
                     const SizedBox(height: 5),
                     const Row(
                       children: [
-                        Icon(Icons.workspace_premium_outlined, size: 14, color: AppColors.accent),
+                        Icon(
+                          Icons.workspace_premium_outlined,
+                          size: 14,
+                          color: AppColors.accent,
+                        ),
                         SizedBox(width: 5),
                         Text(
                           'Cargo Motives Plus',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.accent),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.accent,
+                          ),
                         ),
                       ],
                     ),
@@ -260,13 +315,23 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+      style: TextStyle(
+        fontSize: 11.5,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textLabel,
+        letterSpacing: 0.7,
+      ),
     );
   }
 }
 
 class _AccountRow {
-  const _AccountRow({required this.icon, required this.label, required this.onTap, this.highlighted = false});
+  const _AccountRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.highlighted = false,
+  });
 
   final IconData icon;
   final String label;
@@ -295,21 +360,39 @@ class _AccountList extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
-                  color: rows[i].highlighted ? const Color(0xFFFCF8EE) : null,
-                  border: i == rows.length - 1 ? null : const Border(bottom: BorderSide(color: AppColors.background)),
+                  color: rows[i].highlighted ? AppColors.plusHighlight : null,
+                  border: i == rows.length - 1
+                      ? null
+                      : Border(bottom: BorderSide(color: AppColors.background)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       width: 30,
                       height: 30,
-                      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                       alignment: Alignment.center,
-                      child: Icon(rows[i].icon, size: 15, color: AppColors.textPrimary),
+                      child: Icon(
+                        rows[i].icon,
+                        size: 15,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(rows[i].label, style: const TextStyle(fontSize: 14.5))),
-                    const Icon(Icons.chevron_right, size: 18, color: AppColors.textTertiary),
+                    Expanded(
+                      child: Text(
+                        rows[i].label,
+                        style: const TextStyle(fontSize: 14.5),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: AppColors.textTertiary,
+                    ),
                   ],
                 ),
               ),

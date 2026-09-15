@@ -16,17 +16,24 @@ class ShipmentPostedScreen extends StatelessWidget {
   final Job job;
 
   Future<void> _copyTrackingId(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: 'CM-${job.id.toString().padLeft(4, '0')}'));
+    await Clipboard.setData(
+      ClipboardData(text: 'CM-${job.id.toString().padLeft(4, '0')}'),
+    );
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tracking ID copied.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Tracking ID copied.')));
     }
   }
 
   Future<void> _shareShipment(BuildContext context) async {
-    final text = 'Cargo Motives shipment CM-${job.id.toString().padLeft(4, '0')}: ${job.pickupAddress} → ${job.dropoffAddress}';
+    final text =
+        'Cargo Motives shipment CM-${job.id.toString().padLeft(4, '0')}: ${job.pickupAddress} → ${job.dropoffAddress}';
     await Clipboard.setData(ClipboardData(text: text));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied — paste it anywhere to share.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Copied — paste it anywhere to share.')),
+      );
     }
   }
 
@@ -38,7 +45,8 @@ class ShipmentPostedScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+            onPressed: () =>
+                Navigator.of(context).popUntil((route) => route.isFirst),
             tooltip: 'Back to Home',
           ),
         ],
@@ -58,21 +66,37 @@ class ShipmentPostedScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.infoTint,
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFB5D9FD), width: 1.5),
+                      border: Border.all(
+                        color: const Color(0xFFB5D9FD),
+                        width: 1.5,
+                      ),
                     ),
                     alignment: Alignment.center,
-                    child: const Icon(Icons.local_shipping_outlined, color: AppColors.ctaBlue, size: 26),
+                    child: const Icon(
+                      Icons.local_shipping_outlined,
+                      color: AppColors.ctaBlue,
+                      size: 26,
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Your shipment is live',
-                    style: TextStyle(fontFamily: 'Barlow Condensed', fontSize: 30, fontWeight: FontWeight.w600, color: AppColors.primary),
+                    style: TextStyle(
+                      fontFamily: 'Barlow Condensed',
+                      fontSize: 30,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Transporters on the ${job.pickupAddress.split(',').first}–${job.dropoffAddress.split(',').first} lane\ncan see it now and start bidding.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
                   ),
                 ],
               ),
@@ -95,10 +119,16 @@ class ShipmentPostedScreen extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Tracking ID', style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+                            Text(
+                              'Tracking ID',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                             Text(
                               'CM-${job.id.toString().padLeft(4, '0')}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'monospace',
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -112,29 +142,52 @@ class ShipmentPostedScreen extends StatelessWidget {
                           onPressed: () => _copyTrackingId(context),
                           style: OutlinedButton.styleFrom(
                             minimumSize: Size.zero,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                           ),
-                          child: const Text('Copy', style: TextStyle(fontSize: 12.5)),
+                          child: const Text(
+                            'Copy',
+                            style: TextStyle(fontSize: 12.5),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  _Row(label: 'Route', value: '${job.pickupAddress} → ${job.dropoffAddress}'),
-                  _Row(label: 'Cargo', value: '${job.containerType} · ${job.containerSize}', isLast: true),
+                  _Row(
+                    label: 'Route',
+                    value: '${job.pickupAddress} → ${job.dropoffAddress}',
+                  ),
+                  _Row(
+                    label: 'Cargo',
+                    value: '${job.containerType} · ${job.containerSize}',
+                    isLast: true,
+                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 11,
+                    ),
                     color: AppColors.infoTint,
                     child: Row(
                       children: [
                         Container(
                           width: 7,
                           height: 7,
-                          decoration: const BoxDecoration(color: AppColors.ctaBlue, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(
+                            color: AppColors.ctaBlue,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         const Text(
                           'Waiting for transporter offers',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ctaBluePressed,
+                          ),
                         ),
                       ],
                     ),
@@ -144,11 +197,18 @@ class ShipmentPostedScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => JobDetailScreen(jobId: job.id))),
+              onPressed: () => Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => JobDetailScreen(jobId: job.id),
+                ),
+              ),
               child: const Text('VIEW OFFERS'),
             ),
             const SizedBox(height: 10),
-            OutlinedButton(onPressed: () => _shareShipment(context), child: const Text('Share shipment')),
+            OutlinedButton(
+              onPressed: () => _shareShipment(context),
+              child: const Text('Share shipment'),
+            ),
           ],
         ),
       ),
@@ -169,18 +229,25 @@ class _Row extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
       decoration: isLast
           ? null
-          : const BoxDecoration(
+          : BoxDecoration(
               border: Border(bottom: BorderSide(color: AppColors.background)),
             ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+          ),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
         ],

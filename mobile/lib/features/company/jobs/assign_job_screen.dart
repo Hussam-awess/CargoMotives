@@ -68,7 +68,8 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
         _drivers = drivers.where((d) => d.isActive).toList();
       });
     } catch (_) {
-      if (mounted) setState(() => _loadError = 'Could not load trucks and drivers.');
+      if (mounted)
+        setState(() => _loadError = 'Could not load trucks and drivers.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -104,7 +105,9 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
     if (link == null) return;
     await Clipboard.setData(ClipboardData(text: link.url));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Link copied.')));
     }
   }
 
@@ -118,46 +121,92 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [Text(_loadError!), const SizedBox(height: 12), OutlinedButton(onPressed: _load, child: const Text('Try again'))],
+                children: [
+                  Text(_loadError!),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: _load,
+                    child: const Text('Try again'),
+                  ),
+                ],
               ),
             )
           : _link != null
-          ? _AssignedConfirmation(link: _link!, onCopy: _copyLink, onDone: () => Navigator.of(context).pop(true))
+          ? _AssignedConfirmation(
+              link: _link!,
+              onCopy: _copyLink,
+              onDone: () => Navigator.of(context).pop(true),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (_trucks.isEmpty)
-                    const Text('No idle, approved trucks available.', style: TextStyle(color: AppColors.textSecondary))
+                    Text(
+                      'No idle, approved trucks available.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    )
                   else
                     DropdownButtonFormField<int>(
                       initialValue: _selectedTruckId,
                       decoration: const InputDecoration(labelText: 'Truck'),
                       items: _trucks
-                          .map((t) => DropdownMenuItem(value: t.id, child: Text('${t.registrationNumber} — ${t.makeModel}')))
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t.id,
+                              child: Text(
+                                '${t.registrationNumber} — ${t.makeModel}',
+                              ),
+                            ),
+                          )
                           .toList(),
-                      onChanged: (value) => setState(() => _selectedTruckId = value),
+                      onChanged: (value) =>
+                          setState(() => _selectedTruckId = value),
                     ),
                   const SizedBox(height: 16),
                   if (_drivers.isEmpty)
-                    const Text('No active drivers in your roster.', style: TextStyle(color: AppColors.textSecondary))
+                    Text(
+                      'No active drivers in your roster.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    )
                   else
                     DropdownButtonFormField<int>(
                       initialValue: _selectedDriverId,
                       decoration: const InputDecoration(labelText: 'Driver'),
-                      items: _drivers.map((d) => DropdownMenuItem(value: d.id, child: Text(d.fullName))).toList(),
-                      onChanged: (value) => setState(() => _selectedDriverId = value),
+                      items: _drivers
+                          .map(
+                            (d) => DropdownMenuItem(
+                              value: d.id,
+                              child: Text(d.fullName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => _selectedDriverId = value),
                     ),
                   if (_submitError != null) ...[
                     const SizedBox(height: 16),
-                    Text(_submitError!, style: const TextStyle(color: Colors.red)),
+                    Text(
+                      _submitError!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ],
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: (_isSubmitting || _trucks.isEmpty || _drivers.isEmpty) ? null : _assign,
+                    onPressed:
+                        (_isSubmitting || _trucks.isEmpty || _drivers.isEmpty)
+                        ? null
+                        : _assign,
                     child: _isSubmitting
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
                         : const Text('Confirm'),
                   ),
                 ],
@@ -168,7 +217,11 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
 }
 
 class _AssignedConfirmation extends StatelessWidget {
-  const _AssignedConfirmation({required this.link, required this.onCopy, required this.onDone});
+  const _AssignedConfirmation({
+    required this.link,
+    required this.onCopy,
+    required this.onDone,
+  });
 
   final DriverLink link;
   final VoidCallback onCopy;
@@ -184,7 +237,10 @@ class _AssignedConfirmation extends StatelessWidget {
         children: [
           const Icon(Icons.check_circle, color: AppColors.statusLive, size: 48),
           const SizedBox(height: 16),
-          const Text('Assigned. The driver link has been texted to the driver.', textAlign: TextAlign.center),
+          const Text(
+            'Assigned. The driver link has been texted to the driver.',
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 16),
           SelectableText(link.url, textAlign: TextAlign.center),
           const SizedBox(height: 16),

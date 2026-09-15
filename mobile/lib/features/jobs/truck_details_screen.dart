@@ -15,7 +15,12 @@ import 'job_geo.dart';
 /// level, so they're left out rather than invented; the rating and rating
 /// count already carry the real trust signal this app actually has.
 class TruckDetailsScreen extends StatelessWidget {
-  const TruckDetailsScreen({super.key, required this.job, required this.bid, required this.onAccept});
+  const TruckDetailsScreen({
+    super.key,
+    required this.job,
+    required this.bid,
+    required this.onAccept,
+  });
 
   final Job job;
   final Bid bid;
@@ -24,8 +29,17 @@ class TruckDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final company = bid.company;
-    final distanceKm = (job.pickupLat != null && job.pickupLng != null && job.dropoffLat != null && job.dropoffLng != null)
-        ? kmBetween(job.pickupLat!, job.pickupLng!, job.dropoffLat!, job.dropoffLng!)
+    final distanceKm =
+        (job.pickupLat != null &&
+            job.pickupLng != null &&
+            job.dropoffLat != null &&
+            job.dropoffLng != null)
+        ? kmBetween(
+            job.pickupLat!,
+            job.pickupLng!,
+            job.dropoffLat!,
+            job.dropoffLng!,
+          )
         : null;
 
     return Scaffold(
@@ -46,7 +60,11 @@ class TruckDetailsScreen extends StatelessWidget {
                   ),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.local_shipping_outlined, size: 48, color: Colors.white),
+                child: const Icon(
+                  Icons.local_shipping_outlined,
+                  size: 48,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -57,7 +75,12 @@ class TruckDetailsScreen extends StatelessWidget {
                 if (bid.isPriority) ...[
                   const Text(
                     'FEATURED',
-                    style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 11, letterSpacing: 0.5),
+                    style: TextStyle(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                   const SizedBox(height: 4),
                 ],
@@ -70,7 +93,7 @@ class TruckDetailsScreen extends StatelessWidget {
                           children: [
                             TextSpan(
                               text: company.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Barlow Condensed',
                                 fontSize: 26,
                                 fontWeight: FontWeight.w600,
@@ -83,16 +106,30 @@ class TruckDetailsScreen extends StatelessWidget {
                     ),
                     if (company.verified)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(4)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.check_circle, size: 13, color: AppColors.statusLive),
+                            Icon(
+                              Icons.check_circle,
+                              size: 13,
+                              color: AppColors.statusLive,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Verified',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.statusLive),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.statusLive,
+                              ),
                             ),
                           ],
                         ),
@@ -108,22 +145,36 @@ class TruckDetailsScreen extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(
-                        child: _Stat(value: company.rating != null ? company.rating!.toStringAsFixed(1) : '—', label: 'Rating'),
+                        child: _Stat(
+                          value: company.rating != null
+                              ? company.rating!.toStringAsFixed(1)
+                              : '—',
+                          label: 'Rating',
+                        ),
                       ),
-                      Container(width: 1, height: 40, color: const Color(0xFFEDEDEF)),
+                      Container(width: 1, height: 40, color: AppColors.border),
                       Expanded(
-                        child: _Stat(value: '${company.ratingCount}', label: 'Ratings'),
+                        child: _Stat(
+                          value: '${company.ratingCount}',
+                          label: 'Ratings',
+                        ),
                       ),
-                      Container(width: 1, height: 40, color: const Color(0xFFEDEDEF)),
+                      Container(width: 1, height: 40, color: AppColors.border),
                       Expanded(
-                        child: _Stat(value: '${company.truckCount}', label: 'Verified trucks'),
+                        child: _Stat(
+                          value: '${company.truckCount}',
+                          label: 'Verified trucks',
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 11,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.infoTint,
                     border: Border.all(color: const Color(0xFFD6EBFF)),
@@ -135,24 +186,37 @@ class TruckDetailsScreen extends StatelessWidget {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: company.gpsAvailable ? AppColors.statusLive : AppColors.statusIdle,
+                          color: company.gpsAvailable
+                              ? AppColors.statusLive
+                              : AppColors.statusIdle,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 9),
                       Expanded(
                         child: Text(
-                          company.gpsAvailable ? 'Live GPS Available' : 'GPS Tracking Not Available',
-                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                          company.gpsAvailable
+                              ? 'Live GPS Available'
+                              : 'GPS Tracking Not Available',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ctaBluePressed,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 22),
-                const Text(
+                Text(
                   'THIS OFFER',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textLabel, letterSpacing: 0.7),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textLabel,
+                    letterSpacing: 0.7,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Container(
@@ -163,19 +227,40 @@ class TruckDetailsScreen extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      _Row(label: 'Route', value: '${job.pickupAddress} → ${job.dropoffAddress}'),
-                      if (distanceKm != null) _Row(label: 'Distance', value: '${distanceKm.toStringAsFixed(0)} km'),
-                      _Row(label: 'Pickup', value: DateFormat('d MMM, HH:mm').format(job.preferredPickupWindowStart)),
+                      _Row(
+                        label: 'Route',
+                        value: '${job.pickupAddress} → ${job.dropoffAddress}',
+                      ),
+                      if (distanceKm != null)
+                        _Row(
+                          label: 'Distance',
+                          value: '${distanceKm.toStringAsFixed(0)} km',
+                        ),
+                      _Row(
+                        label: 'Pickup',
+                        value: DateFormat(
+                          'd MMM, HH:mm',
+                        ).format(job.preferredPickupWindowStart),
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 12,
+                        ),
                         color: AppColors.surfaceSubtle,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Proposed price', style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+                            Text(
+                              'Proposed price',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                             Text(
                               'TZS ${bid.price.toStringAsFixed(0)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Barlow Condensed',
                                 fontSize: 22,
                                 fontWeight: FontWeight.w600,
@@ -190,16 +275,26 @@ class TruckDetailsScreen extends StatelessWidget {
                 ),
                 if (bid.note != null && bid.note!.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Text(bid.note!, style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary, height: 1.4)),
+                  Text(
+                    bid.note!,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 24),
                 if (job.isOpen && bid.status == 'pending')
-                  ElevatedButton(onPressed: onAccept, child: const Text('ACCEPT OFFER'))
+                  ElevatedButton(
+                    onPressed: onAccept,
+                    child: const Text('ACCEPT OFFER'),
+                  )
                 else
                   Text(
                     bid.status,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
               ]),
             ),
@@ -224,9 +319,17 @@ class _Stat extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primary),
+            style: TextStyle(
+              fontFamily: 'Barlow Condensed',
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            ),
           ),
-          Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+          ),
         ],
       ),
     );
@@ -243,18 +346,25 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.background)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+          ),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
         ],

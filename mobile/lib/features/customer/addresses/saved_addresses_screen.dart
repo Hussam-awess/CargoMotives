@@ -10,8 +10,10 @@ const _savedAddressesKey = 'customer.saved_addresses';
 class SavedAddress {
   const SavedAddress({required this.label, required this.address});
 
-  factory SavedAddress.fromJson(Map<String, dynamic> json) =>
-      SavedAddress(label: json['label'] as String, address: json['address'] as String);
+  factory SavedAddress.fromJson(Map<String, dynamic> json) => SavedAddress(
+    label: json['label'] as String,
+    address: json['address'] as String,
+  );
 
   final String label;
   final String address;
@@ -32,7 +34,11 @@ class SavedAddress {
 /// limit rather than a cosmetic one, since this feature already has no
 /// backend to gate against instead.
 class SavedAddressesScreen extends StatefulWidget {
-  const SavedAddressesScreen({super.key, this.isFeatured = false, this.prefs = const LocalPrefs()});
+  const SavedAddressesScreen({
+    super.key,
+    this.isFeatured = false,
+    this.prefs = const LocalPrefs(),
+  });
 
   final bool isFeatured;
   final LocalPrefs prefs;
@@ -57,24 +63,38 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
     final raw = await widget.prefs.getStringList(_savedAddressesKey);
     if (!mounted) return;
     setState(() {
-      _addresses = raw.map((s) => SavedAddress.fromJson(jsonDecode(s) as Map<String, dynamic>)).toList();
+      _addresses = raw
+          .map(
+            (s) => SavedAddress.fromJson(jsonDecode(s) as Map<String, dynamic>),
+          )
+          .toList();
       _isLoading = false;
     });
   }
 
   Future<void> _save() async {
-    await widget.prefs.setStringList(_savedAddressesKey, _addresses.map((a) => jsonEncode(a.toJson())).toList());
+    await widget.prefs.setStringList(
+      _savedAddressesKey,
+      _addresses.map((a) => jsonEncode(a.toJson())).toList(),
+    );
   }
 
   Future<void> _addAddress() async {
     if (!widget.isFeatured && _addresses.length >= _freeAddressCap) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Standard accounts can save up to 3 addresses. Get Cargo Motives Plus to save more.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Standard accounts can save up to 3 addresses. Get Cargo Motives Plus to save more.',
+          ),
+        ),
+      );
       return;
     }
 
-    final added = await showDialog<SavedAddress>(context: context, builder: (_) => const _AddAddressDialog());
+    final added = await showDialog<SavedAddress>(
+      context: context,
+      builder: (_) => const _AddAddressDialog(),
+    );
     if (added == null) return;
     setState(() => _addresses = [..._addresses, added]);
     await _save();
@@ -98,22 +118,35 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     '${_addresses.length} of $_freeAddressCap · Plus removes the limit',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
       ),
-      floatingActionButton: FloatingActionButton(onPressed: _addAddress, child: const Icon(Icons.add)),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addAddress,
+        child: const Icon(Icons.add),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _addresses.isEmpty
           ? ListView(
               padding: const EdgeInsets.all(24),
-              children: const [
+              children: [
                 SizedBox(height: 80),
-                Icon(Icons.place_outlined, size: 48, color: AppColors.textTertiary),
+                Icon(
+                  Icons.place_outlined,
+                  size: 48,
+                  color: AppColors.textTertiary,
+                ),
                 SizedBox(height: 16),
-                Text('No saved addresses yet. Tap + to add one.', textAlign: TextAlign.center),
+                Text(
+                  'No saved addresses yet. Tap + to add one.',
+                  textAlign: TextAlign.center,
+                ),
               ],
             )
           : ListView.separated(
@@ -133,21 +166,43 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                       Container(
                         width: 34,
                         height: 34,
-                        decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(7)),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
                         alignment: Alignment.center,
-                        child: const Icon(Icons.place_outlined, size: 17, color: AppColors.textPrimary),
+                        child: Icon(
+                          Icons.place_outlined,
+                          size: 17,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(address.label, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
-                            Text(address.address, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                            Text(
+                              address.label,
+                              style: const TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              address.address,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      IconButton(icon: const Icon(Icons.delete_outline, size: 20), onPressed: () => _removeAddress(index)),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () => _removeAddress(index),
+                      ),
                     ],
                   ),
                 );
@@ -184,7 +239,9 @@ class _AddAddressDialogState extends State<_AddAddressDialog> {
         children: [
           TextField(
             controller: _labelController,
-            decoration: const InputDecoration(labelText: 'Label (e.g. Warehouse, Home)'),
+            decoration: const InputDecoration(
+              labelText: 'Label (e.g. Warehouse, Home)',
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -195,11 +252,21 @@ class _AddAddressDialogState extends State<_AddAddressDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
         TextButton(
           onPressed: () {
-            if (_labelController.text.trim().isEmpty || _addressController.text.trim().isEmpty) return;
-            Navigator.of(context).pop(SavedAddress(label: _labelController.text.trim(), address: _addressController.text.trim()));
+            if (_labelController.text.trim().isEmpty ||
+                _addressController.text.trim().isEmpty)
+              return;
+            Navigator.of(context).pop(
+              SavedAddress(
+                label: _labelController.text.trim(),
+                address: _addressController.text.trim(),
+              ),
+            );
           },
           child: const Text('Add'),
         ),

@@ -53,7 +53,8 @@ class CompanyVerification {
 
   bool get isApproved => status == 'approved';
   bool get isRejected => status == 'rejected';
-  bool get isUnderReview => status == 'pending' || status == 'flagged_duplicate';
+  bool get isUnderReview =>
+      status == 'pending' || status == 'flagged_duplicate';
 }
 
 /// The two-section verification form's fields (AppFlow §1), gathered as one
@@ -76,6 +77,7 @@ class CompanyVerificationSubmission {
     required this.registrationCertificate,
     required this.tinCertificate,
     this.otherDocuments = const [],
+    this.logo,
     required this.repFullName,
     required this.repPosition,
     required this.repNationalIdNumber,
@@ -91,6 +93,11 @@ class CompanyVerificationSubmission {
   final PlatformFile registrationCertificate;
   final PlatformFile tinCertificate;
   final List<PlatformFile> otherDocuments;
+
+  /// Optional — mirrors CustomerRegistration's own optional logo upload
+  /// (backend already accepts `logo` here, `SubmitCompanyVerificationRequest`;
+  /// this mobile form just hadn't surfaced it yet).
+  final PlatformFile? logo;
 
   final String repFullName;
   final String repPosition;
@@ -112,11 +119,17 @@ class CompanyRepository {
     final body = await _client.get('/company/verification');
     final data = body['data'];
 
-    return data == null ? null : CompanyVerification.fromJson(data as Map<String, dynamic>);
+    return data == null
+        ? null
+        : CompanyVerification.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<CompanyVerification> submit(CompanyVerificationSubmission submission) async {
-    final otherDocuments = await Future.wait(submission.otherDocuments.map(_toMultipart));
+  Future<CompanyVerification> submit(
+    CompanyVerificationSubmission submission,
+  ) async {
+    final otherDocuments = await Future.wait(
+      submission.otherDocuments.map(_toMultipart),
+    );
 
     final formData = FormData.fromMap({
       'company_name': submission.companyName,
@@ -124,10 +137,15 @@ class CompanyRepository {
       'tin': submission.tin,
       'physical_address': submission.physicalAddress,
       'company_phone': submission.companyPhone,
-      if (submission.companyEmail != null && submission.companyEmail!.isNotEmpty) 'company_email': submission.companyEmail,
-      'registration_certificate': await _toMultipart(submission.registrationCertificate),
+      if (submission.companyEmail != null &&
+          submission.companyEmail!.isNotEmpty)
+        'company_email': submission.companyEmail,
+      'registration_certificate': await _toMultipart(
+        submission.registrationCertificate,
+      ),
       'tin_certificate': await _toMultipart(submission.tinCertificate),
       if (otherDocuments.isNotEmpty) 'other_documents': otherDocuments,
+      if (submission.logo != null) 'logo': await _toMultipart(submission.logo!),
       'rep_full_name': submission.repFullName,
       'rep_position': submission.repPosition,
       'rep_national_id_number': submission.repNationalIdNumber,
