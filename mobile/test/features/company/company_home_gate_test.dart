@@ -110,6 +110,26 @@ void main() {
     expect(find.text('Profile'), findsWidgets);
   });
 
+  testWidgets('tapping the Dashboard\'s "Find jobs" quick action switches to the Find Jobs tab', (tester) async {
+    final repository = FakeCompanyRepository(
+      onGetStatus: () async => const CompanyVerification(status: 'approved', rejectedReason: null, companyName: 'ABC Logistics'),
+    );
+
+    await tester.pumpWidget(_appUnder(repository));
+    await tester.pumpAndSettle();
+
+    // Only the CompanyJobsScreen (the Find Jobs tab) has this tab bar —
+    // regression test for onFindJobs never being wired from the shell to
+    // CompanyHomeTab, which made this quick-action button a silent no-op.
+    expect(find.text('Open'), findsNothing);
+
+    await tester.tap(find.text('Find jobs'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open'), findsOneWidget);
+    expect(find.text('My Bids'), findsOneWidget);
+  });
+
   testWidgets('"Check again" refetches the status', (tester) async {
     var callCount = 0;
     final repository = FakeCompanyRepository(

@@ -41,9 +41,7 @@ class DriverRepository {
   Future<List<Driver>> list() async {
     final body = await _client.get('/company/drivers');
 
-    return (body['data'] as List)
-        .map((e) => Driver.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return (body['data'] as List).map((e) => Driver.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<Driver> save({
@@ -56,19 +54,21 @@ class DriverRepository {
     final formData = FormData.fromMap({
       'full_name': fullName,
       'phone_number': phoneNumber,
-      if (licenseNumber != null && licenseNumber.isNotEmpty)
-        'license_number': licenseNumber,
-      if (licensePhoto != null)
-        'license_photo': await _toMultipart(licensePhoto),
+      if (licenseNumber != null && licenseNumber.isNotEmpty) 'license_number': licenseNumber,
+      if (licensePhoto != null) 'license_photo': await _toMultipart(licensePhoto),
     });
 
-    final path = driverId == null
-        ? '/company/drivers'
-        : '/company/drivers/$driverId';
+    final path = driverId == null ? '/company/drivers' : '/company/drivers/$driverId';
     final body = await _client.postForm(path, formData);
 
     return Driver.fromJson(body['data'] as Map<String, dynamic>);
   }
+
+  /// Only allowed while the driver isn't currently on a trip — unlike
+  /// Truck, a driver has no client-visible status field to gate this on
+  /// beforehand, so the caller just attempts it and shows the backend's
+  /// error (a 422 naming the 'driver' field) if it's rejected.
+  Future<void> delete(int driverId) => _client.delete('/company/drivers/$driverId');
 
   Future<MultipartFile> _toMultipart(PlatformFile file) async {
     if (file.bytes != null) {

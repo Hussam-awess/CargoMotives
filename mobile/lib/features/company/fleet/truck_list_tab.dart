@@ -8,8 +8,7 @@ import 'add_truck_screen.dart';
 /// number, verification status, GPS status — a rejected truck is tappable
 /// to fix and resubmit.
 class TruckListTab extends StatefulWidget {
-  TruckListTab({super.key, TruckRepository? repository})
-    : repository = repository ?? TruckRepository();
+  TruckListTab({super.key, TruckRepository? repository}) : repository = repository ?? TruckRepository();
 
   final TruckRepository repository;
 
@@ -32,20 +31,46 @@ class TruckListTabState extends State<TruckListTab> {
 
   Future<void> _refresh() async {
     final future = widget.repository.list();
-    setState(() => _future = future);
+    // A block body, not an arrow (`() => _future = ...`) — an arrow
+    // closure's value IS the assignment's value (a Future here), and
+    // Flutter's setState() explicitly rejects a callback that returns one.
+    setState(() {
+      _future = future;
+    });
     await future;
   }
 
   Future<void> _openAddTruck({Truck? resubmit}) async {
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => AddTruckScreen(
-          repository: widget.repository,
-          resubmitTruck: resubmit,
-        ),
+        builder: (_) => AddTruckScreen(repository: widget.repository, resubmitTruck: resubmit),
       ),
     );
     if (added == true) await _refresh();
+  }
+
+  Future<void> _deleteTruck(Truck truck) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove this truck?'),
+        content: Text('${truck.registrationNumber} will be removed from your fleet. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await widget.repository.delete(truck.id);
+      await _refresh();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not remove that truck. Try again.')));
+      }
+    }
   }
 
   @override
@@ -64,10 +89,7 @@ class TruckListTabState extends State<TruckListTab> {
                 children: [
                   const Text('Could not load your trucks.'),
                   const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _refresh,
-                    child: const Text('Try again'),
-                  ),
+                  OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
                 ],
               ),
             );
@@ -81,27 +103,16 @@ class TruckListTabState extends State<TruckListTab> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   SizedBox(height: 80),
-                  Icon(
-                    Icons.local_shipping_outlined,
-                    size: 48,
-                    color: AppColors.textTertiary,
-                  ),
+                  Icon(Icons.local_shipping_outlined, size: 48, color: AppColors.textTertiary),
                   SizedBox(height: 16),
-                  Text(
-                    'No trucks yet. Tap + to register your first one.',
-                    textAlign: TextAlign.center,
-                  ),
+                  Text('No trucks yet. Tap + to register your first one.', textAlign: TextAlign.center),
                 ],
               ),
             );
           }
 
-          final onJobCount = trucks
-              .where((t) => t.currentStatus == 'on_job')
-              .length;
-          final pendingCount = trucks
-              .where((t) => t.verificationStatus == 'pending')
-              .length;
+          final onJobCount = trucks.where((t) => t.currentStatus == 'on_job').length;
+          final pendingCount = trucks.where((t) => t.verificationStatus == 'pending').length;
 
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -111,39 +122,27 @@ class TruckListTabState extends State<TruckListTab> {
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return _FleetStatsBar(
-                    total: trucks.length,
-                    onJob: onJobCount,
-                    pendingVerification: pendingCount,
-                  );
+                  return _FleetStatsBar(total: trucks.length, onJob: onJobCount, pendingVerification: pendingCount);
                 }
                 final truck = trucks[index - 1];
 
                 return _TruckCard(
                   truck: truck,
-                  onTap: truck.isRejected
-                      ? () => _openAddTruck(resubmit: truck)
-                      : null,
+                  onTap: truck.isRejected ? () => _openAddTruck(resubmit: truck) : null,
+                  onDelete: truck.isIdle ? () => _deleteTruck(truck) : null,
                 );
               },
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openAddTruck(),
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: FloatingActionButton(onPressed: () => _openAddTruck(), child: const Icon(Icons.add)),
     );
   }
 }
 
 class _FleetStatsBar extends StatelessWidget {
-  const _FleetStatsBar({
-    required this.total,
-    required this.onJob,
-    required this.pendingVerification,
-  });
+  const _FleetStatsBar({required this.total, required this.onJob, required this.pendingVerification});
 
   final int total;
   final int onJob;
@@ -189,17 +188,9 @@ class _Stat extends StatelessWidget {
         children: [
           Text(
             '$value',
-            style: TextStyle(
-              fontFamily: 'Barlow Condensed',
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
-            ),
+            style: TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primary),
           ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-          ),
+          Text(label, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -207,10 +198,14 @@ class _Stat extends StatelessWidget {
 }
 
 class _TruckCard extends StatelessWidget {
-  const _TruckCard({required this.truck, this.onTap});
+  const _TruckCard({required this.truck, this.onTap, this.onDelete});
 
   final Truck truck;
   final VoidCallback? onTap;
+
+  /// Null when the truck is on a job — a company may only remove an idle
+  /// truck, never one currently out on work.
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -233,10 +228,7 @@ class _TruckCard extends StatelessWidget {
                       width: 48,
                       height: 48,
                       color: AppColors.border,
-                      child: Icon(
-                        Icons.local_shipping_outlined,
-                        color: AppColors.textTertiary,
-                      ),
+                      child: Icon(Icons.local_shipping_outlined, color: AppColors.textTertiary),
                     )
                   : Image.network(
                       truck.photoUrls.first,
@@ -247,10 +239,7 @@ class _TruckCard extends StatelessWidget {
                         width: 48,
                         height: 48,
                         color: AppColors.border,
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          color: AppColors.textTertiary,
-                        ),
+                        child: Icon(Icons.broken_image_outlined, color: AppColors.textTertiary),
                       ),
                     ),
             ),
@@ -261,30 +250,17 @@ class _TruckCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        truck.makeModel,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Text(truck.makeModel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                       const SizedBox(width: 7),
                       Text(
                         truck.registrationNumber,
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
+                        style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                   Text(
                     '${truck.vehicleType} · ${truck.capacityTons.toStringAsFixed(0)} t',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -299,21 +275,14 @@ class _TruckCard extends StatelessWidget {
                             _ => AppColors.statusPending,
                           },
                           label: switch (truck.verificationStatus) {
-                            'approved' =>
-                              truck.currentStatus == 'on_job'
-                                  ? 'On a job'
-                                  : 'Available',
+                            'approved' => truck.currentStatus == 'on_job' ? 'On a job' : 'Available',
                             'rejected' => 'Rejected — tap to fix',
                             _ => 'Pending verification',
                           },
                         ),
                         _Chip(
-                          color: truck.gpsStatus == 'connected'
-                              ? AppColors.statusLive
-                              : AppColors.statusIdle,
-                          label: truck.gpsStatus == 'connected'
-                              ? 'GPS on'
-                              : 'GPS off',
+                          color: truck.gpsStatus == 'connected' ? AppColors.statusLive : AppColors.statusIdle,
+                          label: truck.gpsStatus == 'connected' ? 'GPS on' : 'GPS off',
                           filled: false,
                         ),
                       ],
@@ -321,6 +290,11 @@ class _TruckCard extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            IconButton(
+              icon: Icon(Icons.delete_outline, color: onDelete != null ? AppColors.statusError : AppColors.textTertiary),
+              tooltip: onDelete != null ? 'Remove truck' : 'Only an idle truck (not on a job) can be removed',
+              onPressed: onDelete,
             ),
           ],
         ),
@@ -355,11 +329,7 @@ class _Chip extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: filled ? color : AppColors.textLabel,
-            ),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: filled ? color : AppColors.textLabel),
           ),
         ],
       ),

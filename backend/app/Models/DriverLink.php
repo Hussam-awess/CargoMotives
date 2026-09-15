@@ -73,7 +73,10 @@ class DriverLink extends Model
 
     public function driver(): BelongsTo
     {
-        return $this->belongsTo(Driver::class);
+        // withTrashed(): an old (expired/used) link must keep resolving
+        // its driver even after the company later removes that driver
+        // from its roster — same reasoning as Job::assignedDriver().
+        return $this->belongsTo(Driver::class)->withTrashed();
     }
 
     public function proofOfDelivery(): HasOne

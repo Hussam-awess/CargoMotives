@@ -102,14 +102,19 @@ class Job extends Model
         return $this->belongsTo(TransporterCompany::class, 'assigned_company_id');
     }
 
+    // withTrashed() on both: a company can now remove a truck/driver once
+    // idle (TruckController::destroy(), DriverController::destroy()), but
+    // a job's own historical record — including a completed one from
+    // months ago — must keep showing which truck/driver actually did the
+    // work regardless of later fleet changes.
     public function assignedTruck(): BelongsTo
     {
-        return $this->belongsTo(Truck::class, 'assigned_truck_id');
+        return $this->belongsTo(Truck::class, 'assigned_truck_id')->withTrashed();
     }
 
     public function assignedDriver(): BelongsTo
     {
-        return $this->belongsTo(Driver::class, 'assigned_driver_id');
+        return $this->belongsTo(Driver::class, 'assigned_driver_id')->withTrashed();
     }
 
     public function bids(): HasMany

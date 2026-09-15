@@ -15,12 +15,7 @@ import 'company_job_detail_screen.dart';
 /// agreed price before a bid is accepted; showing the bid count instead is
 /// the real number a transporter cares about here).
 class JobListView extends StatefulWidget {
-  const JobListView({
-    super.key,
-    required this.loader,
-    required this.emptyMessage,
-    this.showCustomerTrustSignal = false,
-  });
+  const JobListView({super.key, required this.loader, required this.emptyMessage, this.showCustomerTrustSignal = false});
 
   final Future<List<Job>> Function() loader;
   final String emptyMessage;
@@ -46,7 +41,16 @@ class _JobListViewState extends State<JobListView> {
 
   Future<void> _refresh() async {
     final future = widget.loader();
-    setState(() => _future = future);
+    // A block body, not an arrow (`() => _future = ...`) — an arrow
+    // closure's value IS the assignment's value (a Future here), and
+    // Flutter's setState() explicitly rejects a callback that returns one.
+    // In a release build this assert is stripped and the assignment still
+    // takes effect harmlessly, but in debug (e.g. `flutter run` without
+    // --release) every pull-to-refresh here threw and never updated the
+    // list — the likely real cause behind "Find Jobs doesn't work".
+    setState(() {
+      _future = future;
+    });
     await future;
   }
 
@@ -65,10 +69,7 @@ class _JobListViewState extends State<JobListView> {
               children: [
                 const Text('Could not load jobs.'),
                 const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: _refresh,
-                  child: const Text('Try again'),
-                ),
+                OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
               ],
             ),
           );
@@ -82,11 +83,7 @@ class _JobListViewState extends State<JobListView> {
               padding: const EdgeInsets.all(24),
               children: [
                 const SizedBox(height: 80),
-                Icon(
-                  Icons.work_outline,
-                  size: 48,
-                  color: AppColors.textTertiary,
-                ),
+                Icon(Icons.work_outline, size: 48, color: AppColors.textTertiary),
                 const SizedBox(height: 16),
                 Text(widget.emptyMessage, textAlign: TextAlign.center),
               ],
@@ -107,11 +104,7 @@ class _JobListViewState extends State<JobListView> {
                 job: job,
                 showCustomerTrustSignal: widget.showCustomerTrustSignal,
                 onTap: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CompanyJobDetailScreen(jobId: job.id),
-                    ),
-                  );
+                  await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CompanyJobDetailScreen(jobId: job.id)));
                   _refresh();
                 },
               );
@@ -124,11 +117,7 @@ class _JobListViewState extends State<JobListView> {
 }
 
 class _JobBoardCard extends StatelessWidget {
-  const _JobBoardCard({
-    required this.job,
-    required this.onTap,
-    this.showCustomerTrustSignal = false,
-  });
+  const _JobBoardCard({required this.job, required this.onTap, this.showCustomerTrustSignal = false});
 
   final Job job;
   final VoidCallback onTap;
@@ -136,17 +125,8 @@ class _JobBoardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final distance =
-        (job.pickupLat != null &&
-            job.pickupLng != null &&
-            job.dropoffLat != null &&
-            job.dropoffLng != null)
-        ? kmBetween(
-            job.pickupLat!,
-            job.pickupLng!,
-            job.dropoffLat!,
-            job.dropoffLng!,
-          )
+    final distance = (job.pickupLat != null && job.pickupLng != null && job.dropoffLat != null && job.dropoffLng != null)
+        ? kmBetween(job.pickupLat!, job.pickupLng!, job.dropoffLat!, job.dropoffLng!)
         : null;
 
     return InkWell(
@@ -157,13 +137,7 @@ class _JobBoardCard extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(10),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D1D2D3D),
-              blurRadius: 2,
-              offset: Offset(0, 1),
-            ),
-          ],
+          boxShadow: const [BoxShadow(color: Color(0x0D1D2D3D), blurRadius: 2, offset: Offset(0, 1))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,11 +151,7 @@ class _JobBoardCard extends StatelessWidget {
                     children: [
                       Text(
                         'CM-${job.id.toString().padLeft(4, '0')}',
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11.5,
-                          color: AppColors.textSecondary,
-                        ),
+                        style: TextStyle(fontFamily: 'monospace', fontSize: 11.5, color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -196,10 +166,7 @@ class _JobBoardCard extends StatelessWidget {
                       Text(
                         '${job.containerType} · ${job.containerSize}${job.approxWeightTons != null ? ' · ${job.approxWeightTons!.toStringAsFixed(0)} t' : ''}'
                         '${job.isOpen ? ' · ${job.bidsCount ?? 0} bid${job.bidsCount == 1 ? '' : 's'}' : ''}',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
@@ -218,13 +185,7 @@ class _JobBoardCard extends StatelessWidget {
                           color: AppColors.primary,
                         ),
                       ),
-                      Text(
-                        job.currency,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                      Text(job.currency, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                     ],
                   )
                 else if (job.isOpen && job.budgetPrice != null)
@@ -240,13 +201,7 @@ class _JobBoardCard extends StatelessWidget {
                           color: AppColors.primary,
                         ),
                       ),
-                      Text(
-                        '${job.currency} budget',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                      Text('${job.currency} budget', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                     ],
                   )
                 else if (job.isOpen)
@@ -262,34 +217,20 @@ class _JobBoardCard extends StatelessWidget {
                           color: AppColors.primary,
                         ),
                       ),
-                      Text(
-                        'bids so far',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                      Text('bids so far', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                     ],
                   ),
               ],
             ),
-            if (showCustomerTrustSignal &&
-                job.customerCompletedJobsCount != null) ...[
+            if (showCustomerTrustSignal && job.customerCompletedJobsCount != null) ...[
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(
-                    Icons.verified_outlined,
-                    size: 13,
-                    color: AppColors.accent,
-                  ),
+                  const Icon(Icons.verified_outlined, size: 13, color: AppColors.accent),
                   const SizedBox(width: 4),
                   Text(
                     '${job.customerCompletedJobsCount} completed shipment${job.customerCompletedJobsCount == 1 ? '' : 's'} on Cargo Motives',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -306,19 +247,14 @@ class _JobBoardCard extends StatelessWidget {
                   Text(
                     'Pickup ${DateFormat('d MMM, HH:mm').format(job.preferredPickupWindowStart)}'
                     '${distance != null ? ' · ${distance.toStringAsFixed(0)} km' : ''}',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                   ),
                   Text(
                     job.isOpen ? 'Place bid' : jobStatusLabel(job.status),
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
-                      color: job.isOpen
-                          ? AppColors.ctaBlue
-                          : jobStatusColor(job.status),
+                      color: job.isOpen ? AppColors.ctaBlue : jobStatusColor(job.status),
                     ),
                   ),
                 ],

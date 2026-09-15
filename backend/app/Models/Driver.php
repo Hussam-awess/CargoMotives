@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * A company's driver roster entry (Backend Schema §2.4). Never an account —
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Driver extends Model
 {
     /** @use HasFactory<DriverFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * Mirrors the migration's column default — see User::$attributes for

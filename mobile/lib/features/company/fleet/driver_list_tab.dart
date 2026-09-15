@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/driver_repository.dart';
 import 'add_driver_screen.dart';
 
 /// "Fleet -> Drivers: simple roster" — AppFlow §2.2.
 class DriverListTab extends StatefulWidget {
-  DriverListTab({super.key, DriverRepository? repository})
-    : repository = repository ?? DriverRepository();
+  DriverListTab({super.key, DriverRepository? repository}) : repository = repository ?? DriverRepository();
 
   final DriverRepository repository;
 
@@ -26,18 +26,50 @@ class _DriverListTabState extends State<DriverListTab> {
 
   Future<void> _refresh() async {
     final future = widget.repository.list();
-    setState(() => _future = future);
+    // A block body, not an arrow (`() => _future = ...`) — an arrow
+    // closure's value IS the assignment's value (a Future here), and
+    // Flutter's setState() explicitly rejects a callback that returns one.
+    setState(() {
+      _future = future;
+    });
     await future;
   }
 
   Future<void> _openAddDriver({Driver? edit}) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            AddDriverScreen(repository: widget.repository, editDriver: edit),
+        builder: (_) => AddDriverScreen(repository: widget.repository, editDriver: edit),
       ),
     );
     if (saved == true) await _refresh();
+  }
+
+  Future<void> _deleteDriver(Driver driver) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove this driver?'),
+        content: Text('${driver.fullName} will be removed from your roster. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await widget.repository.delete(driver.id);
+      await _refresh();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.firstErrorFor('driver') ?? e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not remove that driver. Try again.')));
+      }
+    }
   }
 
   @override
@@ -56,10 +88,7 @@ class _DriverListTabState extends State<DriverListTab> {
                 children: [
                   const Text('Could not load your drivers.'),
                   const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _refresh,
-                    child: const Text('Try again'),
-                  ),
+                  OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
                 ],
               ),
             );
@@ -73,16 +102,9 @@ class _DriverListTabState extends State<DriverListTab> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   SizedBox(height: 80),
-                  Icon(
-                    Icons.badge_outlined,
-                    size: 48,
-                    color: AppColors.textTertiary,
-                  ),
+                  Icon(Icons.badge_outlined, size: 48, color: AppColors.textTertiary),
                   SizedBox(height: 16),
-                  Text(
-                    'No drivers yet. Tap + to add one.',
-                    textAlign: TextAlign.center,
-                  ),
+                  Text('No drivers yet. Tap + to add one.', textAlign: TextAlign.center),
                 ],
               ),
             );
@@ -100,31 +122,28 @@ class _DriverListTabState extends State<DriverListTab> {
                 return _DriverCard(
                   driver: driver,
                   onTap: () => _openAddDriver(edit: driver),
+                  onDelete: () => _deleteDriver(driver),
                 );
               },
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openAddDriver(),
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: FloatingActionButton(onPressed: () => _openAddDriver(), child: const Icon(Icons.add)),
     );
   }
 }
 
 class _DriverCard extends StatelessWidget {
-  const _DriverCard({required this.driver, required this.onTap});
+  const _DriverCard({required this.driver, required this.onTap, required this.onDelete});
 
   final Driver driver;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final initial = driver.fullName.trim().isEmpty
-        ? '?'
-        : driver.fullName.trim()[0].toUpperCase();
+    final initial = driver.fullName.trim().isEmpty ? '?' : driver.fullName.trim()[0].toUpperCase();
 
     return InkWell(
       onTap: onTap,
@@ -140,19 +159,11 @@ class _DriverCard extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.infoTint,
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(8)),
               alignment: Alignment.center,
               child: Text(
                 initial,
-                style: const TextStyle(
-                  fontFamily: 'Barlow Condensed',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ctaBlue,
-                ),
+                style: const TextStyle(fontFamily: 'Barlow Condensed', fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ctaBlue),
               ),
             ),
             const SizedBox(width: 12),
@@ -160,23 +171,10 @@ class _DriverCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(driver.fullName, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
                   Text(
-                    driver.fullName,
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    [
-                      driver.phoneNumber,
-                      if (driver.licenseNumber != null)
-                        'License ${driver.licenseNumber}',
-                    ].join(' · '),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                    [driver.phoneNumber, if (driver.licenseNumber != null) 'License ${driver.licenseNumber}'].join(' · '),
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -184,11 +182,7 @@ class _DriverCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color:
-                    (driver.isActive
-                            ? AppColors.statusLive
-                            : AppColors.statusIdle)
-                        .withValues(alpha: 0.1),
+                color: (driver.isActive ? AppColors.statusLive : AppColors.statusIdle).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -196,11 +190,14 @@ class _DriverCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: driver.isActive
-                      ? AppColors.statusLive
-                      : AppColors.textSecondary,
+                  color: driver.isActive ? AppColors.statusLive : AppColors.textSecondary,
                 ),
               ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColors.statusError),
+              tooltip: 'Remove driver',
+              onPressed: onDelete,
             ),
           ],
         ),

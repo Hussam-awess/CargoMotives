@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Company;
 
+use App\Models\Job;
 use App\Models\TransporterCompany;
 use App\Models\Truck;
 use App\Models\User;
@@ -158,5 +159,54 @@ class TruckTest extends TestCase
             ->postJson('/api/company/trucks', $this->validPayload(['photos' => []]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('photos');
+    }
+
+    public function test_an_idle_truck_can_be_removed(): void
+    {
+        $user = $this->approvedCompanyUser();
+        $truck = Truck::factory()->approved()->for($user->transporterCompany, 'company')->create(['current_status' => 'idle']);
+
+        $this->actingAs($user)
+            ->deleteJson("/api/company/trucks/{$truck->id}")
+            ->assertOk();
+
+        $this->assertSoftDeleted('trucks', ['id' => $truck->id]);
+    }
+
+    public function test_a_truck_on_a_job_cannot_be_removed(): void
+    {
+        $user = $this->approvedCompanyUser();
+        $truck = Truck::factory()->approved()->for($user->transporterCompany, 'company')->create(['current_status' => 'on_job']);
+
+        $this->actingAs($user)
+            ->deleteJson("/api/company/trucks/{$truck->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('truck');
+
+        $this->assertDatabaseHas('trucks', ['id' => $truck->id, 'deleted_at' => null]);
+    }
+
+    public function test_cannot_remove_another_companys_truck(): void
+    {
+        $user = $this->approvedCompanyUser();
+        $otherTruck = Truck::factory()->approved()->create(['current_status' => 'idle']);
+
+        $this->actingAs($user)
+            ->deleteJson("/api/company/trucks/{$otherTruck->id}")
+            ->assertNotFound();
+    }
+
+    public function test_a_removed_trucks_registration_still_shows_on_its_past_jobs(): void
+    {
+        $user = $this->approvedCompanyUser();
+        $truck = Truck::factory()->approved()->for($user->transporterCompany, 'company')->create([
+            'current_status' => 'idle',
+            'registration_number' => 'T 999 XYZ',
+        ]);
+        $job = Job::factory()->create(['assigned_truck_id' => $truck->id, 'status' => 'completed']);
+
+        $this->actingAs($user)->deleteJson("/api/company/trucks/{$truck->id}")->assertOk();
+
+        $this->assertSame('T 999 XYZ', $job->fresh()->assignedTruck->registration_number);
     }
 }

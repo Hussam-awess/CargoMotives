@@ -97,9 +97,7 @@ class TruckRepository {
   Future<List<Truck>> list() async {
     final body = await _client.get('/company/trucks');
 
-    return (body['data'] as List)
-        .map((e) => Truck.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return (body['data'] as List).map((e) => Truck.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// The Featured "fleet map" (AppFlow §2.7) — Featured-only server-side;
@@ -111,10 +109,7 @@ class TruckRepository {
     return (body['data'] as List).map((e) => Truck.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<Truck> submit(
-    TruckSubmission submission, {
-    int? resubmitTruckId,
-  }) async {
+  Future<Truck> submit(TruckSubmission submission, {int? resubmitTruckId}) async {
     final formData = FormData.fromMap(
       {
         'registration_number': submission.registrationNumber,
@@ -124,10 +119,7 @@ class TruckRepository {
         'photos': await Future.wait(submission.photos.map(_toMultipart)),
         'registration_card': await _toMultipart(submission.registrationCard),
         'insurance': await _toMultipart(submission.insurance),
-        if (submission.roadworthinessPermit != null)
-          'roadworthiness_permit': await _toMultipart(
-            submission.roadworthinessPermit!,
-          ),
+        if (submission.roadworthinessPermit != null) 'roadworthiness_permit': await _toMultipart(submission.roadworthinessPermit!),
       },
       // Dio's default ListFormat.multi only brackets a list entry when the
       // entry is itself a Map/List — a MultipartFile isn't, so every photo
@@ -138,13 +130,16 @@ class TruckRepository {
       ListFormat.multiCompatible,
     );
 
-    final path = resubmitTruckId == null
-        ? '/company/trucks'
-        : '/company/trucks/$resubmitTruckId';
+    final path = resubmitTruckId == null ? '/company/trucks' : '/company/trucks/$resubmitTruckId';
     final body = await _client.postForm(path, formData);
 
     return Truck.fromJson(body['data'] as Map<String, dynamic>);
   }
+
+  /// Only allowed while the truck is idle (Truck.isIdle) — the backend
+  /// re-checks this itself (current_status !== 'idle' throws a 422), this
+  /// is just the client-side gate that keeps the UI from offering it.
+  Future<void> delete(int truckId) => _client.delete('/company/trucks/$truckId');
 
   Future<MultipartFile> _toMultipart(PlatformFile file) async {
     if (file.bytes != null) {

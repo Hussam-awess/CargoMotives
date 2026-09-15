@@ -31,33 +31,35 @@ const _rejectedTruck = Truck(
   currentStatus: 'idle',
 );
 
+const _onJobTruck = Truck(
+  id: 3,
+  registrationNumber: 'T 789 QRS',
+  makeModel: 'Scania R',
+  vehicleType: 'Flatbed',
+  capacityTons: 20,
+  photoUrls: [],
+  verificationStatus: 'approved',
+  rejectedReason: null,
+  gpsStatus: 'not_connected',
+  currentStatus: 'on_job',
+);
+
 void main() {
   testWidgets('shows an empty state when there are no trucks', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: TruckListTab(
-          repository: FakeTruckRepository(onList: () async => []),
-        ),
+        home: TruckListTab(repository: FakeTruckRepository(onList: () async => [])),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('No trucks yet. Tap + to register your first one.'),
-      findsOneWidget,
-    );
+    expect(find.text('No trucks yet. Tap + to register your first one.'), findsOneWidget);
   });
 
-  testWidgets('lists trucks with their verification and GPS status', (
-    tester,
-  ) async {
+  testWidgets('lists trucks with their verification and GPS status', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: TruckListTab(
-          repository: FakeTruckRepository(
-            onList: () async => [_approvedTruck, _rejectedTruck],
-          ),
-        ),
+        home: TruckListTab(repository: FakeTruckRepository(onList: () async => [_approvedTruck, _rejectedTruck])),
       ),
     );
     await tester.pumpAndSettle();
@@ -69,14 +71,10 @@ void main() {
     expect(find.text('GPS off'), findsNWidgets(2));
   });
 
-  testWidgets('tapping a rejected truck opens the resubmit form prefilled', (
-    tester,
-  ) async {
+  testWidgets('tapping a rejected truck opens the resubmit form prefilled', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: TruckListTab(
-          repository: FakeTruckRepository(onList: () async => [_rejectedTruck]),
-        ),
+        home: TruckListTab(repository: FakeTruckRepository(onList: () async => [_rejectedTruck])),
       ),
     );
     await tester.pumpAndSettle();
@@ -86,20 +84,13 @@ void main() {
 
     expect(find.text('Resubmit truck'), findsOneWidget);
     expect(find.text('Insurance expired.'), findsOneWidget);
-    expect(
-      find.widgetWithText(TextFormField, 'Registration number'),
-      findsOneWidget,
-    );
+    expect(find.widgetWithText(TextFormField, 'Registration number'), findsOneWidget);
   });
 
-  testWidgets('tapping an approved truck does nothing (not editable)', (
-    tester,
-  ) async {
+  testWidgets('tapping an approved truck does nothing (not editable)', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: TruckListTab(
-          repository: FakeTruckRepository(onList: () async => [_approvedTruck]),
-        ),
+        home: TruckListTab(repository: FakeTruckRepository(onList: () async => [_approvedTruck])),
       ),
     );
     await tester.pumpAndSettle();
@@ -109,5 +100,44 @@ void main() {
 
     expect(find.text('Resubmit truck'), findsNothing);
     expect(find.text('T 123 ABC'), findsOneWidget);
+  });
+
+  testWidgets('removing an idle truck after confirming calls delete and refreshes the list', (tester) async {
+    int? deletedId;
+    var trucks = [_approvedTruck];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TruckListTab(
+          repository: FakeTruckRepository(
+            onList: () async => trucks,
+            onDelete: (id) async {
+              deletedId = id;
+              trucks = [];
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+
+    expect(deletedId, 1);
+    expect(find.text('T 123 ABC'), findsNothing);
+  });
+
+  testWidgets('a truck on a job has its remove button disabled', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TruckListTab(repository: FakeTruckRepository(onList: () async => [_onJobTruck])),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = tester.widget<IconButton>(find.ancestor(of: find.byIcon(Icons.delete_outline), matching: find.byType(IconButton)));
+    expect(button.onPressed, isNull);
   });
 }

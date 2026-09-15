@@ -81,9 +81,7 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
   }
 
   Future<void> _openAddTruck() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => AddTruckScreen(repository: widget.truckRepository)));
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTruckScreen(repository: widget.truckRepository)));
     _homeTabKey.currentState?.refresh();
   }
 
@@ -106,6 +104,7 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
         companyJobRepository: widget.companyJobRepository,
         truckRepository: widget.truckRepository,
         driverRepository: widget.driverRepository,
+        onFindJobs: () => setState(() => _index = 1),
         onManageFleet: _openFleet,
         onAddTruck: _openAddTruck,
       ),

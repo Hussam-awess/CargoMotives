@@ -8,6 +8,7 @@ use App\Http\Resources\TruckResource;
 use App\Models\TransporterCompany;
 use App\Models\Truck;
 use App\Services\Documents\DocumentStorage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\ValidationException;
@@ -68,6 +69,27 @@ class TruckController extends Controller
         }
 
         return new TruckResource($this->save($request, $request->user()->transporterCompany, $truck));
+    }
+
+    /**
+     * A company may remove a truck only while it's idle — not out on a
+     * job (PRD: fleet changes must never disrupt work in progress). Soft
+     * delete: past jobs keep resolving this truck's registration/GPS
+     * history via Job::assignedTruck()'s own withTrashed().
+     */
+    public function destroy(Request $request, Truck $truck): JsonResponse
+    {
+        $this->authorizeOwnership($request, $truck);
+
+        if ($truck->current_status !== 'idle') {
+            throw ValidationException::withMessages([
+                'truck' => ['This truck is currently on a job and cannot be removed.'],
+            ]);
+        }
+
+        $truck->delete();
+
+        return response()->json(['message' => 'Truck removed.']);
     }
 
     private function authorizeOwnership(Request $request, Truck $truck): void

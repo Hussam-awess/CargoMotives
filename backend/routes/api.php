@@ -142,10 +142,12 @@ Route::prefix('company')->middleware(['auth-active', 'account_type:transporter_c
         Route::post('/trucks', [TruckController::class, 'store']);
         Route::get('/trucks/{truck}', [TruckController::class, 'show']);
         Route::post('/trucks/{truck}', [TruckController::class, 'update']);
+        Route::delete('/trucks/{truck}', [TruckController::class, 'destroy']);
 
         Route::get('/drivers', [DriverController::class, 'index']);
         Route::post('/drivers', [DriverController::class, 'store']);
         Route::post('/drivers/{driver}', [DriverController::class, 'update']);
+        Route::delete('/drivers/{driver}', [DriverController::class, 'destroy']);
 
         // Jobs & Bidding (AppFlow §2.4) — the three Jobs-home tabs.
         Route::get('/jobs/open', [CompanyJobController::class, 'open']);

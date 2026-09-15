@@ -3,6 +3,7 @@
 namespace Tests\Feature\Company;
 
 use App\Models\Driver;
+use App\Models\Job;
 use App\Models\TransporterCompany;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -110,5 +111,64 @@ class DriverTest extends TestCase
 
         $response->assertOk();
         $this->assertCount(1, $response->json('data'));
+    }
+
+    public function test_an_idle_driver_can_be_removed(): void
+    {
+        $user = $this->approvedCompanyUser();
+        $driver = Driver::factory()->for($user->transporterCompany, 'company')->create();
+
+        $this->actingAs($user)
+            ->deleteJson("/api/company/drivers/{$driver->id}")
+            ->assertOk();
+
+        $this->assertSoftDeleted('drivers', ['id' => $driver->id]);
+    }
+
+    public function test_a_driver_on_a_trip_cannot_be_removed(): void
+    {
+        $user = $this->approvedCompanyUser();
+        $driver = Driver::factory()->for($user->transporterCompany, 'company')->create();
+        Job::factory()->create(['assigned_driver_id' => $driver->id, 'status' => 'in_transit']);
+
+        $this->actingAs($user)
+            ->deleteJson("/api/company/drivers/{$driver->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('driver');
+
+        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'deleted_at' => null]);
+    }
+
+    public function test_cannot_remove_another_companys_driver(): void
+    {
+        $userA = $this->approvedCompanyUser();
+        $userB = $this->approvedCompanyUser();
+        $driver = Driver::factory()->for($userB->transporterCompany, 'company')->create();
+
+        $this->actingAs($userA)
+            ->deleteJson("/api/company/drivers/{$driver->id}")
+            ->assertNotFound();
+    }
+
+    public function test_a_removed_drivers_name_still_shows_on_its_past_jobs(): void
+    {
+        $user = $this->approvedCompanyUser();
+        $driver = Driver::factory()->for($user->transporterCompany, 'company')->create(['full_name' => 'Juma Hassan']);
+        $job = Job::factory()->create(['assigned_driver_id' => $driver->id, 'status' => 'completed']);
+
+        $this->actingAs($user)->deleteJson("/api/company/drivers/{$driver->id}")->assertOk();
+
+        $this->assertSame('Juma Hassan', $job->fresh()->assignedDriver->full_name);
+    }
+
+    public function test_a_driver_with_a_completed_trip_but_no_current_one_can_be_removed(): void
+    {
+        $user = $this->approvedCompanyUser();
+        $driver = Driver::factory()->for($user->transporterCompany, 'company')->create();
+        Job::factory()->create(['assigned_driver_id' => $driver->id, 'status' => 'completed']);
+
+        $this->actingAs($user)
+            ->deleteJson("/api/company/drivers/{$driver->id}")
+            ->assertOk();
     }
 }

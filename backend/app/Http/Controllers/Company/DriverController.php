@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\SaveDriverRequest;
 use App\Http\Resources\DriverResource;
 use App\Models\Driver;
+use App\Models\Job;
 use App\Models\TransporterCompany;
 use App\Services\Auth\PhoneNumberNormalizer;
 use App\Services\Documents\DocumentStorage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\ValidationException;
@@ -39,6 +41,34 @@ class DriverController extends Controller
         abort_unless($driver->transporter_company_id === $request->user()->transporterCompany->id, 404);
 
         return new DriverResource($this->save($request, $request->user()->transporterCompany, $driver));
+    }
+
+    /**
+     * A company may remove a driver only while idle — not currently
+     * assigned to a job still in progress. Unlike Truck (a current_status
+     * column kept in sync by JobAssignmentService), a driver has no such
+     * column, so "on a trip" is derived directly from whether any job
+     * still assigns them (mirrors Job::isGpsTrackable()'s own status list).
+     * Soft delete: past jobs and driver links keep resolving this driver
+     * via their own withTrashed() relations.
+     */
+    public function destroy(Request $request, Driver $driver): JsonResponse
+    {
+        abort_unless($driver->transporter_company_id === $request->user()->transporterCompany->id, 404);
+
+        $onATrip = Job::where('assigned_driver_id', $driver->id)
+            ->whereIn('status', ['assigned', 'en_route_pickup', 'picked_up', 'in_transit'])
+            ->exists();
+
+        if ($onATrip) {
+            throw ValidationException::withMessages([
+                'driver' => ['This driver is currently on a trip and cannot be removed.'],
+            ]);
+        }
+
+        $driver->delete();
+
+        return response()->json(['message' => 'Driver removed.']);
     }
 
     private function save(SaveDriverRequest $request, TransporterCompany $company, ?Driver $driver): Driver
