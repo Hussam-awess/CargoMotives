@@ -274,6 +274,8 @@ class _NotificationRow extends StatelessWidget {
     'company_rejected' ||
     'truck_rejected' ||
     'company_flagged_duplicate' => (Icons.report_gmailerrorred_outlined, false),
+    'new_job_posted' => (Icons.local_shipping_outlined, true),
+    're_engagement' => (Icons.notifications_active_outlined, true),
     _ => (Icons.notifications_none, false),
   };
 

@@ -26,8 +26,36 @@ use App\Models\User;
  */
 class NotificationService
 {
-    public function send(User $user, string $type, string $title, string $body, ?Job $relatedJob = null): Notification
+    /**
+     * Maps a notification `type` to the Settings-screen toggle that gates
+     * it (App::Companies\Settings / Customer\Settings). A type not listed
+     * here (verification outcomes, the inactivity nudge) is never gated —
+     * those are outcomes a user needs to know about regardless of their
+     * discretionary preferences, not the kind of thing a "notifications"
+     * toggle is meant to quiet.
+     *
+     * @var array<string, string>
+     */
+    private const CATEGORY_BY_TYPE = [
+        'new_bid' => 'bids',
+        'bid_accepted' => 'bids',
+        'bid_not_selected' => 'bids',
+        'proof_of_delivery_submitted' => 'shipment_updates',
+        'delivery_confirmed' => 'shipment_updates',
+        'gps_signal_lost' => 'shipment_updates',
+        'new_message' => 'messages',
+        'support_message' => 'messages',
+        'new_job_posted' => 'new_job_matches',
+    ];
+
+    public function send(User $user, string $type, string $title, string $body, ?Job $relatedJob = null): ?Notification
     {
+        $category = self::CATEGORY_BY_TYPE[$type] ?? null;
+
+        if ($category !== null && ! $user->wantsNotificationCategory($category)) {
+            return null;
+        }
+
         $notification = Notification::create([
             'user_id' => $user->id,
             'type' => $type,

@@ -22,6 +22,7 @@ class FakeAuthRepository extends AuthRepository {
     this.onUpdateEmail,
     this.onUpdateAvatar,
     this.onUpdateBusinessIdentity,
+    this.onUpdateNotificationPreferences,
   });
 
   final Future<void> Function(
@@ -53,6 +54,8 @@ class FakeAuthRepository extends AuthRepository {
   final Future<UserProfile> Function(PlatformFile avatar)? onUpdateAvatar;
   final Future<UserProfile> Function(String? companyName, PlatformFile? logo)?
   onUpdateBusinessIdentity;
+  final Future<UserProfile> Function(Map<String, bool> preferences)?
+  onUpdateNotificationPreferences;
 
   @override
   Future<void> requestOtp({
@@ -201,6 +204,27 @@ class FakeAuthRepository extends AuthRepository {
             fullName: 'Test User',
             companyName: companyName,
             isFeatured: false,
+          ),
+        );
+  }
+
+  @override
+  Future<UserProfile> updateNotificationPreferences(
+    Map<String, bool> preferences,
+  ) {
+    return onUpdateNotificationPreferences?.call(preferences) ??
+        Future.value(
+          UserProfile(
+            fullName: 'Test User',
+            companyName: null,
+            isFeatured: false,
+            notificationPreferences: {
+              'bids': true,
+              'shipment_updates': true,
+              'messages': true,
+              'new_job_matches': true,
+              ...preferences,
+            },
           ),
         );
   }

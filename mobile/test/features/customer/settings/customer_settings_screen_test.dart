@@ -4,6 +4,7 @@ import 'package:cargo_motives/core/theme/theme_controller.dart';
 import 'package:cargo_motives/core/theme/theme_scope.dart';
 import 'package:cargo_motives/features/auth/data/auth_repository.dart';
 import 'package:cargo_motives/features/customer/settings/customer_settings_screen.dart';
+import 'package:cargo_motives/features/support/settings_widgets.dart';
 import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -125,4 +126,86 @@ void main() {
     expect(find.text('+255 712 ••• 678'), findsOneWidget);
     expect(find.text('+255712345678'), findsNothing);
   });
+
+  testWidgets(
+    'reflects the server notification preferences, not the LocalPrefs default',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+                notificationPreferences: {
+                  'bids': false,
+                  'shipment_updates': true,
+                  'messages': true,
+                  'new_job_matches': true,
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final newOffersRow = find.widgetWithText(SettingsToggleRow, 'New offers');
+      await tester.scrollUntilVisible(
+        newOffersRow,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      final toggle = tester.widget<Switch>(
+        find.descendant(of: newOffersRow, matching: find.byType(Switch)),
+      );
+      expect(toggle.value, isFalse);
+    },
+  );
+
+  testWidgets(
+    'toggling shipment updates saves the shipment_updates category to the server',
+    (tester) async {
+      Map<String, bool>? saved;
+
+      await tester.pumpWidget(
+        _appUnder(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+              ),
+              onUpdateNotificationPreferences: (preferences) async {
+                saved = preferences;
+                return const UserProfile(
+                  fullName: 'Amina Hassan',
+                  companyName: null,
+                  isFeatured: false,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final row = find.widgetWithText(SettingsToggleRow, 'Shipment updates');
+      await tester.scrollUntilVisible(
+        row,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
+      await tester.pumpAndSettle();
+
+      expect(saved, {'shipment_updates': false});
+    },
+  );
 }

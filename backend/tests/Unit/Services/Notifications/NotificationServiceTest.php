@@ -42,8 +42,37 @@ class NotificationServiceTest extends TestCase
 
         $user = User::factory()->create();
 
-        $notification = (new NotificationService)->send($user, 'commission_hold_applied', 'Account on hold', 'Pay down your balance.');
+        $notification = (new NotificationService)->send($user, 'support_message', 'Support', 'Hello.');
 
         $this->assertNull($notification->related_job_id);
+    }
+
+    public function test_a_user_who_disabled_a_category_is_not_notified(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create(['notification_preferences' => ['bids' => false]]);
+
+        $result = (new NotificationService)->send($user, 'new_bid', 'New bid received', 'Someone bid on your job.');
+
+        $this->assertNull($result);
+        $this->assertDatabaseMissing('notifications', ['user_id' => $user->id]);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_a_type_with_no_category_is_never_gated(): void
+    {
+        Queue::fake();
+
+        // Every category disabled — an ungated type (a verification
+        // outcome, here) must still go through regardless.
+        $user = User::factory()->create(['notification_preferences' => [
+            'bids' => false, 'shipment_updates' => false, 'messages' => false, 'new_job_matches' => false,
+        ]]);
+
+        $notification = (new NotificationService)->send($user, 'company_approved', 'Company verified', 'Congrats.');
+
+        $this->assertNotNull($notification);
+        $this->assertDatabaseHas('notifications', ['id' => $notification->id]);
     }
 }

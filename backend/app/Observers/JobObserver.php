@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Job;
+use App\Models\TransporterCompany;
 use App\Observers\Concerns\ResolvesCurrentActor;
 use App\Services\ActivityLog\ActivityLogger;
 use App\Services\Notifications\NotificationService;
@@ -15,6 +16,37 @@ class JobObserver
         private readonly ActivityLogger $activityLogger,
         private readonly NotificationService $notifications,
     ) {}
+
+    /**
+     * Not in AppFlow §6's own trigger map — every approved company already
+     * sees every open job by browsing Jobs > Open (§2.4) — but requested
+     * directly on top of it, as a proactive nudge rather than relying on a
+     * company to check back. Broadcasts to every approved company the same
+     * way SupportMessage's Admin broadcast does (one row per recipient),
+     * gated by the 'new_job_matches' preference so a company that finds
+     * this noisy can turn it off without losing any other category.
+     */
+    public function created(Job $job): void
+    {
+        TransporterCompany::query()
+            ->where('verification_status', 'approved')
+            ->with('owner')
+            ->chunk(100, function ($companies) use ($job) {
+                foreach ($companies as $company) {
+                    if ($company->owner === null) {
+                        continue;
+                    }
+
+                    $this->notifications->send(
+                        $company->owner,
+                        'new_job_posted',
+                        'New shipment job',
+                        "A new job just went up: {$job->pickup_address} \u{2192} {$job->dropoff_address}.",
+                        $job,
+                    );
+                }
+            });
+    }
 
     public function updated(Job $job): void
     {

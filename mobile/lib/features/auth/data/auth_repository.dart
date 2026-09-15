@@ -22,6 +22,12 @@ class UserProfile {
     this.email,
     this.avatarUrl,
     this.companyLogoUrl,
+    this.notificationPreferences = const {
+      'bids': true,
+      'shipment_updates': true,
+      'messages': true,
+      'new_job_matches': true,
+    },
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -33,6 +39,15 @@ class UserProfile {
       email: json['email'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       companyLogoUrl: json['company_logo_url'] as String?,
+      notificationPreferences:
+          (json['notification_preferences'] as Map<String, dynamic>?)
+              ?.cast<String, bool>() ??
+          const {
+            'bids': true,
+            'shipment_updates': true,
+            'messages': true,
+            'new_job_matches': true,
+          },
     );
   }
 
@@ -50,6 +65,11 @@ class UserProfile {
   /// A Customer's optional business identity (Phase 11) — null for every
   /// other account_type.
   final String? companyLogoUrl;
+
+  /// Keys: bids, shipment_updates, messages, new_job_matches — always
+  /// resolved with every key present (UserResource fills in the default of
+  /// `true` server-side), never a partial map.
+  final Map<String, bool> notificationPreferences;
 }
 
 /// Wraps Transporter Company's phone+OTP endpoints (see backend
@@ -229,6 +249,19 @@ class AuthRepository {
       if (logo != null) 'logo': await _toMultipart(logo),
     });
     final body = await _client.postForm('/auth/profile/business', formData);
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Merges into the existing map server-side (ProfileController::
+  /// updateNotificationPreferences) — safe to call with just the one
+  /// category a Settings toggle just changed.
+  Future<UserProfile> updateNotificationPreferences(
+    Map<String, bool> preferences,
+  ) async {
+    final body = await _client.post(
+      '/auth/profile/notification-preferences',
+      data: preferences,
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 

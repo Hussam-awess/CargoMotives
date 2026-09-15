@@ -93,9 +93,43 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
   Future<void> _loadProfile() async {
     try {
       final profile = await _authRepository.me();
-      if (mounted) setState(() => _profile = profile);
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        // Real backend fields (Phase 12) take over from the LocalPrefs
+        // placeholders _loadToggles() set — 'new offers' is a customer's
+        // own wording for the 'bids' category (a company bidding on their
+        // job), not a literal backend category name.
+        _shipmentUpdates =
+            profile.notificationPreferences['shipment_updates'] ?? true;
+        _newOffers = profile.notificationPreferences['bids'] ?? true;
+      });
     } catch (_) {
       // Non-critical — the phone/email row just stays blank.
+    }
+  }
+
+  Future<void> _setNotificationCategory(
+    String category,
+    bool value,
+    VoidCallback apply,
+  ) async {
+    final previous = _profile?.notificationPreferences[category] ?? true;
+    setState(apply);
+    try {
+      final profile = await _authRepository.updateNotificationPreferences({
+        category: value,
+      });
+      if (mounted) setState(() => _profile = profile);
+    } catch (_) {
+      // Revert on failure — the toggle shouldn't silently claim a
+      // preference stuck that the server never actually saved.
+      if (mounted) {
+        setState(() {
+          if (category == 'shipment_updates') _shipmentUpdates = previous;
+          if (category == 'bids') _newOffers = previous;
+        });
+      }
     }
   }
 
@@ -200,8 +234,8 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                 title: l10n.shipmentUpdatesTitle,
                 subtitle: l10n.shipmentUpdatesSubtitle,
                 value: _shipmentUpdates,
-                onChanged: (v) => _setToggle(
-                  'settings.notif.shipment_updates',
+                onChanged: (v) => _setNotificationCategory(
+                  'shipment_updates',
                   v,
                   () => _shipmentUpdates = v,
                 ),
@@ -210,11 +244,8 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                 title: l10n.newOffersTitle,
                 subtitle: l10n.newOffersSubtitle,
                 value: _newOffers,
-                onChanged: (v) => _setToggle(
-                  'settings.notif.new_offers',
-                  v,
-                  () => _newOffers = v,
-                ),
+                onChanged: (v) =>
+                    _setNotificationCategory('bids', v, () => _newOffers = v),
               ),
               SettingsToggleRow(
                 title: l10n.smsAlertsTitle,

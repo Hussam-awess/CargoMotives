@@ -1,8 +1,10 @@
 <?php
 
 use App\Console\Commands\CheckGpsSignalLoss;
+use App\Console\Commands\NudgeInactiveUsers;
 use App\Http\Middleware\EnsureAccountType;
 use App\Http\Middleware\EnsureCompanyApproved;
+use App\Http\Middleware\TouchLastActive;
 use App\Jobs\PollGpsPositionsJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
@@ -41,6 +43,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // of the poll above so a slow/failing poll cycle never delays
         // detecting signal loss.
         $schedule->command(CheckGpsSignalLoss::class)->everyMinute();
+
+        // Re-engagement nudge (on top of AppFlow §6, not part of it) —
+        // once a day is plenty, this only cares about day-granularity
+        // staleness.
+        $schedule->command(NudgeInactiveUsers::class)->daily();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         // Everywhere else, this is a pure JSON API (no server-rendered
@@ -61,6 +68,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'account_type' => EnsureAccountType::class,
             'company.approved' => EnsureCompanyApproved::class,
         ]);
+
+        // Bundles auth:sanctum with the "haven't opened the app in a
+        // while" activity touch (TouchLastActive) so every authenticated
+        // route group in routes/api.php picks it up by swapping in this
+        // one alias instead of adding a second middleware to each of the
+        // several separate auth:sanctum groups there individually.
+        $middleware->appendToGroup('auth-active', ['auth:sanctum', TouchLastActive::class]);
 
         // TRD §7: "all traffic over HTTPS." Nothing here can enforce that
         // in local dev (no TLS termination exists to trust), but a Phase

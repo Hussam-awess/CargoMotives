@@ -240,4 +240,46 @@ class ProfileChangeTest extends TestCase
             ->postJson('/api/auth/profile/business', ['company_name' => 'New Co'])
             ->assertUnprocessable();
     }
+
+    public function test_notification_preferences_default_to_all_on(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.notification_preferences', [
+                'bids' => true,
+                'shipment_updates' => true,
+                'messages' => true,
+                'new_job_matches' => true,
+            ]);
+    }
+
+    public function test_a_notification_preference_can_be_turned_off(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/notification-preferences', ['bids' => false])
+            ->assertOk()
+            ->assertJsonPath('data.notification_preferences.bids', false)
+            ->assertJsonPath('data.notification_preferences.messages', true);
+
+        $this->assertSame(['bids' => false], $user->fresh()->notification_preferences);
+    }
+
+    public function test_updating_one_preference_does_not_reset_another(): void
+    {
+        $user = User::factory()->create(['notification_preferences' => ['bids' => false]]);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/notification-preferences', ['messages' => false])
+            ->assertOk();
+
+        $this->assertSame(
+            ['bids' => false, 'messages' => false],
+            $user->fresh()->notification_preferences,
+        );
+    }
 }

@@ -116,9 +116,45 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
   Future<void> _loadProfile() async {
     try {
       final profile = await widget.authRepository.me();
-      if (mounted) setState(() => _profile = profile);
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        // Real backend fields (Phase 12) take over from the LocalPrefs
+        // placeholders _loadToggles() set. payout_released has no backend
+        // counterpart (commission/payouts were removed from the product)
+        // so it stays LocalPrefs-only, inert either way.
+        _newMatchingLoads =
+            profile.notificationPreferences['new_job_matches'] ?? true;
+        _bidAcceptedOrDeclined =
+            profile.notificationPreferences['bids'] ?? true;
+        _driverOffRoute =
+            profile.notificationPreferences['shipment_updates'] ?? false;
+      });
     } catch (_) {
       // Non-critical.
+    }
+  }
+
+  Future<void> _setNotificationCategory(
+    String category,
+    bool value,
+    VoidCallback apply,
+  ) async {
+    final previous = _profile?.notificationPreferences[category] ?? true;
+    setState(apply);
+    try {
+      final profile = await widget.authRepository.updateNotificationPreferences(
+        {category: value},
+      );
+      if (mounted) setState(() => _profile = profile);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          if (category == 'new_job_matches') _newMatchingLoads = previous;
+          if (category == 'bids') _bidAcceptedOrDeclined = previous;
+          if (category == 'shipment_updates') _driverOffRoute = previous;
+        });
+      }
     }
   }
 
@@ -273,8 +309,8 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
                 title: l10n.newMatchingLoadsTitle,
                 subtitle: l10n.newMatchingLoadsSubtitle,
                 value: _newMatchingLoads,
-                onChanged: (v) => _setToggle(
-                  'company_settings.notif.new_matching_loads',
+                onChanged: (v) => _setNotificationCategory(
+                  'new_job_matches',
                   v,
                   () => _newMatchingLoads = v,
                 ),
@@ -282,8 +318,8 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
               SettingsToggleRow(
                 title: l10n.bidAcceptedOrDeclinedTitle,
                 value: _bidAcceptedOrDeclined,
-                onChanged: (v) => _setToggle(
-                  'company_settings.notif.bid_accepted_declined',
+                onChanged: (v) => _setNotificationCategory(
+                  'bids',
                   v,
                   () => _bidAcceptedOrDeclined = v,
                 ),
@@ -300,8 +336,8 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
               SettingsToggleRow(
                 title: l10n.driverOffRouteTitle,
                 value: _driverOffRoute,
-                onChanged: (v) => _setToggle(
-                  'company_settings.notif.driver_off_route',
+                onChanged: (v) => _setNotificationCategory(
+                  'shipment_updates',
                   v,
                   () => _driverOffRoute = v,
                 ),

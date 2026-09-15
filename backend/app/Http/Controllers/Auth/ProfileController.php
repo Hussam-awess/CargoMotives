@@ -12,6 +12,7 @@ use App\Http\Requests\Auth\UpdateBusinessIdentityRequest;
 use App\Http\Requests\Auth\UpdateEmailRequest;
 use App\Http\Requests\Auth\UpdateFullNameRequest;
 use App\Http\Requests\Auth\UpdateLanguagePreferenceRequest;
+use App\Http\Requests\Auth\UpdateNotificationPreferencesRequest;
 use App\Http\Requests\Auth\UpdatePhoneRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -64,6 +65,20 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $user->update($request->only('full_name'));
+
+        return new UserResource($user);
+    }
+
+    /**
+     * Merges into the existing map (see the request's own docblock) rather
+     * than replacing it, so toggling one Settings switch never silently
+     * resets whatever the user chose for the others.
+     */
+    public function updateNotificationPreferences(UpdateNotificationPreferencesRequest $request): UserResource
+    {
+        $user = $request->user();
+        $merged = array_merge($user->notification_preferences ?? [], $request->validated());
+        $user->update(['notification_preferences' => $merged]);
 
         return new UserResource($user);
     }

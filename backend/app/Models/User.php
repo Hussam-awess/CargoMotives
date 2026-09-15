@@ -21,7 +21,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 #[Fillable([
     'account_type', 'phone_number', 'email', 'full_name', 'avatar_url', 'language_preference', 'is_featured', 'featured_until',
-    'company_name', 'company_logo_url', 'email_verified_at',
+    'company_name', 'company_logo_url', 'email_verified_at', 'notification_preferences', 'last_active_at', 'last_inactivity_nudge_at',
 ])]
 #[Hidden(['password_hash', 'remember_token'])]
 class User extends Authenticatable
@@ -59,12 +59,25 @@ class User extends Authenticatable
             'is_featured' => 'boolean',
             'featured_until' => 'datetime',
             'email_verified_at' => 'datetime',
+            'notification_preferences' => 'array',
+            'last_active_at' => 'datetime',
+            'last_inactivity_nudge_at' => 'datetime',
         ];
     }
 
     public function getAuthPassword(): ?string
     {
         return $this->password_hash;
+    }
+
+    /**
+     * Opt-out, not opt-in: an absent key (the default for every user who's
+     * never touched a Settings toggle) means "on", so NotificationService
+     * still delivers everything the trigger map promises out of the box.
+     */
+    public function wantsNotificationCategory(string $category): bool
+    {
+        return (bool) ($this->notification_preferences[$category] ?? true);
     }
 
     public function transporterCompany(): HasOne

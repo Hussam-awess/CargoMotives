@@ -51,13 +51,14 @@ Route::prefix('auth')->group(function () {
     Route::post('/customer/register/verify', [CustomerAuthController::class, 'verifyRegistration'])->middleware('throttle:customer-register');
     Route::post('/customer/login', [CustomerAuthController::class, 'login'])->middleware('throttle:customer-login');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth-active')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile/language', [ProfileController::class, 'updateLanguage']);
         Route::post('/profile/name', [ProfileController::class, 'updateName']);
         Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
         Route::post('/profile/business', [ProfileController::class, 'updateBusinessIdentity']);
+        Route::post('/profile/notification-preferences', [ProfileController::class, 'updateNotificationPreferences']);
 
         // Immediate updates for whichever of phone/email is NOT the
         // caller's login credential (ProfileController::ensureNotCredentialField
@@ -82,7 +83,7 @@ Route::prefix('auth')->group(function () {
 });
 
 // Customer job posting + bid acceptance (AppFlow §3).
-Route::middleware(['auth:sanctum', 'account_type:customer'])->group(function () {
+Route::middleware(['auth-active', 'account_type:customer'])->group(function () {
     Route::get('/jobs', [JobController::class, 'index']);
     Route::post('/jobs', [JobController::class, 'store']);
     Route::get('/jobs/post-quota', [JobController::class, 'postQuota']);
@@ -104,7 +105,7 @@ Route::middleware(['auth:sanctum', 'account_type:customer'])->group(function () 
 // participant (customer or the assigned company's owner), so this sits
 // under plain auth:sanctum rather than either role-specific group above;
 // MessageController does its own per-job participant check.
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth-active')->group(function () {
     Route::get('/jobs/{job}/messages', [MessageController::class, 'index']);
     Route::post('/jobs/{job}/messages', [MessageController::class, 'store']);
 });
@@ -112,14 +113,14 @@ Route::middleware('auth:sanctum')->group(function () {
 // A user's standalone Support thread with Admin (Phase 10.15) — distinct
 // from the per-job thread above: always the caller's own thread, never
 // another user's, so no participant check is needed beyond auth:sanctum.
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth-active')->group(function () {
     Route::get('/support-messages', [SupportMessageController::class, 'index']);
     Route::post('/support-messages', [SupportMessageController::class, 'store']);
 });
 
 // In-app notifications + FCM device tokens (Backend Schema §2.18, AppFlow
 // §6) — shared across both roles, same reasoning as messages above.
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth-active')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
@@ -128,7 +129,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/notifications/device-token', [NotificationController::class, 'deleteDeviceToken']);
 });
 
-Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_company'])->group(function () {
+Route::prefix('company')->middleware(['auth-active', 'account_type:transporter_company'])->group(function () {
     Route::get('/verification', [CompanyVerificationController::class, 'show']);
     Route::post('/verification', [CompanyVerificationController::class, 'submit']);
 
@@ -180,7 +181,7 @@ Route::prefix('company')->middleware(['auth:sanctum', 'account_type:transporter_
 Route::prefix('admin')->group(function () {
     Route::post('/login', [AdminAuthController::class, 'login'])->middleware('throttle:admin-login');
 
-    Route::middleware(['auth:sanctum', 'account_type:admin'])->group(function () {
+    Route::middleware(['auth-active', 'account_type:admin'])->group(function () {
         Route::get('/companies', [AdminCompanyController::class, 'index']);
         Route::get('/companies/{company}', [AdminCompanyController::class, 'show']);
         Route::post('/companies/{company}/approve', [AdminCompanyController::class, 'approve']);

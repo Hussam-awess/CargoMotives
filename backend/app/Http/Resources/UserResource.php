@@ -35,6 +35,15 @@ class UserResource extends JsonResource
                 : null,
             'language_preference' => $this->language_preference,
             'is_featured' => $this->is_featured,
+            // Resolved with defaults filled in (absent = on — see
+            // User::wantsNotificationCategory) so the client never has to
+            // know that opt-out semantics itself, just render four toggles.
+            'notification_preferences' => [
+                'bids' => $this->wantsNotificationCategory('bids'),
+                'shipment_updates' => $this->wantsNotificationCategory('shipment_updates'),
+                'messages' => $this->wantsNotificationCategory('messages'),
+                'new_job_matches' => $this->wantsNotificationCategory('new_job_matches'),
+            ],
         ];
     }
 }
