@@ -20,7 +20,7 @@ use Laravel\Sanctum\HasApiTokens;
  * (PRD §5, TRD §7).
  */
 #[Fillable([
-    'account_type', 'phone_number', 'email', 'full_name', 'language_preference', 'is_featured', 'featured_until',
+    'account_type', 'phone_number', 'email', 'full_name', 'avatar_url', 'language_preference', 'is_featured', 'featured_until',
     'company_name', 'company_logo_url', 'email_verified_at',
 ])]
 #[Hidden(['password_hash', 'remember_token'])]

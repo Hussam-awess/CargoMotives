@@ -1,3 +1,6 @@
+import 'package:dio/dio.dart' show FormData, MultipartFile;
+import 'package:file_picker/file_picker.dart';
+
 import '../../../core/auth/session_store.dart';
 import '../../../core/network/api_client.dart';
 
@@ -11,7 +14,15 @@ class OtpVerifyResult {
 /// (greeting name, company name, featured badge) — not a full
 /// profile-editing model.
 class UserProfile {
-  const UserProfile({required this.fullName, required this.companyName, required this.isFeatured, this.phoneNumber, this.email});
+  const UserProfile({
+    required this.fullName,
+    required this.companyName,
+    required this.isFeatured,
+    this.phoneNumber,
+    this.email,
+    this.avatarUrl,
+    this.companyLogoUrl,
+  });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
@@ -20,6 +31,8 @@ class UserProfile {
       isFeatured: json['is_featured'] as bool? ?? false,
       phoneNumber: json['phone_number'] as String?,
       email: json['email'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      companyLogoUrl: json['company_logo_url'] as String?,
     );
   }
 
@@ -28,6 +41,15 @@ class UserProfile {
   final bool isFeatured;
   final String? phoneNumber;
   final String? email;
+
+  /// A personal profile photo, any account_type — distinct from
+  /// [companyLogoUrl] (a Customer's optional business identity) and a
+  /// TransporterCompany's own logo (a different model entirely).
+  final String? avatarUrl;
+
+  /// A Customer's optional business identity (Phase 11) — null for every
+  /// other account_type.
+  final String? companyLogoUrl;
 }
 
 /// Wraps Transporter Company's phone+OTP endpoints (see backend
@@ -70,17 +92,31 @@ class AuthRepository {
     );
   }
 
-  Future<OtpVerifyResult> verifyOtp({required String phoneNumber, required AccountRole role, required String code}) async {
+  Future<OtpVerifyResult> verifyOtp({
+    required String phoneNumber,
+    required AccountRole role,
+    required String code,
+  }) async {
     final body = await _client.post(
       '/auth/otp/verify',
-      data: {'phone_number': phoneNumber, 'account_type': _accountTypeValue(role), 'code': code},
+      data: {
+        'phone_number': phoneNumber,
+        'account_type': _accountTypeValue(role),
+        'code': code,
+      },
     );
 
     return OtpVerifyResult(token: body['token'] as String);
   }
 
-  Future<String> login({required String phoneNumber, required String password}) async {
-    final body = await _client.post('/auth/company/login', data: {'phone_number': phoneNumber, 'password': password});
+  Future<String> login({
+    required String phoneNumber,
+    required String password,
+  }) async {
+    final body = await _client.post(
+      '/auth/company/login',
+      data: {'phone_number': phoneNumber, 'password': password},
+    );
 
     return body['token'] as String;
   }
@@ -91,7 +127,10 @@ class AuthRepository {
   /// before/without a network round-trip), this just keeps the backend
   /// record consistent with it for whichever account is signed in.
   Future<void> updateLanguagePreference(String languageCode) {
-    return _client.post('/auth/profile/language', data: {'language_preference': languageCode});
+    return _client.post(
+      '/auth/profile/language',
+      data: {'language_preference': languageCode},
+    );
   }
 
   Future<UserProfile> me() async {
@@ -102,7 +141,10 @@ class AuthRepository {
   /// Applies immediately — full_name isn't a login credential, unlike
   /// email/phone below.
   Future<UserProfile> updateFullName(String fullName) async {
-    final body = await _client.post('/auth/profile/name', data: {'full_name': fullName});
+    final body = await _client.post(
+      '/auth/profile/name',
+      data: {'full_name': fullName},
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
@@ -110,22 +152,83 @@ class AuthRepository {
   /// until [confirmEmailChange] verifies it (Phase 10.16: email is the
   /// Customer's login credential).
   Future<void> requestEmailChange(String newEmail) {
-    return _client.post('/auth/profile/email/request-change', data: {'new_email': newEmail});
+    return _client.post(
+      '/auth/profile/email/request-change',
+      data: {'new_email': newEmail},
+    );
   }
 
-  Future<UserProfile> confirmEmailChange({required String newEmail, required String code}) async {
-    final body = await _client.post('/auth/profile/email/confirm-change', data: {'new_email': newEmail, 'code': code});
+  Future<UserProfile> confirmEmailChange({
+    required String newEmail,
+    required String code,
+  }) async {
+    final body = await _client.post(
+      '/auth/profile/email/confirm-change',
+      data: {'new_email': newEmail, 'code': code},
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   /// Same shape as requestEmailChange/confirmEmailChange, for phone — the
   /// Transporter Company's login credential.
   Future<void> requestPhoneChange(String newPhone) {
-    return _client.post('/auth/profile/phone/request-change', data: {'new_phone': newPhone});
+    return _client.post(
+      '/auth/profile/phone/request-change',
+      data: {'new_phone': newPhone},
+    );
   }
 
-  Future<UserProfile> confirmPhoneChange({required String newPhone, required String code}) async {
-    final body = await _client.post('/auth/profile/phone/confirm-change', data: {'new_phone': newPhone, 'code': code});
+  Future<UserProfile> confirmPhoneChange({
+    required String newPhone,
+    required String code,
+  }) async {
+    final body = await _client.post(
+      '/auth/profile/phone/confirm-change',
+      data: {'new_phone': newPhone, 'code': code},
+    );
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Immediate, unverified update — only valid when phone_number isn't the
+  /// caller's login credential (a Customer's own phone, not Transporter
+  /// Company's). The backend rejects the other case.
+  Future<UserProfile> updatePhone(String phoneNumber) async {
+    final body = await _client.post(
+      '/auth/profile/phone',
+      data: {'phone_number': phoneNumber},
+    );
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Same as [updatePhone], for email — only valid for Transporter Company
+  /// (Customer's email is its login credential).
+  Future<UserProfile> updateEmail(String email) async {
+    final body = await _client.post(
+      '/auth/profile/email',
+      data: {'email': email},
+    );
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// A personal profile photo, any account_type.
+  Future<UserProfile> updateAvatar(PlatformFile avatar) async {
+    final formData = FormData.fromMap({'avatar': await _toMultipart(avatar)});
+    final body = await _client.postForm('/auth/profile/avatar', formData);
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// A Customer's optional business identity (company_name + logo) — the
+  /// same fields collected at registration, now editable afterward.
+  /// Customer-only; the backend rejects every other account_type.
+  Future<UserProfile> updateBusinessIdentity({
+    String? companyName,
+    PlatformFile? logo,
+  }) async {
+    final formData = FormData.fromMap({
+      'company_name': companyName ?? '',
+      if (logo != null) 'logo': await _toMultipart(logo),
+    });
+    final body = await _client.postForm('/auth/profile/business', formData);
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
@@ -135,4 +238,15 @@ class AuthRepository {
     AccountRole.customer => 'customer',
     AccountRole.transporterCompany => 'transporter_company',
   };
+
+  Future<MultipartFile> _toMultipart(PlatformFile file) async {
+    // On web, PlatformFile only ever exposes `bytes` (no real filesystem
+    // path); on other platforms `path` is set and bytes may not be loaded.
+    // Handle both so this works identically across targets.
+    if (file.bytes != null) {
+      return MultipartFile.fromBytes(file.bytes!, filename: file.name);
+    }
+
+    return MultipartFile.fromFile(file.path!, filename: file.name);
+  }
 }

@@ -5,8 +5,10 @@ namespace Tests\Feature\Auth;
 use App\Mail\CustomerOtpMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -132,5 +134,110 @@ class ProfileChangeTest extends TestCase
     {
         $this->postJson('/api/auth/profile/name', ['full_name' => 'X'])->assertUnauthorized();
         $this->postJson('/api/auth/profile/email/request-change', ['new_email' => 'x@example.com'])->assertUnauthorized();
+    }
+
+    public function test_a_customer_can_update_their_phone_number_immediately_with_no_code(): void
+    {
+        $user = User::factory()->create(['account_type' => 'customer', 'phone_number' => '+255700111000']);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/phone', ['phone_number' => '0712345678'])
+            ->assertOk()
+            ->assertJsonPath('data.phone_number', '+255712345678');
+
+        $this->assertSame('+255712345678', $user->fresh()->phone_number);
+    }
+
+    public function test_a_transporter_company_cannot_use_the_plain_phone_endpoint_since_its_their_credential(): void
+    {
+        $user = User::factory()->transporterCompany()->create(['phone_number' => '+255700111000']);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/phone', ['phone_number' => '0712345678'])
+            ->assertUnprocessable();
+
+        $this->assertSame('+255700111000', $user->fresh()->phone_number);
+    }
+
+    public function test_a_transporter_company_can_update_their_email_immediately_with_no_code(): void
+    {
+        $user = User::factory()->transporterCompany()->create(['email' => 'old@example.com']);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/email', ['email' => 'new@example.com'])
+            ->assertOk()
+            ->assertJsonPath('data.email', 'new@example.com');
+
+        $this->assertSame('new@example.com', $user->fresh()->email);
+    }
+
+    public function test_a_customer_cannot_use_the_plain_email_endpoint_since_its_their_credential(): void
+    {
+        $user = User::factory()->create(['account_type' => 'customer', 'email' => 'old@example.com']);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/email', ['email' => 'new@example.com'])
+            ->assertUnprocessable();
+
+        $this->assertSame('old@example.com', $user->fresh()->email);
+    }
+
+    public function test_updating_the_phone_number_to_one_already_in_use_is_rejected(): void
+    {
+        User::factory()->create(['phone_number' => '+255712345678']);
+        $user = User::factory()->create(['account_type' => 'customer', 'phone_number' => '+255700111000']);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/phone', ['phone_number' => '0712345678'])
+            ->assertUnprocessable();
+    }
+
+    public function test_a_user_can_upload_a_profile_avatar(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->post('/api/auth/profile/avatar', ['avatar' => UploadedFile::fake()->create('me.jpg', 100, 'image/jpeg')])
+            ->assertOk();
+
+        $this->assertNotNull($user->fresh()->avatar_url);
+        $this->assertNotNull($response->json('data.avatar_url'));
+    }
+
+    public function test_a_non_image_avatar_is_rejected(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/api/auth/profile/avatar', ['avatar' => UploadedFile::fake()->create('me.pdf', 100)])
+            ->assertUnprocessable();
+    }
+
+    public function test_a_customer_can_update_their_business_identity(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create(['account_type' => 'customer', 'company_name' => 'Old Co']);
+
+        $response = $this->actingAs($user)
+            ->post('/api/auth/profile/business', [
+                'company_name' => 'New Co',
+                'logo' => UploadedFile::fake()->create('logo.jpg', 100, 'image/jpeg'),
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.company_name', 'New Co');
+
+        $this->assertNotNull($response->json('data.company_logo_url'));
+        $this->assertSame('New Co', $user->fresh()->company_name);
+        $this->assertNotNull($user->fresh()->company_logo_url);
+    }
+
+    public function test_a_transporter_company_cannot_update_business_identity(): void
+    {
+        $user = User::factory()->transporterCompany()->create();
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/business', ['company_name' => 'New Co'])
+            ->assertUnprocessable();
     }
 }

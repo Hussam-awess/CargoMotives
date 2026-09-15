@@ -7,14 +7,19 @@ use App\Http\Requests\Auth\ConfirmEmailChangeRequest;
 use App\Http\Requests\Auth\ConfirmPhoneChangeRequest;
 use App\Http\Requests\Auth\RequestEmailChangeRequest;
 use App\Http\Requests\Auth\RequestPhoneChangeRequest;
+use App\Http\Requests\Auth\UpdateAvatarRequest;
+use App\Http\Requests\Auth\UpdateBusinessIdentityRequest;
+use App\Http\Requests\Auth\UpdateEmailRequest;
 use App\Http\Requests\Auth\UpdateFullNameRequest;
 use App\Http\Requests\Auth\UpdateLanguagePreferenceRequest;
+use App\Http\Requests\Auth\UpdatePhoneRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\EmailOtpService;
 use App\Services\Auth\OtpCooldownException;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\PhoneNumberNormalizer;
+use App\Services\Documents\DocumentStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
@@ -40,6 +45,7 @@ class ProfileController extends Controller
     public function __construct(
         private readonly EmailOtpService $emailOtp,
         private readonly OtpService $otp,
+        private readonly DocumentStorage $documents,
     ) {}
 
     /**
@@ -58,6 +64,90 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $user->update($request->only('full_name'));
+
+        return new UserResource($user);
+    }
+
+    /**
+     * A personal profile photo, distinct from a Customer's optional
+     * business logo (updateBusinessIdentity) and a TransporterCompany's own
+     * logo — available to every account_type, applies immediately (not a
+     * credential).
+     */
+    public function updateAvatar(UpdateAvatarRequest $request): UserResource
+    {
+        $user = $request->user();
+        $key = $this->documents->store($request->file('avatar'), 'users/avatars');
+        $user->update(['avatar_url' => $key]);
+
+        return new UserResource($user);
+    }
+
+    /**
+     * Immediate, unverified update — for whichever of phone/email is NOT
+     * the caller's login credential (see ensureNotCredentialField). The
+     * credential itself still goes through request/confirm-change above.
+     */
+    public function updatePhone(UpdatePhoneRequest $request): UserResource
+    {
+        $user = $request->user();
+        $this->ensureNotCredentialField($user, 'phone_number');
+
+        try {
+            $normalized = PhoneNumberNormalizer::normalize($request->string('phone_number')->toString());
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['phone_number' => [$e->getMessage()]]);
+        }
+
+        if (User::where('phone_number', $normalized)->where('id', '!=', $user->id)->exists()) {
+            throw ValidationException::withMessages(['phone_number' => ['That phone number is already in use.']]);
+        }
+
+        $user->update(['phone_number' => $normalized]);
+
+        return new UserResource($user);
+    }
+
+    public function updateEmail(UpdateEmailRequest $request): UserResource
+    {
+        $user = $request->user();
+        $this->ensureNotCredentialField($user, 'email');
+
+        $email = $request->string('email')->toString();
+
+        if (User::where('email', $email)->where('id', '!=', $user->id)->exists()) {
+            throw ValidationException::withMessages(['email' => ['That email is already in use.']]);
+        }
+
+        $user->update(['email' => $email]);
+
+        return new UserResource($user);
+    }
+
+    /**
+     * A Customer's optional business identity (company_name + logo) — the
+     * same fields RegisterCustomerRequest collects at signup, now editable
+     * afterward. Rejects every other account_type: a TransporterCompany's
+     * business identity is a heavier, Admin-reviewed resubmission
+     * (CompanyVerificationScreen), not a plain settings edit.
+     */
+    public function updateBusinessIdentity(UpdateBusinessIdentityRequest $request): UserResource
+    {
+        $user = $request->user();
+
+        if ($user->account_type !== 'customer') {
+            throw ValidationException::withMessages([
+                'company_name' => ['Only Customer accounts have an editable business identity.'],
+            ]);
+        }
+
+        $attributes = ['company_name' => $request->string('company_name')->toString() ?: null];
+
+        if ($request->hasFile('logo')) {
+            $attributes['company_logo_url'] = $this->documents->store($request->file('logo'), 'customers/logos');
+        }
+
+        $user->update($attributes);
 
         return new UserResource($user);
     }
@@ -139,6 +229,28 @@ class ProfileController extends Controller
         $user->update(['phone_number' => $normalized]);
 
         return new UserResource($user);
+    }
+
+    /**
+     * phone_number is the Transporter Company's login credential;
+     * email is the Customer's — either must go through the
+     * request/confirm-change flow above, never this endpoint's plain
+     * update, or a signed-in session could silently hijack its own login
+     * credential without proving it still controls the new value.
+     */
+    private function ensureNotCredentialField(User $user, string $field): void
+    {
+        $isCredential = match ($user->account_type) {
+            'customer' => $field === 'email',
+            'transporter_company' => $field === 'phone_number',
+            default => false,
+        };
+
+        if ($isCredential) {
+            throw ValidationException::withMessages([
+                $field => ['This is your login credential — use the confirm-change flow instead.'],
+            ]);
+        }
     }
 
     private function messageFor(?string $reason): string

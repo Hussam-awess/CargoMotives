@@ -24,6 +24,9 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'full_name' => $this->full_name,
+            'avatar_url' => $this->avatar_url
+                ? app(DocumentStorage::class)->signedUrl($this->avatar_url)
+                : null,
             // A Customer's optional business identity (Phase 11) — null
             // for every other account_type.
             'company_name' => $this->company_name,

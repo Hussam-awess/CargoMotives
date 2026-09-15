@@ -56,6 +56,15 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile/language', [ProfileController::class, 'updateLanguage']);
         Route::post('/profile/name', [ProfileController::class, 'updateName']);
+        Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
+        Route::post('/profile/business', [ProfileController::class, 'updateBusinessIdentity']);
+
+        // Immediate updates for whichever of phone/email is NOT the
+        // caller's login credential (ProfileController::ensureNotCredentialField
+        // rejects the other one) — the credential itself still requires the
+        // request/confirm-change flow below.
+        Route::post('/profile/phone', [ProfileController::class, 'updatePhone']);
+        Route::post('/profile/email', [ProfileController::class, 'updateEmail']);
 
         // Email/phone are login credentials, so changing either goes
         // through a confirmation code sent to the *new* value first
