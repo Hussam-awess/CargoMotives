@@ -15,11 +15,21 @@ class MapPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFEFEFEA),
-      child: CustomPaint(
-        painter: _MapGridPainter(),
-        child: child == null ? null : Center(child: child),
+    // Explicit double.infinity, not just a bare Container: CustomPaint
+    // sizes itself to match its own child whenever one is given (its `size`
+    // param is only honored when `child` is null) — so as soon as a marker
+    // widget is passed in here, the whole placeholder (including this
+    // Container) was silently collapsing down to that marker's own small
+    // size instead of filling the Stack behind it, leaving everything
+    // above/around it blank. Sizing the Container itself removes any
+    // dependency on how CustomPaint's child happens to size itself.
+    return SizedBox.expand(
+      child: Container(
+        color: AppColors.mapGround,
+        child: CustomPaint(
+          painter: _MapGridPainter(),
+          child: child == null ? null : Center(child: child),
+        ),
       ),
     );
   }
@@ -42,7 +52,10 @@ class PulsingMarker extends StatelessWidget {
           Container(
             width: 30,
             height: 30,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.16)),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.16),
+            ),
           ),
           Container(
             width: 15,
@@ -79,7 +92,13 @@ class MapFloatingButton extends StatelessWidget {
           color: AppColors.surface,
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(7),
-          boxShadow: const [BoxShadow(color: Color(0x1F1D2D3D), blurRadius: 3, offset: Offset(0, 1))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1F1D2D3D),
+              blurRadius: 3,
+              offset: Offset(0, 1),
+            ),
+          ],
         ),
         child: Icon(icon, size: 18, color: AppColors.textPrimary),
       ),
@@ -91,7 +110,7 @@ class _MapGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFE2E2DC)
+      ..color = AppColors.mapGridLine
       ..strokeWidth = 1;
     for (double y = 0; y < size.height; y += 60) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);

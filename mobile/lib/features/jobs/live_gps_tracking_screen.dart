@@ -24,14 +24,34 @@ class LiveGpsTrackingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final location = job.lastKnownLocation;
-    final totalKm = (job.pickupLat != null && job.pickupLng != null && job.dropoffLat != null && job.dropoffLng != null)
-        ? kmBetween(job.pickupLat!, job.pickupLng!, job.dropoffLat!, job.dropoffLng!)
+    final totalKm =
+        (job.pickupLat != null &&
+            job.pickupLng != null &&
+            job.dropoffLat != null &&
+            job.dropoffLng != null)
+        ? kmBetween(
+            job.pickupLat!,
+            job.pickupLng!,
+            job.dropoffLat!,
+            job.dropoffLng!,
+          )
         : null;
-    final remainingKm = (location != null && job.dropoffLat != null && job.dropoffLng != null)
-        ? kmBetween(location.lat, location.lng, job.dropoffLat!, job.dropoffLng!)
+    final remainingKm =
+        (location != null && job.dropoffLat != null && job.dropoffLng != null)
+        ? kmBetween(
+            location.lat,
+            location.lng,
+            job.dropoffLat!,
+            job.dropoffLng!,
+          )
         : null;
-    final progress = (totalKm != null && remainingKm != null && totalKm > 0) ? (1 - (remainingKm / totalKm)).clamp(0.0, 1.0) : null;
-    final isLive = job.gpsTrackingActive && job.gpsSignalStatus == 'ok' && location != null;
+    final progress = (totalKm != null && remainingKm != null && totalKm > 0)
+        ? (1 - (remainingKm / totalKm)).clamp(0.0, 1.0)
+        : null;
+    final isLive =
+        job.gpsTrackingActive &&
+        job.gpsSignalStatus == 'ok' &&
+        location != null;
 
     return Scaffold(
       body: Stack(
@@ -42,7 +62,10 @@ class LiveGpsTrackingScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  MapFloatingButton(icon: Icons.arrow_back, onTap: () => Navigator.of(context).maybePop()),
+                  MapFloatingButton(
+                    icon: Icons.arrow_back,
+                    onTap: () => Navigator.of(context).maybePop(),
+                  ),
                   const SizedBox(width: 10),
                   Container(
                     height: 36,
@@ -58,12 +81,23 @@ class LiveGpsTrackingScreen extends StatelessWidget {
                         Container(
                           width: 7,
                           height: 7,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: isLive ? AppColors.ctaBlue : AppColors.statusIdle),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isLive
+                                ? AppColors.ctaBlue
+                                : AppColors.statusIdle,
+                          ),
                         ),
                         const SizedBox(width: 7),
                         Text(
-                          isLive ? _liveLabel(location.recordedAt) : 'GPS signal unavailable',
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                          isLive
+                              ? _liveLabel(location.recordedAt)
+                              : 'GPS signal unavailable',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -77,26 +111,46 @@ class LiveGpsTrackingScreen extends StatelessWidget {
             top: 108,
             child: Column(
               children: [
-                MapFloatingButton(icon: Icons.add, onTap: () => _showMapComingSoon(context)),
+                MapFloatingButton(
+                  icon: Icons.add,
+                  onTap: () => _showMapComingSoon(context),
+                ),
                 const SizedBox(height: 8),
-                MapFloatingButton(icon: Icons.remove, onTap: () => _showMapComingSoon(context)),
+                MapFloatingButton(
+                  icon: Icons.remove,
+                  onTap: () => _showMapComingSoon(context),
+                ),
                 const SizedBox(height: 8),
-                MapFloatingButton(icon: Icons.my_location, onTap: () => _showMapComingSoon(context)),
+                MapFloatingButton(
+                  icon: Icons.my_location,
+                  onTap: () => _showMapComingSoon(context),
+                ),
               ],
             ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
+              key: const Key('trackingInfoSheet'),
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 26),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-                boxShadow: [BoxShadow(color: Color(0x1F1D2D3D), blurRadius: 20, offset: Offset(0, -4))],
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x1F1D2D3D),
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
+                ],
               ),
               child: SafeArea(
                 top: false,
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Center(
@@ -104,7 +158,10 @@ class LiveGpsTrackingScreen extends StatelessWidget {
                         width: 38,
                         height: 4,
                         margin: const EdgeInsets.only(bottom: 14),
-                        decoration: BoxDecoration(color: const Color(0xFFE4E5E8), borderRadius: BorderRadius.circular(2)),
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
                     Row(
@@ -116,11 +173,15 @@ class LiveGpsTrackingScreen extends StatelessWidget {
                             children: [
                               Text(
                                 'CM-${job.id.toString().padLeft(4, '0')}',
-                                style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5, color: AppColors.textSecondary),
+                                style: TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                               Text(
                                 '${job.pickupAddress} → ${job.dropoffAddress}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'Barlow Condensed',
                                   fontSize: 22,
                                   fontWeight: FontWeight.w600,
@@ -131,16 +192,28 @@ class LiveGpsTrackingScreen extends StatelessWidget {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: AppColors.infoTint, borderRadius: BorderRadius.circular(4)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.infoTint,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                           child: Text(
                             jobStatusLabel(job.status),
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.ctaBluePressed),
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ctaBluePressed,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    if (progress != null && totalKm != null && remainingKm != null) ...[
+                    if (progress != null &&
+                        totalKm != null &&
+                        remainingKm != null) ...[
                       const SizedBox(height: 14),
                       Row(
                         children: [
@@ -150,7 +223,7 @@ class LiveGpsTrackingScreen extends StatelessWidget {
                               child: LinearProgressIndicator(
                                 value: progress,
                                 minHeight: 5,
-                                backgroundColor: const Color(0xFFE4E5E8),
+                                backgroundColor: AppColors.border,
                                 color: AppColors.ctaBlue,
                               ),
                             ),
@@ -158,7 +231,11 @@ class LiveGpsTrackingScreen extends StatelessWidget {
                           const SizedBox(width: 10),
                           Text(
                             '${(totalKm - remainingKm).toStringAsFixed(0)} / ${totalKm.toStringAsFixed(0)} km',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textLabel),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textLabel,
+                            ),
                           ),
                         ],
                       ),
@@ -176,26 +253,45 @@ class LiveGpsTrackingScreen extends StatelessWidget {
                             Container(
                               width: 42,
                               height: 42,
-                              decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(
+                                color: AppColors.background,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               alignment: Alignment.center,
-                              child: const Icon(Icons.local_shipping_outlined, color: AppColors.textSecondary),
+                              child: Icon(
+                                Icons.local_shipping_outlined,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                             const SizedBox(width: 11),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(job.assignedDriverName!, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                                  Text(
+                                    job.assignedDriverName!,
+                                    style: const TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                   if (job.assignedTruckRegistration != null)
                                     Text(
                                       job.assignedTruckRegistration!,
-                                      style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: AppColors.textSecondary,
+                                      ),
                                     ),
                                 ],
                               ),
                             ),
                             InkWell(
-                              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MessagesScreen(jobId: job.id))),
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => MessagesScreen(jobId: job.id),
+                                ),
+                              ),
                               borderRadius: BorderRadius.circular(7),
                               child: Container(
                                 width: 38,
@@ -204,7 +300,10 @@ class LiveGpsTrackingScreen extends StatelessWidget {
                                   border: Border.all(color: AppColors.border),
                                   borderRadius: BorderRadius.circular(7),
                                 ),
-                                child: const Icon(Icons.chat_bubble_outline, size: 17),
+                                child: const Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 17,
+                                ),
                               ),
                             ),
                           ],
@@ -222,7 +321,11 @@ class LiveGpsTrackingScreen extends StatelessWidget {
   }
 
   void _showMapComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Interactive map controls arrive with the real map.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Interactive map controls arrive with the real map.'),
+      ),
+    );
   }
 
   String _liveLabel(DateTime recordedAt) {
