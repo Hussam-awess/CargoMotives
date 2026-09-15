@@ -1,15 +1,15 @@
-# Phase 10 launch prep: replaces Flutter's default template icon (the blue
-# "F" mark) with a real Cargo Motives icon — a shipping-container glyph in
-# the app's own brand colors (mobile/lib/core/theme/app_theme.dart's
-# AppColors.primary/.accent). Source PNGs are procedurally generated (see
-# scratchpad's generate_icon.js; no image-editing tool was available in
-# this environment) rather than hand-designed artwork — a real design pass
-# before a real store submission is still worth doing, but this is a
-# genuine, deliberate icon, not a placeholder.
+# The real Cargo Motives identity (Identity Sheet v3, final): a bold C
+# holding an M in its counter — the M begins small inside the C's opening
+# and grows as it runs out through the open side, finishing tall and heavy
+# on the right — in the brand's own navy/orange palette (see
+# assets/brand/logo_mark_reversed.svg, the single source of truth these
+# PNGs are rendered from). One mark at every size, no simplified small-size
+# variant. Replaces an earlier truck-mark draft that never matched the
+# client's own final identity sheet.
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#0B4F6C"
+  adaptive_icon_background: "#16294B"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
   remove_alpha_ios: true

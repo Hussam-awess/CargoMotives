@@ -1,0 +1,25 @@
+<svg viewBox="22 32 200 184" xmlns="http://www.w3.org/2000/svg">
+  <!-- Single-colour alpha silhouette of Identity Sheet v3's mark — the
+       source shape for the Android status-bar icon (res/drawable-*dpi/
+       ic_stat_cargo_motives.png, rendered from this at each density).
+       Android status-bar icons read only the alpha channel, and the C
+       ring's own counter is already a real hole (the two-arc path below
+       traces both its outer and inner edge), so no mask is needed. -->
+
+  <path d="M 184.3 69.8
+           A 88 88 0 1 0 184.3 178.2
+           L 159.9 159.1
+           A 57 57 0 1 1 159.9 88.9
+           Z"
+        fill="#FFFFFF"/>
+
+  <path d="M 109 167
+           L 109 97
+           L 126 97
+           L 160 163
+           L 193 53
+           L 218 53
+           L 218 167
+           Z"
+        fill="#FFFFFF"/>
+</svg>

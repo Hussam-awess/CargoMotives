@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
@@ -35,10 +36,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _resolveInitialRoute() async {
-    final results = await Future.wait([
-      _sessionStore.hasValidSession(),
-      Future<void>.delayed(_minimumVisible),
-    ]);
+    final results = await Future.wait([_sessionStore.hasValidSession(), Future<void>.delayed(_minimumVisible)]);
     final hasSession = results[0] as bool;
 
     if (!mounted) return;
@@ -64,7 +62,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.brandLogoNavy,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -79,35 +77,23 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               child: Column(
                 children: [
-                  Container(
-                    width: 84,
-                    height: 84,
-                    decoration: BoxDecoration(
-                      color: AppColors.ctaBluePressed,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.local_shipping_rounded,
-                      color: AppColors.lightBlue,
-                      size: 40,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
+                  SizedBox(width: 108, height: 100, child: SvgPicture.asset('assets/brand/logo_mark_reversed.svg')),
+                  const SizedBox(height: 24),
                   Text(
-                    AppLocalizations.of(context)!.appTitle,
-                    style: const TextStyle(
+                    'CARGO MOTIVES',
+                    style: TextStyle(
                       fontFamily: 'Barlow Condensed',
-                      color: Colors.white,
-                      fontSize: 38,
+                      fontSize: 30,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 1.4,
+                      letterSpacing: 1.2,
+                      color: AppColors.brandLogoBone,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     AppLocalizations.of(context)!.appTagline,
-                    style: const TextStyle(
-                      color: AppColors.lightBlue,
+                    style: TextStyle(
+                      color: AppColors.brandLogoBone.withValues(alpha: 0.75),
                       fontSize: 14,
                       letterSpacing: 0.2,
                     ),
@@ -116,7 +102,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            const CircularProgressIndicator(color: AppColors.lightBlue),
+            CircularProgressIndicator(color: AppColors.brandLogoOrange),
           ],
         ),
       ),

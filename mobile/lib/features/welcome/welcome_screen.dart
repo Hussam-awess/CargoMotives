@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/session_store.dart';
@@ -25,7 +26,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   void _continue() {
     switch (_selectedRole) {
       case AccountRole.customer:
-        context.go('/customer-register');
+        context.push('/customer-register');
       case AccountRole.transporterCompany:
         context.push('/phone-entry', extra: AccountRole.transporterCompany);
       case null:
@@ -37,7 +38,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     if (_selectedRole == AccountRole.transporterCompany) {
       context.push('/company-login');
     } else {
-      context.go('/customer-login');
+      context.push('/customer-login');
     }
   }
 
@@ -56,48 +57,31 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: const LanguageMenuButton(),
-              ),
+              Align(alignment: Alignment.topRight, child: const LanguageMenuButton()),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Container(
-                  width: 36,
+                  width: 46,
                   height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.local_shipping_rounded,
-                    color: AppColors.lightBlue,
-                    size: 20,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(color: AppColors.brandLogoNavy, borderRadius: BorderRadius.circular(6)),
+                  child: SvgPicture.asset('assets/brand/logo_mark_reversed.svg'),
                 ),
               ),
               const SizedBox(height: 20),
               Text(
                 l10n.welcomeToCargoMotives,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontSize: 32,
-                ),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 32),
               ),
               const SizedBox(height: 8),
-              Text(
-                l10n.roleSelectionSubtitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(fontSize: 15),
-              ),
+              Text(l10n.roleSelectionSubtitle, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 15)),
               const SizedBox(height: 24),
               _RoleCard(
                 icon: Icons.person_outline,
                 title: l10n.customerRoleTitle,
                 description: l10n.customerRoleDescription,
                 selected: _selectedRole == AccountRole.customer,
-                onTap: () =>
-                    setState(() => _selectedRole = AccountRole.customer),
+                onTap: () => setState(() => _selectedRole = AccountRole.customer),
               ),
               const SizedBox(height: 12),
               _RoleCard(
@@ -105,9 +89,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 title: l10n.transporterRoleTitle,
                 description: l10n.transporterRoleDescription,
                 selected: _selectedRole == AccountRole.transporterCompany,
-                onTap: () => setState(
-                  () => _selectedRole = AccountRole.transporterCompany,
-                ),
+                onTap: () => setState(() => _selectedRole = AccountRole.transporterCompany),
               ),
               const SizedBox(height: 28),
               ElevatedButton(
@@ -116,10 +98,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
               const SizedBox(height: 14),
               Center(
-                child: TextButton(
-                  onPressed: _logIn,
-                  child: Text('${l10n.alreadyHaveAnAccount} ${l10n.logIn}'),
-                ),
+                child: TextButton(onPressed: _logIn, child: Text('${l10n.alreadyHaveAnAccount} ${l10n.logIn}')),
               ),
             ],
           ),
@@ -153,13 +132,8 @@ class _RoleCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? AppColors.ctaBlue : AppColors.border,
-            width: selected ? 1.5 : 1,
-          ),
-          color: selected
-              ? AppColors.ctaBlue.withValues(alpha: 0.05)
-              : Colors.transparent,
+          border: Border.all(color: selected ? AppColors.ctaBlue : AppColors.border, width: selected ? 1.5 : 1),
+          color: selected ? AppColors.ctaBlue.withValues(alpha: 0.05) : Colors.transparent,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,10 +141,7 @@ class _RoleCard extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: BoxDecoration(color: AppColors.brandChip, borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 14),
@@ -181,45 +152,21 @@ class _RoleCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleLarge
-                            ?.copyWith(fontSize: 21),
-                      ),
+                      Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 21)),
                       Container(
                         width: 20,
                         height: 20,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: selected
-                                ? AppColors.ctaBlue
-                                : AppColors.border,
-                            width: 1.5,
-                          ),
-                          color: selected
-                              ? AppColors.ctaBlue
-                              : Colors.transparent,
+                          border: Border.all(color: selected ? AppColors.ctaBlue : AppColors.border, width: 1.5),
+                          color: selected ? AppColors.ctaBlue : Colors.transparent,
                         ),
-                        child: selected
-                            ? const Icon(
-                                Icons.circle,
-                                color: Colors.white,
-                                size: 6,
-                              )
-                            : null,
+                        child: selected ? const Icon(Icons.circle, color: Colors.white, size: 6) : null,
                       ),
                     ],
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      height: 1.6,
-                    ),
-                  ),
+                  Text(description, style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.6)),
                 ],
               ),
             ),

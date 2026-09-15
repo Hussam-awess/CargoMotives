@@ -1,0 +1,23 @@
+<svg viewBox="22 32 200 184" xmlns="http://www.w3.org/2000/svg">
+  <!-- Identity Sheet v3 (final) — navy + orange variant for light surfaces
+       (bone backgrounds, print, anywhere that isn't already brandLogoNavy).
+       See logo_mark_reversed.svg for the bone + orange variant and its
+       docblock for how these coordinates were derived. -->
+
+  <path d="M 184.3 69.8
+           A 88 88 0 1 0 184.3 178.2
+           L 159.9 159.1
+           A 57 57 0 1 1 159.9 88.9
+           Z"
+        fill="#16294B"/>
+
+  <path d="M 109 167
+           L 109 97
+           L 126 97
+           L 160 163
+           L 193 53
+           L 218 53
+           L 218 167
+           Z"
+        fill="#E2621B"/>
+</svg>
