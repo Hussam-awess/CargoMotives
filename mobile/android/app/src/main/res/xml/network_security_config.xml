@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app has no real production deployment yet (AppConfig.apiBaseUrl
+     defaults to a local dev server; the release build itself is still
+     signed with the debug key — see android/app/build.gradle.kts). Android
+     blocks plain HTTP by default for a release build, which would silently
+     break every request against a local/LAN dev backend (a dart define
+     override pointing at a LAN IP, or the emulator's 10.0.2.2 alias). Once
+     a real HTTPS backend exists, this file should be tightened (or removed
+     entirely, since HTTPS needs no cleartext exception) rather than carried
+     into a real store release as-is. -->
+<network-security-config>
+	<base-config cleartextTrafficPermitted="true">
+		<trust-anchors>
+			<certificates src="system"/>
+		</trust-anchors>
+	</base-config>
+</network-security-config>

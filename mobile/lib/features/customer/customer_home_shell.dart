@@ -34,8 +34,14 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
     // Reaching this shell at all means a session exists (Splash routes
     // here only after confirming one), whether from a fresh login or a
     // resumed session — either way is the right moment to (re)register
-    // this device's FCM token.
-    PushNotificationService().registerDeviceToken();
+    // this device's FCM token. Deferred to after the first frame (not
+    // called directly here): requesting the POST_NOTIFICATIONS permission
+    // while this widget is still mid-route-transition/build can make
+    // Android silently deny it without ever showing the system dialog —
+    // a real, confirmed failure mode, not a hypothetical one.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService().registerDeviceToken();
+    });
   }
 
   @override
@@ -45,14 +51,17 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
     final tabs = [
       CustomerJobsTab(repository: _repository),
       CustomerShipmentsScreen(repository: _repository),
-      MessagesInboxScreen(fetchJobs: _repository.list, counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter'),
+      MessagesInboxScreen(
+        fetchJobs: _repository.list,
+        counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter',
+      ),
       CustomerProfileTab(),
     ];
 
     return Scaffold(
       body: IndexedStack(index: _index, children: tabs),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
         child: NavigationBar(

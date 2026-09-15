@@ -72,12 +72,18 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
     super.initState();
     // Reaching this shell means a session exists, fresh or resumed,
     // either way the right moment to (re)register this device's FCM
-    // token.
-    PushNotificationService().registerDeviceToken();
+    // token. Deferred to after the first frame — see CustomerHomeShell's
+    // docblock for why requesting notification permission directly in
+    // initState is a real, confirmed failure mode on Android.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService().registerDeviceToken();
+    });
   }
 
   Future<void> _openAddTruck() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTruckScreen(repository: widget.truckRepository)));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => AddTruckScreen(repository: widget.truckRepository)));
     _homeTabKey.currentState?.refresh();
   }
 
@@ -119,7 +125,7 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
     return Scaffold(
       body: IndexedStack(index: _index, children: tabs),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
         child: NavigationBar(

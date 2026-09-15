@@ -6,10 +6,17 @@
          silently failing. Every REST call, the WebSocket connection, and
          Firebase all need this. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ (API 33+) requires this manifest declaration before
+         FirebaseMessaging.requestPermission() can even prompt the user —
+         without it, every notification is silently dropped on a 13+
+         device/emulator regardless of anything else being configured
+         correctly. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Cargo Motives"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -37,6 +44,17 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Identity Sheet v2, "11 — Notification branding": a simplified
+             white silhouette of the CM mark (drawable-*dpi/ic_stat_cargo_motives),
+             not the full-colour launcher icon — Android requires a
+             single-colour, alpha-only image here and silently renders a
+             plain white square/blob if given a colourful one instead. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_cargo_motives" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

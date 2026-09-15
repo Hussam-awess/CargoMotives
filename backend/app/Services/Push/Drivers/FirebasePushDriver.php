@@ -6,6 +6,8 @@ use App\Services\Push\PushGateway;
 use App\Services\Push\PushSendResult;
 use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Factory;
+use Kreait\Firebase\Messaging\AndroidConfig;
+use Kreait\Firebase\Messaging\ApnsConfig;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
 use Throwable;
@@ -44,9 +46,29 @@ class FirebasePushDriver implements PushGateway
         try {
             $messaging = (new Factory)->withServiceAccount($credentialsPath)->createMessaging();
 
+            // Without an explicit Android channel, a backgrounded/terminated
+            // app's OS-displayed notification lands in the platform's own
+            // default channel — not the app's high-importance
+            // "cargo_motives_default" one flutter_local_notifications
+            // creates for the foreground case — which silently drops both
+            // the heads-up popup and the sound. Must match that channel id
+            // exactly (mobile/lib/core/push/push_notification_service.dart).
             $message = CloudMessage::new()
                 ->withNotification(FirebaseNotification::create($title, $body))
-                ->withData($data);
+                ->withData($data)
+                ->withAndroidConfig(AndroidConfig::fromArray([
+                    'priority' => 'high',
+                    'notification' => [
+                        'channel_id' => 'cargo_motives_default',
+                        'sound' => 'default',
+                        'notification_priority' => 'PRIORITY_HIGH',
+                    ],
+                ]))
+                ->withApnsConfig(ApnsConfig::fromArray([
+                    'payload' => [
+                        'aps' => ['sound' => 'default'],
+                    ],
+                ]));
 
             $report = $messaging->sendMulticast($message, $tokens);
 

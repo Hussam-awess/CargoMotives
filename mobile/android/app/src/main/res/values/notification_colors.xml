@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Separate from colors.xml: that file is regenerated (and overwritten)
+         by `dart run flutter_launcher_icons` on every icon rebuild, which
+         would silently delete this value if it lived there too. -->
+    <color name="notification_color">#16294B</color>
+</resources>
