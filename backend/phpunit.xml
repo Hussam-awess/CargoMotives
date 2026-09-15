@@ -52,6 +52,7 @@
              in test setup is always safe. -->
         <env name="REDIS_DB" value="2"/>
         <env name="MAIL_MAILER" value="array"/>
+        <env name="SMS_DRIVER" value="log"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

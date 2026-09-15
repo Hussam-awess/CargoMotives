@@ -23,9 +23,11 @@
             proof-of-delivery photos and recipient details.</li>
         <li><strong>Location data:</strong> if a transporter company connects a GPS provider, we receive that
             truck's live position while it's on an active job, so the job's customer and company can track it.</li>
-        <li><strong>Payment records:</strong> mobile money transaction references and amounts for commission and
-            Featured-tier payments. We never see or store your mobile money PIN or full account credentials — those
-            are handled directly by our licensed mobile money aggregator.</li>
+        <li><strong>Payment records:</strong> mobile money transaction references and amounts for Cargo Motives
+            Plus subscription payments. We never see or store your mobile money PIN or full account credentials —
+            those are handled directly by our licensed mobile money aggregator. Cargo Motives never collects or
+            holds payment for a job itself — customers and transporter companies settle that directly, between
+            themselves.</li>
     </ul>
 
     <h2>How we use this information</h2>
@@ -33,7 +35,7 @@
         <li>To operate the marketplace: posting jobs, bidding, assigning trucks and drivers, and tracking
             deliveries.</li>
         <li>To verify a transporter company's identity and legitimacy before it can bid on jobs.</li>
-        <li>To calculate and collect commission owed on completed jobs.</li>
+        <li>To process Cargo Motives Plus subscription payments.</li>
         <li>To send OTP codes and delivery-related SMS messages.</li>
         <li>To review and resolve disputes, using proof of delivery and (when available) GPS history as evidence.</li>
         <li>To keep the marketplace safe — detecting duplicate or fraudulent company registrations.</li>
@@ -42,7 +44,7 @@
     <h2>Who we share it with</h2>
     <p>We share information with the specific third parties needed to provide the service, and no one else:</p>
     <ul>
-        <li>Our mobile money aggregator, to process commission and Featured-tier payments.</li>
+        <li>Our mobile money aggregator, to process Cargo Motives Plus subscription payments.</li>
         <li>Our GPS tracking provider, only for trucks a company has explicitly connected.</li>
         <li>Our SMS gateway, to deliver OTP codes and Driver Link messages.</li>
         <li>The other party to a job (e.g. a customer and the company assigned to their job can see each other's
