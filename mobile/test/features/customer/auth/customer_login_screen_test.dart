@@ -2,6 +2,7 @@ import 'package:cargo_motives/core/auth/session_store.dart';
 import 'package:cargo_motives/core/localization/locale_controller.dart';
 import 'package:cargo_motives/core/localization/locale_scope.dart';
 import 'package:cargo_motives/core/network/api_exception.dart';
+import 'package:cargo_motives/features/customer/auth/customer_forgot_password_screen.dart';
 import 'package:cargo_motives/features/customer/auth/customer_login_screen.dart';
 import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -18,17 +19,10 @@ Widget _appUnder({required FakeCustomerAuthRepository repository}) {
     routes: [
       GoRoute(
         path: '/customer-login',
-        builder: (context, state) =>
-            CustomerLoginScreen(repository: repository, sessionStore: SessionStore()),
+        builder: (context, state) => CustomerLoginScreen(repository: repository, sessionStore: SessionStore()),
       ),
-      GoRoute(
-        path: '/customer-register',
-        builder: (context, state) => const Text('REGISTER_SCREEN'),
-      ),
-      GoRoute(
-        path: '/customer',
-        builder: (context, state) => const Text('CUSTOMER_HOME'),
-      ),
+      GoRoute(path: '/customer-register', builder: (context, state) => const Text('REGISTER_SCREEN')),
+      GoRoute(path: '/customer', builder: (context, state) => const Text('CUSTOMER_HOME')),
     ],
   );
 
@@ -104,5 +98,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('REGISTER_SCREEN'), findsOneWidget);
+  });
+
+  testWidgets('the "Forgot password?" link opens the reset flow', (tester) async {
+    final repository = FakeCustomerAuthRepository();
+    await tester.pumpWidget(_appUnder(repository: repository));
+
+    await tester.tap(find.text('Forgot password?'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CustomerForgotPasswordScreen), findsOneWidget);
   });
 }

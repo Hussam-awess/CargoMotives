@@ -170,6 +170,39 @@
   "signUp": "Sign up",
   "@signUp": {"description": "Sign-up link/button label."},
 
+  "forgotPasswordLabel": "Forgot password?",
+  "@forgotPasswordLabel": {"description": "Link on both login screens, opens the password reset flow."},
+
+  "forgotPasswordTitle": "Reset password",
+  "@forgotPasswordTitle": {"description": "AppBar title on the forgot-password screen, both roles."},
+
+  "forgotPasswordInstructionsPhone": "Enter your phone number and we'll send you a code to reset your password.",
+  "@forgotPasswordInstructionsPhone": {"description": "Forgot-password screen, step 1 — Transporter Company (phone-based)."},
+
+  "forgotPasswordInstructionsEmail": "Enter your email and we'll send you a code to reset your password.",
+  "@forgotPasswordInstructionsEmail": {"description": "Forgot-password screen, step 1 — Customer (email-based)."},
+
+  "sendResetCodeLabel": "Send reset code",
+  "@sendResetCodeLabel": {"description": "Forgot-password screen, step 1 submit button."},
+
+  "newPasswordHint": "New password",
+  "@newPasswordHint": {"description": "Forgot-password screen, step 2 — new password field."},
+
+  "resetPasswordButtonLabel": "Reset password",
+  "@resetPasswordButtonLabel": {"description": "Forgot-password screen, step 2 submit button."},
+
+  "passwordResetSuccessMessage": "You can now log in with your new password.",
+  "@passwordResetSuccessMessage": {"description": "Forgot-password screen, shown after a successful reset."},
+
+  "backToLoginLabel": "Back to login",
+  "@backToLoginLabel": {"description": "Forgot-password screen, button after a successful reset."},
+
+  "useADifferentNumberLabel": "Use a different number",
+  "@useADifferentNumberLabel": {"description": "Forgot-password screen (Company), link back to step 1."},
+
+  "useADifferentEmailLabel": "Use a different email",
+  "@useADifferentEmailLabel": {"description": "Forgot-password screen (Customer), link back to step 1."},
+
   "verifyEmailTitle": "Verify your email",
   "@verifyEmailTitle": {"description": "AppBar title on the Customer email-OTP screen."},
 

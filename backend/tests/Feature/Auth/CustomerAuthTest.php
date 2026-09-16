@@ -147,4 +147,74 @@ class CustomerAuthTest extends TestCase
         $this->postJson('/api/auth/customer/login', ['email' => 'company@example.com', 'password' => 'somepassword'])
             ->assertUnprocessable()->assertJsonValidationErrors('email');
     }
+
+    public function test_requesting_a_password_reset_is_generic_about_existing_accounts(): void
+    {
+        Mail::fake();
+        User::factory()->create(['account_type' => 'customer', 'email' => 'amina@example.com']);
+
+        $forKnown = $this->postJson('/api/auth/customer/password/forgot', ['email' => 'amina@example.com']);
+        $forUnknown = $this->postJson('/api/auth/customer/password/forgot', ['email' => 'nobody@example.com']);
+
+        $forKnown->assertOk()->assertJson(['message' => 'If that email has an account, a reset code has been sent.']);
+        $forUnknown->assertOk()->assertJson(['message' => 'If that email has an account, a reset code has been sent.']);
+        $this->assertNotNull(Cache::get('email_otp:amina@example.com:code'));
+        $this->assertNull(Cache::get('email_otp:nobody@example.com:code'));
+    }
+
+    public function test_full_password_reset_flow_changes_password_and_allows_login(): void
+    {
+        Mail::fake();
+        User::factory()->create(['account_type' => 'customer', 'email' => 'amina@example.com']);
+
+        $this->postJson('/api/auth/customer/password/forgot', ['email' => 'amina@example.com'])->assertOk();
+        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+
+        $this->postJson('/api/auth/customer/password/reset', [
+            'email' => 'amina@example.com',
+            'code' => $code,
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])->assertOk();
+
+        $user = User::where('email', 'amina@example.com')->first();
+        $this->assertTrue(Hash::check('new-password-123', $user->password_hash));
+
+        $this->postJson('/api/auth/customer/login', ['email' => 'amina@example.com', 'password' => 'new-password-123'])
+            ->assertOk();
+    }
+
+    public function test_password_reset_revokes_existing_sessions(): void
+    {
+        Mail::fake();
+        $user = User::factory()->create(['account_type' => 'customer', 'email' => 'amina@example.com']);
+        $token = $user->createToken('mobile-app')->plainTextToken;
+
+        $this->postJson('/api/auth/customer/password/forgot', ['email' => 'amina@example.com'])->assertOk();
+        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $this->postJson('/api/auth/customer/password/reset', [
+            'email' => 'amina@example.com',
+            'code' => $code,
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])->assertOk();
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/auth/me')
+            ->assertUnauthorized();
+    }
+
+    public function test_confirming_a_reset_with_the_wrong_code_is_rejected(): void
+    {
+        Mail::fake();
+        User::factory()->create(['account_type' => 'customer', 'email' => 'amina@example.com']);
+        $this->postJson('/api/auth/customer/password/forgot', ['email' => 'amina@example.com'])->assertOk();
+
+        $this->postJson('/api/auth/customer/password/reset', [
+            'email' => 'amina@example.com',
+            'code' => '000000',
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])->assertUnprocessable()->assertJsonValidationErrors('code');
+    }
 }

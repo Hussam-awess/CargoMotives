@@ -108,6 +108,14 @@ class AppServiceProvider extends ServiceProvider
         // (design-import restyle — Transporter Company gained a password).
         RateLimiter::for('company-login', fn (Request $request) => Limit::perMinute(5)->by($request->input('phone_number').'|'.$request->ip()));
 
+        // Forgot-password — same request/confirm split and limits as
+        // otp-request/otp-verify, since confirmPasswordReset() reuses the
+        // exact same OtpService::verify() a guesser would be brute-forcing.
+        RateLimiter::for('company-password-reset-request', fn (Request $request) => Limit::perMinute(3)->by($request->input('phone_number').'|'.$request->ip()));
+        RateLimiter::for('company-password-reset-confirm', fn (Request $request) => Limit::perMinute(10)->by($request->input('phone_number').'|'.$request->ip()));
+        RateLimiter::for('customer-password-reset-request', fn (Request $request) => Limit::perMinute(3)->by($request->input('email').'|'.$request->ip()));
+        RateLimiter::for('customer-password-reset-confirm', fn (Request $request) => Limit::perMinute(10)->by($request->input('email').'|'.$request->ip()));
+
         // Defense in depth on top of the token's own unguessability (48
         // random chars) — a driver legitimately reloading/submitting this
         // page a few times a minute is unaffected; a scripted token-guessing

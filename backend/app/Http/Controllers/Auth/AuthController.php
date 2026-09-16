@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\CompanyLoginRequest;
+use App\Http\Requests\Auth\ConfirmPasswordResetRequest;
 use App\Http\Requests\Auth\RequestOtpRequest;
+use App\Http\Requests\Auth\RequestPasswordResetRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -152,6 +154,61 @@ class AuthController extends Controller
             'token' => $user->createToken('mobile-app')->plainTextToken,
             'user' => new UserResource($user),
         ]);
+    }
+
+    /**
+     * Forgot password (mirrors requestOtp()'s generic-response reasoning):
+     * reuses OtpService's existing issue()/verify() pair keyed by the
+     * account's own phone number rather than a pending-registration one —
+     * same reuse ProfileController::requestPhoneChange() already does.
+     */
+    public function requestPasswordReset(RequestPasswordResetRequest $request): JsonResponse
+    {
+        $phone = $this->normalizedPhoneOrFail($request->string('phone_number'));
+
+        $user = User::where('account_type', 'transporter_company')->where('phone_number', $phone)->first();
+
+        if ($user !== null) {
+            try {
+                $this->otp->issue($phone);
+            } catch (OtpCooldownException $e) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                    'seconds_remaining' => $e->secondsRemaining,
+                ], 429);
+            }
+        }
+
+        // Deliberately generic — never confirms or denies whether this
+        // phone number has an account, same reasoning as requestOtp().
+        return response()->json(['message' => 'If that number has an account, a reset code has been sent.']);
+    }
+
+    public function confirmPasswordReset(ConfirmPasswordResetRequest $request): JsonResponse
+    {
+        $phone = $this->normalizedPhoneOrFail($request->string('phone_number'));
+
+        $result = $this->otp->verify($phone, $request->string('code'));
+
+        if (! $result->successful) {
+            throw ValidationException::withMessages(['code' => [$this->messageFor($result->reason)]]);
+        }
+
+        $user = User::where('account_type', 'transporter_company')->where('phone_number', $phone)->first();
+
+        if ($user === null) {
+            throw ValidationException::withMessages(['phone_number' => ['No account found for that number.']]);
+        }
+
+        $user->password_hash = Hash::make($request->string('password')->toString());
+        $user->save();
+
+        // Every existing session is revoked — a device that was already
+        // logged in (possibly by whoever needed the reset in the first
+        // place) shouldn't stay signed in past a password reset.
+        $user->tokens()->delete();
+
+        return response()->json(['message' => 'Password reset. You can now log in with your new password.']);
     }
 
     public function logout(Request $request): JsonResponse

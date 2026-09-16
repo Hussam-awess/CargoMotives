@@ -44,8 +44,7 @@ class CustomerAuthRepository {
       'phone_number': registration.phoneNumber,
       'password': registration.password,
       'password_confirmation': registration.passwordConfirmation,
-      if (registration.companyName != null && registration.companyName!.isNotEmpty)
-        'company_name': registration.companyName,
+      if (registration.companyName != null && registration.companyName!.isNotEmpty) 'company_name': registration.companyName,
       if (registration.logo != null) 'logo': await _toMultipart(registration.logo!),
     });
 
@@ -54,22 +53,30 @@ class CustomerAuthRepository {
 
   /// Returns the new session's bearer token.
   Future<String> verifyRegistration({required String email, required String code}) async {
-    final body = await _client.post(
-      '/auth/customer/register/verify',
-      data: {'email': email, 'code': code},
-    );
+    final body = await _client.post('/auth/customer/register/verify', data: {'email': email, 'code': code});
 
     return body['token'] as String;
   }
 
   /// Returns the session's bearer token.
   Future<String> login({required String email, required String password}) async {
-    final body = await _client.post(
-      '/auth/customer/login',
-      data: {'email': email, 'password': password},
-    );
+    final body = await _client.post('/auth/customer/login', data: {'email': email, 'password': password});
 
     return body['token'] as String;
+  }
+
+  /// Deliberately returns nothing to check — the backend's own response is
+  /// a generic "if that email has an account…" message either way, so
+  /// there's nothing to branch on.
+  Future<void> requestPasswordReset({required String email}) {
+    return _client.post('/auth/customer/password/forgot', data: {'email': email});
+  }
+
+  Future<void> confirmPasswordReset({required String email, required String code, required String password}) {
+    return _client.post(
+      '/auth/customer/password/reset',
+      data: {'email': email, 'code': code, 'password': password, 'password_confirmation': password},
+    );
   }
 
   Future<MultipartFile> _toMultipart(PlatformFile file) async {

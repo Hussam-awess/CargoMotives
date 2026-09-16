@@ -2,6 +2,7 @@ import 'package:cargo_motives/core/auth/session_store.dart';
 import 'package:cargo_motives/core/localization/locale_controller.dart';
 import 'package:cargo_motives/core/localization/locale_scope.dart';
 import 'package:cargo_motives/core/network/api_exception.dart';
+import 'package:cargo_motives/features/company/auth/company_forgot_password_screen.dart';
 import 'package:cargo_motives/features/company/auth/company_login_screen.dart';
 import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -18,17 +19,10 @@ Widget _appUnder({required FakeAuthRepository repository}) {
     routes: [
       GoRoute(
         path: '/company-login',
-        builder: (context, state) =>
-            CompanyLoginScreen(repository: repository, sessionStore: SessionStore()),
+        builder: (context, state) => CompanyLoginScreen(repository: repository, sessionStore: SessionStore()),
       ),
-      GoRoute(
-        path: '/phone-entry',
-        builder: (context, state) => const Text('PHONE_ENTRY_SCREEN'),
-      ),
-      GoRoute(
-        path: '/company',
-        builder: (context, state) => const Text('COMPANY_HOME'),
-      ),
+      GoRoute(path: '/phone-entry', builder: (context, state) => const Text('PHONE_ENTRY_SCREEN')),
+      GoRoute(path: '/company', builder: (context, state) => const Text('COMPANY_HOME')),
     ],
   );
 
@@ -104,5 +98,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PHONE_ENTRY_SCREEN'), findsOneWidget);
+  });
+
+  testWidgets('the "Forgot password?" link opens the reset flow', (tester) async {
+    final repository = FakeAuthRepository();
+    await tester.pumpWidget(_appUnder(repository: repository));
+
+    await tester.tap(find.text('Forgot password?'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CompanyForgotPasswordScreen), findsOneWidget);
   });
 }

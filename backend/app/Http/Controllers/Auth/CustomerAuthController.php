@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ConfirmCustomerPasswordResetRequest;
 use App\Http\Requests\Auth\CustomerLoginRequest;
 use App\Http\Requests\Auth\RegisterCustomerRequest;
+use App\Http\Requests\Auth\RequestCustomerPasswordResetRequest;
 use App\Http\Requests\Auth\VerifyCustomerRegistrationRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -151,6 +153,60 @@ class CustomerAuthController extends Controller
             'token' => $user->createToken('mobile-app')->plainTextToken,
             'user' => new UserResource($user),
         ]);
+    }
+
+    /**
+     * Forgot password — reuses EmailOtpService's existing issue()/verify()
+     * pair keyed by the account's own email rather than a
+     * pending-registration one, same reuse ProfileController's own
+     * email-change flow already does.
+     */
+    public function requestPasswordReset(RequestCustomerPasswordResetRequest $request): JsonResponse
+    {
+        $email = $request->string('email')->toString();
+
+        $user = User::where('account_type', 'customer')->where('email', $email)->first();
+
+        if ($user !== null) {
+            try {
+                $this->otp->issue($email);
+            } catch (OtpCooldownException $e) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                    'seconds_remaining' => $e->secondsRemaining,
+                ], 429);
+            }
+        }
+
+        // Deliberately generic — never confirms or denies whether this
+        // email has an account, same reasoning as register().
+        return response()->json(['message' => 'If that email has an account, a reset code has been sent.']);
+    }
+
+    public function confirmPasswordReset(ConfirmCustomerPasswordResetRequest $request): JsonResponse
+    {
+        $email = $request->string('email')->toString();
+
+        $result = $this->otp->verify($email, $request->string('code'));
+
+        if (! $result->successful) {
+            throw ValidationException::withMessages(['code' => [$this->messageFor($result->reason)]]);
+        }
+
+        $user = User::where('account_type', 'customer')->where('email', $email)->first();
+
+        if ($user === null) {
+            throw ValidationException::withMessages(['email' => ['No account found for that email.']]);
+        }
+
+        $user->password_hash = Hash::make($request->string('password')->toString());
+        $user->save();
+
+        // Every existing session is revoked — a device that was already
+        // logged in shouldn't stay signed in past a password reset.
+        $user->tokens()->delete();
+
+        return response()->json(['message' => 'Password reset. You can now log in with your new password.']);
     }
 
     private function normalizedPhoneOrFail(string $rawPhone): string

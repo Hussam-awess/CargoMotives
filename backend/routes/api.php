@@ -44,12 +44,16 @@ Route::prefix('auth')->group(function () {
     Route::post('/otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:otp-verify');
     // Password-based login once OTP-signup is done (design-import restyle).
     Route::post('/company/login', [AuthController::class, 'login'])->middleware('throttle:company-login');
+    Route::post('/company/password/forgot', [AuthController::class, 'requestPasswordReset'])->middleware('throttle:company-password-reset-request');
+    Route::post('/company/password/reset', [AuthController::class, 'confirmPasswordReset'])->middleware('throttle:company-password-reset-confirm');
 
     // Customer signup + login (Phase 11): email + password, verified once
     // via an emailed code — see CustomerAuthController's docblock.
     Route::post('/customer/register', [CustomerAuthController::class, 'register'])->middleware('throttle:customer-register');
     Route::post('/customer/register/verify', [CustomerAuthController::class, 'verifyRegistration'])->middleware('throttle:customer-register');
     Route::post('/customer/login', [CustomerAuthController::class, 'login'])->middleware('throttle:customer-login');
+    Route::post('/customer/password/forgot', [CustomerAuthController::class, 'requestPasswordReset'])->middleware('throttle:customer-password-reset-request');
+    Route::post('/customer/password/reset', [CustomerAuthController::class, 'confirmPasswordReset'])->middleware('throttle:customer-password-reset-confirm');
 
     Route::middleware('auth-active')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);

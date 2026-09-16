@@ -267,4 +267,78 @@ class OtpAuthTest extends TestCase
             'password' => 'password123',
         ])->assertUnprocessable()->assertJsonValidationErrors('phone_number');
     }
+
+    public function test_requesting_a_password_reset_is_generic_about_existing_accounts(): void
+    {
+        $this->fakeSms();
+        User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
+
+        $forKnown = $this->postJson('/api/auth/company/password/forgot', ['phone_number' => '0712345678']);
+        $forUnknown = $this->postJson('/api/auth/company/password/forgot', ['phone_number' => '0799999999']);
+
+        $forKnown->assertOk()->assertJson(['message' => 'If that number has an account, a reset code has been sent.']);
+        $forUnknown->assertOk()->assertJson(['message' => 'If that number has an account, a reset code has been sent.']);
+        // Only the known phone actually got a code — the unknown one never
+        // triggers OtpService::issue() at all (nothing to verify() later).
+        $this->assertNotNull(Cache::get('otp:+255712345678:code'));
+        $this->assertNull(Cache::get('otp:+255799999999:code'));
+    }
+
+    public function test_full_password_reset_flow_changes_password_and_allows_login(): void
+    {
+        $this->fakeSms();
+        User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
+
+        $this->postJson('/api/auth/company/password/forgot', ['phone_number' => '0712345678'])->assertOk();
+        $code = Cache::get('otp:+255712345678:code')['code'];
+
+        $this->postJson('/api/auth/company/password/reset', [
+            'phone_number' => '0712345678',
+            'code' => $code,
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])->assertOk();
+
+        $user = User::where('phone_number', '+255712345678')->first();
+        $this->assertTrue(Hash::check('new-password-123', $user->password_hash));
+
+        $this->postJson('/api/auth/company/login', [
+            'phone_number' => '0712345678',
+            'password' => 'new-password-123',
+        ])->assertOk();
+    }
+
+    public function test_password_reset_revokes_existing_sessions(): void
+    {
+        $this->fakeSms();
+        $user = User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
+        $token = $user->createToken('mobile-app')->plainTextToken;
+
+        $this->postJson('/api/auth/company/password/forgot', ['phone_number' => '0712345678'])->assertOk();
+        $code = Cache::get('otp:+255712345678:code')['code'];
+        $this->postJson('/api/auth/company/password/reset', [
+            'phone_number' => '0712345678',
+            'code' => $code,
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])->assertOk();
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/auth/me')
+            ->assertUnauthorized();
+    }
+
+    public function test_confirming_a_reset_with_the_wrong_code_is_rejected(): void
+    {
+        $this->fakeSms();
+        User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
+        $this->postJson('/api/auth/company/password/forgot', ['phone_number' => '0712345678'])->assertOk();
+
+        $this->postJson('/api/auth/company/password/reset', [
+            'phone_number' => '0712345678',
+            'code' => '000000',
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])->assertUnprocessable()->assertJsonValidationErrors('code');
+    }
 }
