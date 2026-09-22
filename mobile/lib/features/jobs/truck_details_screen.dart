@@ -146,9 +146,13 @@ class TruckDetailsScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: _Stat(
+                          // "New" (not "0.0"/"—") for a not-yet-rated
+                          // company — 0 reviews isn't the same signal as a
+                          // genuinely low rating. Matches RatingStars'/
+                          // _BidCard's convention elsewhere.
                           value: company.rating != null
                               ? company.rating!.toStringAsFixed(1)
-                              : '—',
+                              : 'New',
                           label: 'Rating',
                         ),
                       ),
@@ -259,7 +263,7 @@ class TruckDetailsScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'TZS ${bid.price.toStringAsFixed(0)}',
+                              '${job.currency} ${bid.price.toStringAsFixed(0)}',
                               style: TextStyle(
                                 fontFamily: 'Barlow Condensed',
                                 fontSize: 22,

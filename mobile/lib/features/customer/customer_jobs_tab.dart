@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
+import '../../shared/widgets/plus_badge.dart';
 import '../auth/data/auth_repository.dart';
 import '../jobs/data/job_repository.dart';
 import '../jobs/job_detail_screen.dart';
@@ -10,7 +11,10 @@ import '../jobs/job_status.dart';
 import '../jobs/live_gps_tracking_screen.dart';
 import '../jobs/post_job_screen.dart';
 import '../notifications/data/notification_repository.dart';
+import '../notifications/notification_router.dart';
 import '../notifications/notifications_screen.dart';
+import '../support/support_thread_screen.dart';
+import 'featured/featured_screen.dart';
 import 'shipments/customer_shipments_screen.dart';
 
 const _activeStatuses = {
@@ -111,9 +115,14 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
   }
 
   void _openTracking(Job job) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => LiveGpsTrackingScreen(job: job)));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LiveGpsTrackingScreen(
+          job: job,
+          onRefresh: () => widget.repository.show(job.id),
+        ),
+      ),
+    );
   }
 
   void _openShipments() {
@@ -130,10 +139,23 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
         builder: (_) => NotificationsScreen(
           repository: widget.notificationRepository,
           onTapJob: _openJob,
+          onOpenSupport: _openSupport,
         ),
       ),
     );
     refresh();
+  }
+
+  void _openSupport() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => SupportThreadScreen()));
+  }
+
+  void _openFeatured() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => CustomerFeaturedScreen()))
+        .then((_) => refresh());
   }
 
   @override
@@ -171,6 +193,7 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                 children: [
                   _Header(
                     profile: data.profile,
+                    isFeatured: data.profile.isFeatured,
                     onBell: _openNotifications,
                     unreadCount: data.notifications
                         .where((n) => n.isUnread)
@@ -227,6 +250,13 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
                       notifications: data.notifications.take(4).toList(),
                       onTap: _openNotification,
                     ),
+                    if (!data.profile.isFeatured) ...[
+                      const SizedBox(height: 18),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _PlusPromoBanner(onTap: _openFeatured),
+                      ),
+                    ],
                   ],
                 ],
               ),
@@ -238,13 +268,24 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
   }
 
   Future<void> _openNotification(AppNotification notification) async {
-    if (notification.isUnread)
+    if (notification.isUnread) {
       await widget.notificationRepository.markRead(notification.id);
-    if (notification.relatedJobId != null) {
-      await _openJob(notification.relatedJobId!);
-    } else {
-      refresh();
     }
+    if (!mounted) return;
+    switch (destinationFor(notification.type)) {
+      case NotificationDestination.job:
+        if (notification.relatedJobId != null) {
+          await _openJob(notification.relatedJobId!);
+          return;
+        }
+      case NotificationDestination.support:
+        _openSupport();
+        return;
+      case NotificationDestination.fleet:
+      case NotificationDestination.none:
+        break;
+    }
+    refresh();
   }
 
   Job? _mostRecentActive(List<Job> jobs) {
@@ -270,11 +311,13 @@ class CustomerJobsTabState extends State<CustomerJobsTab> {
 class _Header extends StatelessWidget {
   const _Header({
     required this.profile,
+    required this.isFeatured,
     required this.onBell,
     required this.unreadCount,
   });
 
   final UserProfile profile;
+  final bool isFeatured;
   final VoidCallback onBell;
   final int unreadCount;
 
@@ -316,16 +359,29 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  firstName == null
-                      ? l10n.helloGreeting
-                      : l10n.helloGreetingWithName(firstName),
-                  style: TextStyle(
-                    fontFamily: 'Barlow Condensed',
-                    fontSize: 21,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        firstName == null
+                            ? l10n.helloGreeting
+                            : l10n.helloGreetingWithName(firstName),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Barlow Condensed',
+                          fontSize: 21,
+                          fontWeight: FontWeight.w600,
+                          color: isFeatured
+                              ? AppColors.accent
+                              : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    if (isFeatured) ...[
+                      const SizedBox(width: 6),
+                      const PlusBadge(compact: true),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 1),
                 Text(
@@ -988,6 +1044,57 @@ class _RecentActivity extends StatelessWidget {
       return 'Today, ${DateFormat('HH:mm').format(local)}';
     }
     return DateFormat('d MMM').format(local);
+  }
+}
+
+/// Non-Plus promo banner (Phase 3d) — only shown to a customer who isn't
+/// subscribed yet, styled like _ActivityCard's rounded/brandChip
+/// convention so it reads as part of the dashboard, not an ad.
+class _PlusPromoBanner extends StatelessWidget {
+  const _PlusPromoBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          color: AppColors.brandChip,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.bolt, color: AppColors.accent, size: 26),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Go further with Cargo Motives Plus',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Unlimited posting, priority visibility and one-tap return shipments.',
+                    style: TextStyle(fontSize: 12, color: AppColors.lightBlue),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white),
+          ],
+        ),
+      ),
+    );
   }
 }
 

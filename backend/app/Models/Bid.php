@@ -14,7 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * unique DB index (see the migration), not application logic, since it's a
  * plain race-condition guard with no "flagging" workflow needed.
  */
-#[Fillable(['job_id', 'transporter_company_id', 'price', 'estimated_pickup_time', 'note', 'status', 'is_priority'])]
+#[Fillable([
+    'job_id', 'transporter_company_id', 'price', 'trucks_offered', 'estimated_pickup_time', 'note', 'status', 'is_priority',
+    'is_return_load_claim',
+])]
 class Bid extends Model
 {
     /** @use HasFactory<BidFactory> */
@@ -29,6 +32,8 @@ class Bid extends Model
     protected $attributes = [
         'status' => 'pending',
         'is_priority' => false,
+        'trucks_offered' => 1,
+        'is_return_load_claim' => false,
     ];
 
     /**
@@ -40,6 +45,7 @@ class Bid extends Model
             'price' => 'decimal:2',
             'estimated_pickup_time' => 'datetime',
             'is_priority' => 'boolean',
+            'is_return_load_claim' => 'boolean',
         ];
     }
 

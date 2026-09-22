@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * only in App\Http\Resources\ProofOfDeliveryResource, the same pattern
  * already used for company/truck verification documents.
  */
-#[Fillable(['job_id', 'driver_id', 'driver_link_id', 'photo_urls', 'recipient_name', 'notes'])]
+#[Fillable(['job_id', 'job_award_id', 'driver_id', 'driver_link_id', 'photo_urls', 'recipient_name', 'notes'])]
 class ProofOfDelivery extends Model
 {
     /** @use HasFactory<ProofOfDeliveryFactory> */
@@ -35,6 +35,15 @@ class ProofOfDelivery extends Model
     public function job(): BelongsTo
     {
         return $this->belongsTo(Job::class);
+    }
+
+    /**
+     * Multi-Company Split Awards epic: set only when this PoD belongs to
+     * one company's award rather than directly to the job.
+     */
+    public function jobAward(): BelongsTo
+    {
+        return $this->belongsTo(JobAward::class);
     }
 
     public function driver(): BelongsTo

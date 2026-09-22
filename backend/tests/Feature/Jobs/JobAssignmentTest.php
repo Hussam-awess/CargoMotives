@@ -147,6 +147,53 @@ class JobAssignmentTest extends TestCase
         $this->assertDatabaseHas('driver_links', ['job_id' => $job->id, 'driver_id' => $driver->id, 'status' => 'active']);
     }
 
+    /**
+     * A truck/driver can only be swapped before the job has actually
+     * started — once the driver has advanced past 'assigned' (the
+     * shipment is genuinely underway), the truck already moving can't be
+     * pulled out from under it.
+     */
+    public function test_reassigning_a_truck_once_the_job_has_started_is_rejected(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $companyId = $company->transporterCompany->id;
+        $job = Job::factory()->create(['assigned_company_id' => $companyId, 'status' => 'en_route_pickup']);
+        $firstTruck = Truck::factory()->approved()->create(['transporter_company_id' => $companyId, 'current_status' => 'on_job']);
+        $secondTruck = Truck::factory()->approved()->create(['transporter_company_id' => $companyId, 'current_status' => 'idle']);
+        $driver = Driver::factory()->create(['transporter_company_id' => $companyId]);
+
+        $this->actingAs($company)
+            ->postJson("/api/company/jobs/{$job->id}/assign", ['truck_id' => $secondTruck->id, 'driver_id' => $driver->id])
+            ->assertUnprocessable();
+
+        $this->assertSame('idle', $secondTruck->fresh()->current_status);
+        $this->assertSame('on_job', $firstTruck->fresh()->current_status);
+    }
+
+    /**
+     * A multi-truck job's roster is built up incrementally (Bulk Cargo
+     * epic) — adding a new truck must stay allowed even once the lead
+     * truck is already en route, unlike the single-truck swap case above.
+     */
+    public function test_adding_a_truck_to_a_multi_truck_jobs_roster_is_still_allowed_once_the_lead_is_en_route(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $companyId = $company->transporterCompany->id;
+        $job = Job::factory()->create([
+            'assigned_company_id' => $companyId,
+            'status' => 'en_route_pickup',
+            'trucks_needed' => 2,
+        ]);
+        $truck = Truck::factory()->approved()->create(['transporter_company_id' => $companyId, 'current_status' => 'idle']);
+        $driver = Driver::factory()->create(['transporter_company_id' => $companyId]);
+
+        $this->actingAs($company)
+            ->postJson("/api/company/jobs/{$job->id}/assign", ['truck_id' => $truck->id, 'driver_id' => $driver->id])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('job_truck_assignments', ['job_id' => $job->id, 'truck_id' => $truck->id]);
+    }
+
     public function test_the_company_can_refetch_the_current_driver_link(): void
     {
         $company = $this->approvedCompanyUser();

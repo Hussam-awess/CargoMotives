@@ -10,9 +10,14 @@ import '../../jobs/data/company_job_repository.dart';
 import '../../jobs/data/job_repository.dart';
 import '../../jobs/gps_status_card.dart';
 import '../../jobs/job_geo.dart';
+import '../../jobs/job_route_map_screen.dart';
 import '../../jobs/job_status.dart';
 import '../../jobs/live_gps_tracking_screen.dart';
 import '../../jobs/messages_screen.dart';
+import '../../profiles/customer_profile_screen.dart';
+import '../../reviews/rate_job_card.dart';
+import '../../reviews/rate_job_screen.dart';
+import '../data/follow_repository.dart';
 import 'assign_job_screen.dart';
 import 'data/job_assignment_repository.dart';
 
@@ -32,16 +37,19 @@ class CompanyJobDetailScreen extends StatefulWidget {
     BidRepository? bidRepository,
     JobAssignmentRepository? assignmentRepository,
     JobLocationChannel? locationChannel,
+    FollowRepository? followRepository,
   }) : jobRepository = jobRepository ?? CompanyJobRepository(),
        bidRepository = bidRepository ?? BidRepository(),
        assignmentRepository = assignmentRepository ?? JobAssignmentRepository(),
-       locationChannel = locationChannel ?? JobLocationChannel(jobId: jobId);
+       locationChannel = locationChannel ?? JobLocationChannel(jobId: jobId),
+       followRepository = followRepository ?? FollowRepository();
 
   final int jobId;
   final CompanyJobRepository jobRepository;
   final BidRepository bidRepository;
   final JobAssignmentRepository assignmentRepository;
   final JobLocationChannel locationChannel;
+  final FollowRepository followRepository;
 
   @override
   State<CompanyJobDetailScreen> createState() => _CompanyJobDetailScreenState();
@@ -55,11 +63,13 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
 
   final _priceController = TextEditingController();
   final _noteController = TextEditingController();
+  final _trucksOfferedController = TextEditingController(text: '1');
   bool _isSubmitting = false;
   String? _submitError;
   Bid? _placedBid;
   GpsLocation? _liveLocation;
   List<Job> _returnLoadSuggestions = [];
+  int? _claimingReturnLoadId;
 
   @override
   void initState() {
@@ -74,6 +84,7 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
   void dispose() {
     _priceController.dispose();
     _noteController.dispose();
+    _trucksOfferedController.dispose();
     widget.locationChannel.dispose();
     super.dispose();
   }
@@ -123,11 +134,82 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
     }
   }
 
+  /// "Doesn't need to be bid": claims a matched return load at its own
+  /// posted price, no price entry. The customer still explicitly confirms
+  /// it (BidController::accept(), unchanged) — this only skips the
+  /// competitive-pricing step for the transporter's side.
+  Future<void> _claimReturnLoad(Job suggestion) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Claim this return load?'),
+        content: Text(
+          "You'll take ${suggestion.pickupAddress} → ${suggestion.dropoffAddress} at its posted price of "
+          "${suggestion.currency} ${suggestion.budgetPrice?.toStringAsFixed(0)}. No bidding — the customer just confirms to assign it to you.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Claim'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _claimingReturnLoadId = suggestion.id);
+    try {
+      await widget.jobRepository.claimReturnLoad(
+        suggestion.id,
+        fromJobId: widget.jobId,
+      );
+      if (!mounted) return;
+      setState(
+        () => _returnLoadSuggestions.removeWhere((j) => j.id == suggestion.id),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Claimed — the customer will confirm to assign it to you.',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _claimingReturnLoadId = null);
+    }
+  }
+
   Future<void> _placeBid() async {
     final price = double.tryParse(_priceController.text.trim());
     if (price == null || price <= 0) {
       setState(() => _submitError = 'Enter a valid price.');
       return;
+    }
+
+    final job = _job!;
+    int? trucksOffered;
+    if (job.trucksNeeded > 1) {
+      trucksOffered = int.tryParse(_trucksOfferedController.text.trim());
+      final remaining = job.remainingTrucksNeeded ?? job.trucksNeeded;
+      if (trucksOffered == null ||
+          trucksOffered < 1 ||
+          trucksOffered > remaining) {
+        setState(
+          () => _submitError =
+              'Enter how many trucks you can offer (1–$remaining).',
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -142,6 +224,7 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
         note: _noteController.text.trim().isEmpty
             ? null
             : _noteController.text.trim(),
+        trucksOffered: trucksOffered,
       );
       if (!mounted) return;
       setState(() {
@@ -161,10 +244,20 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
   }
 
   Future<void> _openAssignScreen() async {
+    final job = _job!;
+    // Multi-Company Split Awards epic: CompanyJobController::show() scopes
+    // `awards` to the viewer's own company only, so a non-empty list here
+    // IS this company's own award — exclude ITS roster, not the job's
+    // (which could include other companies' trucks the backend never even
+    // shows this company).
+    final excludedTruckIds = job.awards.isNotEmpty
+        ? job.awards.first.assignedFleet.map((t) => t.truckId).toSet()
+        : job.assignedFleet.map((t) => t.truckId).toSet();
     final assigned = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => AssignJobScreen(
-          job: _job!,
+          job: job,
+          excludedTruckIds: excludedTruckIds,
           assignmentRepository: widget.assignmentRepository,
         ),
       ),
@@ -172,10 +265,23 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
     if (assigned == true) _load();
   }
 
-  Future<void> _viewDriverLink() async {
+  Future<void> _openRateJob() async {
+    final submitted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RateJobScreen(
+          jobId: widget.jobId,
+          direction: RatingDirection.transporterRatingCustomer,
+        ),
+      ),
+    );
+    if (submitted == true) _load();
+  }
+
+  Future<void> _viewDriverLink({int? truckId}) async {
     try {
       final link = await widget.assignmentRepository.currentDriverLink(
         widget.jobId,
+        truckId: truckId,
       );
       if (!mounted) return;
       if (link == null) {
@@ -205,18 +311,49 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
         ),
       );
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
+  }
+
+  void _openMessages(BuildContext context, Job job) {
+    final customerId = job.customerId;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MessagesScreen(
+          jobId: widget.jobId,
+          counterpartyName: job.customerCompanyName ?? job.customerName,
+          onOpenCounterpartyProfile: customerId != null
+              ? () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        CustomerProfileScreen(customerId: customerId),
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final job = _job;
+    // Multi-Company Split Awards epic: CompanyJobController::show() scopes
+    // `awards` to the viewer's own company only, so a non-empty list here
+    // IS this company's own award, if it has one. A job with an award can
+    // legitimately still be job.status == 'open' (other companies' slices
+    // still uncovered), so the OR-branch is needed — the legacy
+    // isAssignedToViewer/isAssignable check alone would never catch it.
+    final award = job != null && job.awards.isNotEmpty
+        ? job.awards.first
+        : null;
     final isActiveJob =
-        job != null && job.isAssignedToViewer && job.isAssignable;
+        job != null &&
+        ((job.isAssignedToViewer && job.isAssignable) || award != null);
 
     return Scaffold(
       appBar: AppBar(
@@ -230,11 +367,7 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
             IconButton(
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: 'Messages',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => MessagesScreen(jobId: widget.jobId),
-                ),
-              ),
+              onPressed: () => _openMessages(context, job!),
             ),
         ],
       ),
@@ -260,11 +393,66 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (isActiveJob)
-                    _ActiveJobCard(job: job, liveLocation: _liveLocation)
+                    _ActiveJobCard(
+                      job: job,
+                      award: award,
+                      liveLocation: _liveLocation,
+                      followRepository: widget.followRepository,
+                    )
                   else
-                    _JobInfoCard(job: job!),
+                    _JobInfoCard(
+                      job: job!,
+                      followRepository: widget.followRepository,
+                    ),
+                  if (job.reviewable == true) ...[
+                    const SizedBox(height: 16),
+                    RateJobCard(onTap: _openRateJob),
+                  ],
                   const SizedBox(height: 16),
-                  if (job.isAssignable && job.isAssignedToViewer) ...[
+                  if (award != null) ...[
+                    const _SectionLabel('Your fleet on this job'),
+                    const SizedBox(height: 8),
+                    _AwardAssignmentCard(
+                      award: award,
+                      onAssign: _openAssignScreen,
+                      onViewDriverLink: _viewDriverLink,
+                    ),
+                    if (award.assignedFleet.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      GpsStatusCard(
+                        trackingActive: award.gpsTrackingActive,
+                        signalStatus: award.gpsSignalStatus,
+                        location: _liveLocation,
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => LiveGpsTrackingScreen(
+                              job: job.forAwardMapView(award),
+                              // Re-applies the same award's own (freshly
+                              // fetched) slice each tick, not the whole
+                              // job — award.id, not the closed-over award
+                              // itself, so this reflects that award's own
+                              // updated status/location, not a stale copy.
+                              onRefresh: () async {
+                                final fresh = await widget.jobRepository.show(
+                                  job.id,
+                                );
+                                return fresh.forAwardMapView(
+                                  fresh.awards.firstWhere(
+                                    (a) => a.id == award.id,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.near_me_outlined, size: 16),
+                        label: const Text('View route on map'),
+                      ),
+                    ],
+                  ] else if (job.isAssignable && job.isAssignedToViewer) ...[
                     const _SectionLabel('Assignment'),
                     const SizedBox(height: 8),
                     _AssignmentCard(
@@ -285,32 +473,45 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                       OutlinedButton.icon(
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => LiveGpsTrackingScreen(job: job),
+                            builder: (_) => LiveGpsTrackingScreen(
+                              job: job,
+                              onRefresh: () =>
+                                  widget.jobRepository.show(job.id),
+                            ),
                           ),
                         ),
                         icon: const Icon(Icons.near_me_outlined, size: 16),
                         label: const Text('View route on map'),
                       ),
                     ],
-                    if (_returnLoadSuggestions.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      const _SectionLabel('Find a return load'),
-                      const SizedBox(height: 8),
-                      for (final suggestion in _returnLoadSuggestions)
-                        _ReturnLoadTile(
-                          job: suggestion,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  CompanyJobDetailScreen(jobId: suggestion.id),
-                            ),
-                          ),
-                        ),
-                    ],
                   ] else if (!job.isOpen)
                     Text(
                       'This job is no longer open for bidding.',
                       style: TextStyle(color: AppColors.textSecondary),
+                    )
+                  else if (job.biddingClosed == true)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Bidding closed for this job before you placed a bid.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    )
+                  else if (job.isEligible == false)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'This job needs ${job.trucksNeeded} trucks. Your verified fleet doesn\'t meet that requirement yet — add more approved trucks to bid.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
                     )
                   else if (_placedBid != null)
                     Container(
@@ -320,7 +521,7 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        'Bid placed: TZS ${_placedBid!.price.toStringAsFixed(0)} — pending review.',
+                        'Bid placed: ${job.currency} ${_placedBid!.price.toStringAsFixed(0)} — pending review.',
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: AppColors.ctaBluePressed,
@@ -328,6 +529,44 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                       ),
                     )
                   else ...[
+                    // Multi-Company Split Awards epic: a bulk job's budget
+                    // (shown above, in this same card's rows) is always
+                    // per truck — called out again right at the bid form so
+                    // a company can't mistake it for a lump sum covering
+                    // every truck the job needs and under/overbid as a
+                    // result.
+                    if (job.trucksNeeded > 1 && job.budgetPrice != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.infoTint,
+                          border: Border.all(color: const Color(0xFFD6EBFF)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: AppColors.ctaBlue,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'The customer\'s budget of ${job.currency} ${job.budgetPrice!.toStringAsFixed(0)} is per truck, not the total for all ${job.trucksNeeded} trucks.',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.ctaBluePressed,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     Text(
                       'Your price',
                       style: TextStyle(
@@ -350,7 +589,7 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                       child: Row(
                         children: [
                           Text(
-                            'TZS',
+                            job.currency,
                             style: TextStyle(
                               fontSize: 14,
                               color: AppColors.textSecondary,
@@ -386,11 +625,37 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     if (_quotaRemaining != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        '$_quotaRemaining bid(s) remaining',
+                        // Cargo Motives Plus: BidQuotaService.remaining()
+                        // returns -1 (never a real count) for a company
+                        // with no bid limit at all.
+                        _quotaRemaining == -1
+                            ? 'Unlimited bids (Plus)'
+                            : '$_quotaRemaining bid(s) remaining',
                         style: TextStyle(
                           fontSize: 11.5,
                           color: AppColors.textTertiary,
                         ),
+                      ),
+                    ],
+                    // Multi-Company Split Awards epic: only meaningful on a
+                    // bulk job — an ordinary trucksNeeded=1 job's bid form
+                    // never needs to think about this, and the backend
+                    // defaults trucks_offered to 1 when it's omitted.
+                    if (job.trucksNeeded > 1) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Trucks you can offer (up to ${job.remainingTrucksNeeded ?? job.trucksNeeded})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textLabel,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      TextField(
+                        key: const Key('trucksOfferedField'),
+                        controller: _trucksOfferedController,
+                        keyboardType: TextInputType.number,
                       ),
                     ],
                     const SizedBox(height: 16),
@@ -432,6 +697,30 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                           : const Text('SUBMIT BID'),
                     ),
                   ],
+                  // Shown regardless of which state the job's own bidding/
+                  // assignment section above is in (a delivered/completed
+                  // job never satisfies job.isAssignable, so this can't
+                  // live inside that branch — it needs its own, unconditional
+                  // slot at the end of the page).
+                  if (_returnLoadSuggestions.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const _SectionLabel('Find a return load'),
+                    const SizedBox(height: 8),
+                    for (final suggestion in _returnLoadSuggestions)
+                      _ReturnLoadTile(
+                        job: suggestion,
+                        isClaiming: _claimingReturnLoadId == suggestion.id,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                CompanyJobDetailScreen(jobId: suggestion.id),
+                          ),
+                        ),
+                        onClaim: suggestion.budgetPrice != null
+                            ? () => _claimReturnLoad(suggestion)
+                            : null,
+                      ),
+                  ],
                 ],
               ),
             ),
@@ -460,9 +749,10 @@ class _SectionLabel extends StatelessWidget {
 
 /// The bidding-stage summary — mockup's light "Submit a Bid" header card.
 class _JobInfoCard extends StatelessWidget {
-  const _JobInfoCard({required this.job});
+  const _JobInfoCard({required this.job, required this.followRepository});
 
   final Job job;
+  final FollowRepository followRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -478,18 +768,48 @@ class _JobInfoCard extends StatelessWidget {
             job.dropoffLng!,
           )
         : null;
+    final customer = job.customerCompanyName ?? job.customerName;
 
     final rows = <(String, String)>[
       if (job.budgetPrice != null)
         (
-          'Customer\'s budget',
+          // Multi-Company Split Awards epic: a bulk job's stated budget is
+          // always per truck, never a lump sum for the whole trucks_needed
+          // count — otherwise a company bidding for only part of a big job
+          // (e.g. 5 of 20 trucks) would have no fair number to bid against.
+          job.trucksNeeded > 1
+              ? 'Customer\'s budget (per truck)'
+              : 'Customer\'s budget',
           '${job.currency} ${job.budgetPrice!.toStringAsFixed(0)}',
+        ),
+      if (job.trucksNeeded > 1)
+        (
+          'Trucks needed',
+          job.assignedTrucksCount != null
+              ? '${job.trucksNeeded} (${job.assignedTrucksCount}/${job.trucksNeeded} assigned)'
+              : '${job.trucksNeeded}',
         ),
       (
         'Pickup window',
         DateFormat('d MMM, HH:mm').format(job.preferredPickupWindowStart),
       ),
+      // Bidding Deadline epic: informational only while still open — the
+      // "Bidding closed" message below the bid form takes over once it
+      // actually passes.
+      if (job.biddingExpiresAt != null && job.biddingClosed != true)
+        (
+          'Bidding closes',
+          DateFormat('d MMM, HH:mm').format(job.biddingExpiresAt!.toLocal()),
+        ),
       if (job.bidsCount != null) ('Current bids', '${job.bidsCount}'),
+      // The real completion moment (Job.completedAt), never the pickup
+      // window row above — this only appears once the job has actually
+      // reached 'completed'.
+      if (job.status == 'completed' && job.completedAt != null)
+        (
+          'Completed',
+          DateFormat('d MMMM yyyy').format(job.completedAt!.toLocal()),
+        ),
     ];
 
     return Container(
@@ -515,14 +835,36 @@ class _JobInfoCard extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                Text(
-                  '${job.pickupAddress} → ${job.dropoffAddress}',
-                  style: TextStyle(
-                    fontFamily: 'Barlow Condensed',
-                    fontSize: 21,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${job.pickupAddress} → ${job.dropoffAddress}',
+                        style: TextStyle(
+                          fontFamily: 'Barlow Condensed',
+                          fontSize: 21,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    // Lets a company still deciding whether to bid preview
+                    // the real pickup/drop-off route and distance on a map
+                    // — no truck assigned yet at this point, so this is a
+                    // route-only preview (JobRouteMapScreen), distinct from
+                    // LiveGpsTrackingScreen which needs one.
+                    IconButton(
+                      icon: const Icon(Icons.map_outlined),
+                      tooltip: 'View route on map',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => JobRouteMapScreen(job: job),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   '${job.containerType} · ${job.containerSize}'
@@ -533,6 +875,38 @@ class _JobInfoCard extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (customer != null && job.customerId != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => CustomerProfileScreen(
+                                customerId: job.customerId!,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            customer,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textSecondary,
+                              decoration: TextDecoration.underline,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      _FollowButton(
+                        customerId: job.customerId!,
+                        initialIsFollowing: job.isFollowingCustomer ?? false,
+                        repository: followRepository,
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -587,10 +961,22 @@ class _JobInfoCard extends StatelessWidget {
 /// "Remaining" is a real great-circle distance from the truck's live
 /// position to drop-off, not a fabricated ETA.
 class _ActiveJobCard extends StatelessWidget {
-  const _ActiveJobCard({required this.job, required this.liveLocation});
+  const _ActiveJobCard({
+    required this.job,
+    this.award,
+    required this.liveLocation,
+    required this.followRepository,
+  });
 
   final Job job;
+
+  /// Non-null only when the viewer holds one of the job's awards (Multi-
+  /// Company Split Awards epic) — its own status/price are shown instead
+  /// of the job's, since a split job's own status can stay 'open' long
+  /// after this company's own slice is well underway.
+  final JobAward? award;
   final GpsLocation? liveLocation;
+  final FollowRepository followRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -606,6 +992,8 @@ class _ActiveJobCard extends StatelessWidget {
           )
         : null;
     final customer = job.customerCompanyName ?? job.customerName;
+    final statusLabel = jobStatusLabel(award?.status ?? job.status);
+    final earnings = award?.agreedPrice ?? job.agreedPrice;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -646,7 +1034,7 @@ class _ActiveJobCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      jobStatusLabel(job.status),
+                      statusLabel,
                       style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
@@ -669,12 +1057,38 @@ class _ActiveJobCard extends StatelessWidget {
             ),
           ),
           if (customer != null)
-            Text(
-              customer,
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: AppColors.lightBlue,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: job.customerId != null
+                        ? () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => CustomerProfileScreen(
+                                customerId: job.customerId!,
+                              ),
+                            ),
+                          )
+                        : null,
+                    child: Text(
+                      customer,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.lightBlue,
+                        decoration: TextDecoration.underline,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                if (job.customerId != null)
+                  _FollowButton(
+                    customerId: job.customerId!,
+                    initialIsFollowing: job.isFollowingCustomer ?? false,
+                    repository: followRepository,
+                    onDark: true,
+                  ),
+              ],
             ),
           Padding(
             padding: const EdgeInsets.only(top: 14),
@@ -687,10 +1101,10 @@ class _ActiveJobCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  if (job.agreedPrice != null)
+                  if (earnings != null)
                     _SummaryStat(
                       label: 'You earn',
-                      value: job.agreedPrice!.toStringAsFixed(0),
+                      value: earnings.toStringAsFixed(0),
                     ),
                   if (remaining != null) ...[
                     const SizedBox(width: 20),
@@ -704,6 +1118,83 @@ class _ActiveJobCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Follow/unfollow this job's customer (Phase: Follow system) — a company
+/// only gets "new job posted" notifications from customers it follows.
+/// Self-contained (owns its own toggle state + repository call) so it can
+/// drop into either job-header variant without either one needing to track
+/// follow state itself.
+class _FollowButton extends StatefulWidget {
+  const _FollowButton({
+    required this.customerId,
+    required this.initialIsFollowing,
+    required this.repository,
+    this.onDark = false,
+  });
+
+  final int customerId;
+  final bool initialIsFollowing;
+  final FollowRepository repository;
+
+  /// _ActiveJobCard's dark navy background needs light-on-dark styling;
+  /// _JobInfoCard's light background uses the default outlined style.
+  final bool onDark;
+
+  @override
+  State<_FollowButton> createState() => _FollowButtonState();
+}
+
+class _FollowButtonState extends State<_FollowButton> {
+  late bool _isFollowing = widget.initialIsFollowing;
+  bool _isBusy = false;
+
+  Future<void> _toggle() async {
+    setState(() => _isBusy = true);
+    try {
+      final result = _isFollowing
+          ? await widget.repository.unfollow(widget.customerId)
+          : await widget.repository.follow(widget.customerId);
+      if (mounted) setState(() => _isFollowing = result);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update follow status.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final foregroundColor = widget.onDark ? Colors.white : AppColors.ctaBlue;
+
+    return TextButton.icon(
+      onPressed: _isBusy ? null : _toggle,
+      style: TextButton.styleFrom(
+        foregroundColor: foregroundColor,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      icon: _isBusy
+          ? SizedBox(
+              height: 14,
+              width: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: foregroundColor,
+              ),
+            )
+          : Icon(_isFollowing ? Icons.check : Icons.add, size: 15),
+      label: Text(
+        _isFollowing ? 'Following' : 'Follow',
+        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -747,10 +1238,12 @@ class _AssignmentCard extends StatelessWidget {
 
   final Job job;
   final VoidCallback onAssign;
-  final VoidCallback? onViewDriverLink;
+  final void Function({int? truckId})? onViewDriverLink;
 
   @override
   Widget build(BuildContext context) {
+    if (job.isMultiTruck) return _buildRoster(context);
+
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
@@ -807,14 +1300,26 @@ class _AssignmentCard extends StatelessWidget {
               style: TextStyle(color: AppColors.textSecondary),
             ),
           const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: onAssign,
-            child: Text(
-              job.assignedTruckRegistration != null
-                  ? 'Reassign truck & driver'
-                  : 'Assign truck & driver',
+          // Once the job has actually started (status moved past
+          // 'assigned'), the truck already in motion can no longer be
+          // swapped out — the backend rejects it too
+          // (JobAssignmentService::assign()), this just avoids offering an
+          // action that would fail. First-time assignment is unaffected:
+          // a job is always still 'assigned' before any truck exists on it.
+          if (job.status == 'assigned')
+            ElevatedButton(
+              onPressed: onAssign,
+              child: Text(
+                job.assignedTruckRegistration != null
+                    ? 'Reassign truck & driver'
+                    : 'Assign truck & driver',
+              ),
+            )
+          else if (job.assignedTruckRegistration != null)
+            Text(
+              'Truck & driver are locked in — this job is already underway.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
-          ),
           if (onViewDriverLink != null) ...[
             const SizedBox(height: 8),
             OutlinedButton(
@@ -826,55 +1331,297 @@ class _AssignmentCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Bulk Cargo epic: a growing roster of truck+driver pairs, built up
+  /// incrementally, instead of the single-row/"Reassign" UI above — the
+  /// job's own shared status/GPS still comes from the lead truck only
+  /// (unchanged elsewhere on this screen), this card just shows who's on
+  /// the fleet so far.
+  Widget _buildRoster(BuildContext context) {
+    final fleet = job.assignedFleet;
+    final isFull = fleet.length >= job.trucksNeeded;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Assigned fleet (${fleet.length}/${job.trucksNeeded})',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textLabel,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (fleet.isEmpty)
+            Text(
+              'No trucks assigned yet.',
+              style: TextStyle(color: AppColors.textSecondary),
+            )
+          else
+            for (final truck in fleet)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.infoTint,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.local_shipping_outlined,
+                        size: 17,
+                        color: AppColors.ctaBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            truck.registrationNumber ?? '',
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            truck.driverName ?? '',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (onViewDriverLink != null)
+                      IconButton(
+                        onPressed: () =>
+                            onViewDriverLink!(truckId: truck.truckId),
+                        icon: const Icon(Icons.link, size: 18),
+                        tooltip: 'View driver link',
+                      ),
+                  ],
+                ),
+              ),
+          const SizedBox(height: 4),
+          ElevatedButton(
+            onPressed: isFull ? null : onAssign,
+            child: Text(isFull ? 'Fleet fully assigned' : 'Add truck & driver'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Multi-Company Split Awards epic: one company's own roster on a job it
+/// only won part of — the data shape genuinely differs from
+/// [_AssignmentCard] (one award's own fleet/capacity, never the job's),
+/// so this is built fresh rather than retrofitting that widget.
+class _AwardAssignmentCard extends StatelessWidget {
+  const _AwardAssignmentCard({
+    required this.award,
+    required this.onAssign,
+    required this.onViewDriverLink,
+  });
+
+  final JobAward award;
+  final VoidCallback onAssign;
+  final void Function({int? truckId}) onViewDriverLink;
+
+  @override
+  Widget build(BuildContext context) {
+    final fleet = award.assignedFleet;
+    final isFull = fleet.length >= award.trucksOffered;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Your fleet (${fleet.length}/${award.trucksOffered})',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textLabel,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (fleet.isEmpty)
+            Text(
+              'No trucks assigned yet.',
+              style: TextStyle(color: AppColors.textSecondary),
+            )
+          else
+            for (final truck in fleet)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.infoTint,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.local_shipping_outlined,
+                        size: 17,
+                        color: AppColors.ctaBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            truck.registrationNumber ?? '',
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            truck.driverName ?? '',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => onViewDriverLink(truckId: truck.truckId),
+                      icon: const Icon(Icons.link, size: 18),
+                      tooltip: 'View driver link',
+                    ),
+                  ],
+                ),
+              ),
+          const SizedBox(height: 4),
+          if (award.isAssignable)
+            ElevatedButton(
+              onPressed: isFull ? null : onAssign,
+              child: Text(
+                isFull ? 'Fleet fully assigned' : 'Add truck & driver',
+              ),
+            )
+          else
+            Text(
+              jobStatusLabel(award.status),
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ReturnLoadTile extends StatelessWidget {
-  const _ReturnLoadTile({required this.job, required this.onTap});
+  const _ReturnLoadTile({
+    required this.job,
+    required this.onTap,
+    required this.onClaim,
+    required this.isClaiming,
+  });
 
   final Job job;
   final VoidCallback onTap;
+
+  /// Null when the job has no stated budget_price — nothing to claim at
+  /// without negotiation, so the tile is view-only (tap through to bid
+  /// normally instead).
+  final VoidCallback? onClaim;
+  final bool isClaiming;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.border),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${job.pickupAddress} → ${job.dropoffAddress}',
-                      style: TextStyle(
-                        fontFamily: 'Barlow Condensed',
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
+      child: Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: onTap,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${job.pickupAddress} → ${job.dropoffAddress}',
+                          style: TextStyle(
+                            fontFamily: 'Barlow Condensed',
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        Text(
+                          job.budgetPrice != null
+                              ? '${job.containerType} · ${job.containerSize} · ${job.currency} ${job.budgetPrice!.toStringAsFixed(0)}'
+                              : '${job.containerType} · ${job.containerSize}',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '${job.containerType} · ${job.containerSize}',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+                  ),
+                  Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                ],
+              ),
+            ),
+            if (onClaim != null) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: isClaiming ? null : onClaim,
+                  icon: isClaiming
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.replay_outlined, size: 16),
+                  label: Text(
+                    isClaiming ? 'Claiming…' : 'Claim this load — no bidding',
+                  ),
                 ),
               ),
-              Icon(Icons.chevron_right, color: AppColors.textTertiary),
             ],
-          ),
+          ],
         ),
       ),
     );

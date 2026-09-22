@@ -8,14 +8,25 @@ use App\Services\Quota\RollingQuotaService;
 use App\Services\Settings\PlatformSettings;
 
 /**
- * Applies the TRD §6 / PRD §7.4 bid-quota rule to a specific company:
- * 5 bids per rolling 24h for a standard company, 10 per rolling 15h for a
- * Featured one. The limit/window numbers come from platform_settings (Admin-
- * editable from Phase 9 on), not hardcoded here — only the *choice* between
- * the standard and Featured pair is company-specific logic.
+ * Applies the bid-quota rule to a specific company: 10 bids per rolling
+ * 24h for a standard company, no limit at all for a Cargo Motives Plus
+ * one. The standard limit/window come from platform_settings (Admin-
+ * editable), not hardcoded here.
+ *
+ * A Plus company never touches RollingQuotaService at all — there's no
+ * per-tier limit number to look up, just an outright bypass — so
+ * `remaining()` returns UNLIMITED (-1) for one, a value no real rolling
+ * count can ever produce, rather than a very large but technically finite
+ * stand-in number.
  */
 class BidQuotaService
 {
+    /**
+     * Never a real "remaining count" — the sentinel a Plus company's
+     * `remaining()` returns, since there's no cap to count down from.
+     */
+    public const UNLIMITED = -1;
+
     public function __construct(
         private readonly RollingQuotaService $quota,
         private readonly PlatformSettings $settings,
@@ -23,9 +34,11 @@ class BidQuotaService
 
     public function remaining(TransporterCompany $company): int
     {
-        [$limit, $windowSeconds] = $this->limitAndWindow($company);
+        if ($company->is_featured) {
+            return self::UNLIMITED;
+        }
 
-        return $this->quota->remaining($this->key($company), $limit, $windowSeconds);
+        return $this->quota->remaining($this->key($company), $this->standardLimit(), $this->standardWindowSeconds());
     }
 
     /**
@@ -33,27 +46,21 @@ class BidQuotaService
      */
     public function consume(TransporterCompany $company): void
     {
-        [$limit, $windowSeconds] = $this->limitAndWindow($company);
-
-        $this->quota->consume($this->key($company), $limit, $windowSeconds);
-    }
-
-    /**
-     * @return array{0: int, 1: int} [limit, windowSeconds]
-     */
-    private function limitAndWindow(TransporterCompany $company): array
-    {
         if ($company->is_featured) {
-            return [
-                $this->settings->getInt('featured_bid_quota', 10),
-                $this->settings->getInt('featured_bid_window_hours', 15) * 3600,
-            ];
+            return;
         }
 
-        return [
-            $this->settings->getInt('standard_bid_quota', 5),
-            $this->settings->getInt('standard_bid_window_hours', 24) * 3600,
-        ];
+        $this->quota->consume($this->key($company), $this->standardLimit(), $this->standardWindowSeconds());
+    }
+
+    private function standardLimit(): int
+    {
+        return $this->settings->getInt('standard_bid_quota', 10);
+    }
+
+    private function standardWindowSeconds(): int
+    {
+        return $this->settings->getInt('standard_bid_window_hours', 24) * 3600;
     }
 
     private function key(TransporterCompany $company): string

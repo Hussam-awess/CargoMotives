@@ -5,7 +5,11 @@ import '../../core/network/api_exception.dart';
 import '../../core/realtime/job_bid_channel.dart';
 import '../../core/realtime/job_location_channel.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/job_views_badge.dart';
 import '../auth/data/auth_repository.dart';
+import '../profiles/transporter_profile_screen.dart';
+import '../reviews/rate_job_card.dart';
+import '../reviews/rate_job_screen.dart';
 import 'booking_confirmation_screen.dart';
 import 'data/bid_repository.dart';
 import 'data/job_repository.dart';
@@ -56,6 +60,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   String? _loadError;
   bool _isConfirmingDelivery = false;
   bool _isReportingProblem = false;
+  int? _confirmingAwardId;
   GpsLocation? _liveLocation;
   bool _isFeatured = false;
 
@@ -91,6 +96,56 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         builder: (_) => PostJobScreen(prefillReturnFrom: _job!),
       ),
     );
+  }
+
+  /// Bidding Deadline epic: "Repost Job" and "Edit & Repost" are the same
+  /// prefilled-form flow — a straight (non-reversed) prefill of every
+  /// field, opened for the customer to review/adjust before submitting.
+  /// There's no true one-tap silent repost anywhere else in this app, so
+  /// building a separate auto-submit path for "Repost Job" alone would be
+  /// inventing a flow with no precedent, not saving the customer a step.
+  void _openRepost() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => PostJobScreen(prefillClone: _job!)),
+    );
+  }
+
+  void _openMessages(BuildContext context) {
+    final companyId = _job?.assignedCompanyId;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MessagesScreen(
+          jobId: widget.jobId,
+          counterpartyName: _job?.assignedCompanyName,
+          // Messaging itself is with the company (its owner sends/reads
+          // this thread — the driver has no login), but the customer still
+          // wants to know who's actually driving their shipment.
+          counterpartySubtitle: _job?.assignedDriverName != null
+              ? 'Driver: ${_job!.assignedDriverName}'
+              : null,
+          onOpenCounterpartyProfile: companyId != null
+              ? () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        TransporterProfileScreen(companyId: companyId),
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRateJob() async {
+    final submitted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RateJobScreen(
+          jobId: widget.jobId,
+          direction: RatingDirection.customerRatingTransporter,
+        ),
+      ),
+    );
+    if (submitted == true) await _load();
   }
 
   @override
@@ -171,6 +226,26 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
+  /// Multi-Company Split Awards epic: confirms one company's own slice of
+  /// a split job — the per-award equivalent of [_confirmDelivery], used
+  /// whenever the job has any awards (there's no single "the" delivery to
+  /// confirm at the job level once a job has 2+ companies).
+  Future<void> _confirmAwardDelivery(int awardId) async {
+    setState(() => _confirmingAwardId = awardId);
+    try {
+      await widget.jobRepository.confirmAwardDelivery(widget.jobId, awardId);
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _confirmingAwardId = null);
+    }
+  }
+
   Future<void> _reportProblem() async {
     final reason = await showDialog<String>(
       context: context,
@@ -209,11 +284,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             IconButton(
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: 'Messages',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => MessagesScreen(jobId: widget.jobId),
-                ),
-              ),
+              onPressed: () => _openMessages(context),
             ),
         ],
       ),
@@ -239,55 +310,94 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
                   _JobSummaryCard(job: _job!, liveLocation: _liveLocation),
-                  if (_job!.isAssignable) ...[
-                    const SizedBox(height: 16),
-                    GpsStatusCard(
-                      trackingActive: _job!.gpsTrackingActive,
-                      signalStatus: _job!.gpsSignalStatus,
-                      location: _liveLocation,
-                    ),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => LiveGpsTrackingScreen(job: _job!),
-                        ),
+                  // Multi-Company Split Awards epic: once a job has ANY
+                  // award, the legacy single-company block below (GPS/
+                  // Timeline/Transporter/Fleet/PoD, all keyed off the job's
+                  // own permanently-null assigned_* fields) has nothing
+                  // real to show — _AwardedCompaniesList renders each
+                  // company's own slice instead.
+                  if (_job!.awards.isEmpty) ...[
+                    if (_job!.isAssignable) ...[
+                      const SizedBox(height: 16),
+                      GpsStatusCard(
+                        trackingActive: _job!.gpsTrackingActive,
+                        signalStatus: _job!.gpsSignalStatus,
+                        location: _liveLocation,
                       ),
-                      icon: const Icon(Icons.near_me_outlined, size: 16),
-                      label: const Text('Open live tracking'),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  const _SectionLabel('Timeline'),
-                  const SizedBox(height: 4),
-                  _StatusTimeline(status: _job!.status),
-                  if (_job!.assignedDriverName != null) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => LiveGpsTrackingScreen(
+                              job: _job!,
+                              onRefresh: () =>
+                                  widget.jobRepository.show(_job!.id),
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.near_me_outlined, size: 16),
+                        label: const Text('Open live tracking'),
+                      ),
+                    ],
                     const SizedBox(height: 20),
-                    const _SectionLabel('Transporter'),
+                    const _SectionLabel('Timeline'),
                     const SizedBox(height: 4),
-                    _TransporterCard(
-                      job: _job!,
-                      onChat: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MessagesScreen(jobId: widget.jobId),
-                        ),
+                    _StatusTimeline(status: _job!.status),
+                    if (_job!.assignedDriverName != null) ...[
+                      const SizedBox(height: 20),
+                      const _SectionLabel('Transporter'),
+                      const SizedBox(height: 4),
+                      _TransporterCard(
+                        job: _job!,
+                        onChat: () => _openMessages(context),
                       ),
+                    ],
+                    if (_job!.isMultiTruck &&
+                        _job!.assignedFleet.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _SectionLabel(
+                        'Assigned fleet (${_job!.assignedFleet.length}/${_job!.trucksNeeded})',
+                      ),
+                      const SizedBox(height: 4),
+                      _FleetRosterCard(fleet: _job!.assignedFleet),
+                    ],
+                    const SizedBox(height: 20),
+                    const _SectionLabel('Cargo'),
+                    const SizedBox(height: 4),
+                    _CargoDetailsCard(job: _job!),
+                    if (_job!.proofOfDelivery != null) ...[
+                      const SizedBox(height: 16),
+                      _ProofOfDeliveryCard(
+                        proofOfDelivery: _job!.proofOfDelivery!,
+                        completedAt: _job!.completedAt,
+                        canConfirm: _job!.isAwaitingDeliveryConfirmation,
+                        isConfirming: _isConfirmingDelivery,
+                        isReportingProblem: _isReportingProblem,
+                        onConfirm: _confirmDelivery,
+                        onReportProblem: _reportProblem,
+                      ),
+                    ],
+                  ] else ...[
+                    const SizedBox(height: 20),
+                    _AwardedCompaniesList(
+                      job: _job!,
+                      jobRepository: widget.jobRepository,
+                      confirmingAwardId: _confirmingAwardId,
+                      onConfirmDelivery: _confirmAwardDelivery,
                     ),
+                    const SizedBox(height: 20),
+                    const _SectionLabel('Cargo'),
+                    const SizedBox(height: 4),
+                    _CargoDetailsCard(job: _job!),
                   ],
-                  const SizedBox(height: 20),
-                  const _SectionLabel('Cargo'),
-                  const SizedBox(height: 4),
-                  _CargoDetailsCard(job: _job!),
-                  if (_job!.proofOfDelivery != null) ...[
+                  // Ratings are deferred for a split job (JobResource.
+                  // isViewerAParticipant() already returns false whenever
+                  // assigned_company_id is null, which holds for every job
+                  // with any award) — reviewable stays false/null there
+                  // already, this check is just belt-and-suspenders.
+                  if (_job!.reviewable == true && _job!.awards.isEmpty) ...[
                     const SizedBox(height: 16),
-                    _ProofOfDeliveryCard(
-                      proofOfDelivery: _job!.proofOfDelivery!,
-                      canConfirm: _job!.isAwaitingDeliveryConfirmation,
-                      isConfirming: _isConfirmingDelivery,
-                      isReportingProblem: _isReportingProblem,
-                      onConfirm: _confirmDelivery,
-                      onReportProblem: _reportProblem,
-                    ),
+                    RateJobCard(onTap: _openRateJob),
                   ],
                   if (_job!.status == 'completed' && _isFeatured) ...[
                     const SizedBox(height: 16),
@@ -298,12 +408,32 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: 24),
-                  Text(
-                    'Bids (${_bids.length})',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Bids (${_bids.length})',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      if (_isFeatured && _job!.jobViewsCount != null)
+                        JobViewsBadge(count: _job!.jobViewsCount!),
+                    ],
                   ),
                   const SizedBox(height: 8),
-                  if (_bids.isEmpty)
+                  // Bidding Deadline epic: two derived states once the
+                  // deadline passes — 🔴 nothing to show if no one bid
+                  // (Repost is the only next step), 🟡 the bid list/Accept
+                  // flow below stays completely untouched otherwise; the
+                  // customer still explicitly chooses who to accept, this
+                  // banner is purely informational.
+                  if (_job!.biddingClosed == true) ...[
+                    _BiddingClosedBanner(
+                      hasBids: _bids.isNotEmpty,
+                      onRepost: _openRepost,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (_bids.isEmpty && _job!.biddingClosed != true)
                     Text(
                       'No bids yet.',
                       style: TextStyle(color: AppColors.textSecondary),
@@ -522,15 +652,31 @@ const _timelineStages = [
   'open',
   'assigned',
   'picked_up',
+  'in_transit',
   'delivered',
   'completed',
 ];
 const _timelineLabels = [
   'Shipment posted',
   'Transporter assigned',
-  'Cargo picked up',
+  'Loading cargo',
+  'In transit',
   'Delivered',
   'Completed',
+];
+
+/// One icon per stage — the same truck glyph Fleet Management uses for a
+/// truck itself (Icons.local_shipping_outlined, e.g. TruckListTab's own
+/// truck-photo placeholder) marks "Transporter assigned" here too, so a
+/// customer sees the same visual language a transporter's own fleet
+/// screen uses, not an unrelated icon set invented just for this list.
+const _timelineIcons = [
+  Icons.description_outlined,
+  Icons.local_shipping_outlined,
+  Icons.inventory_2_outlined,
+  Icons.local_shipping,
+  Icons.check_circle_outline,
+  Icons.task_alt,
 ];
 
 /// A live status ladder, not a fabricated event history — this app has no
@@ -544,9 +690,9 @@ class _StatusTimeline extends StatelessWidget {
 
   int get _stageIndex {
     if (status == 'cancelled') return -1;
-    final effective = status == 'en_route_pickup'
-        ? 'assigned'
-        : (status == 'in_transit' ? 'picked_up' : status);
+    // 'en_route_pickup' has no timeline row of its own — it still reads
+    // as "Transporter assigned" until the truck is actually loaded.
+    final effective = status == 'en_route_pickup' ? 'assigned' : status;
     final index = _timelineStages.indexOf(effective);
     return index == -1 ? 0 : index;
   }
@@ -570,13 +716,12 @@ class _StatusTimeline extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 11,
+                  width: 28,
                   child: Column(
                     children: [
                       Container(
-                        width: 11,
-                        height: 11,
-                        margin: const EdgeInsets.only(top: 4),
+                        width: 28,
+                        height: 28,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: i <= current
@@ -595,6 +740,14 @@ class _StatusTimeline extends StatelessWidget {
                                 ]
                               : null,
                         ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          _timelineIcons[i],
+                          size: 15,
+                          color: i <= current
+                              ? Colors.white
+                              : AppColors.textTertiary,
+                        ),
                       ),
                       if (i != _timelineStages.length - 1)
                         Expanded(
@@ -612,6 +765,7 @@ class _StatusTimeline extends StatelessWidget {
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(
+                      top: 6,
                       bottom: i == _timelineStages.length - 1 ? 0 : 18,
                     ),
                     child: Text(
@@ -665,29 +819,40 @@ class _TransporterCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  job.assignedDriverName ?? '',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+            child: InkWell(
+              onTap: job.assignedCompanyId == null
+                  ? null
+                  : () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TransporterProfileScreen(
+                          companyId: job.assignedCompanyId!,
+                        ),
+                      ),
+                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    job.assignedDriverName ?? '',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                Text(
-                  [
-                    if (job.assignedCompanyName != null)
-                      job.assignedCompanyName!,
-                    if (job.assignedTruckRegistration != null)
-                      job.assignedTruckRegistration!,
-                  ].join(' · '),
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.textSecondary,
+                  Text(
+                    [
+                      if (job.assignedCompanyName != null)
+                        job.assignedCompanyName!,
+                      if (job.assignedTruckRegistration != null)
+                        job.assignedTruckRegistration!,
+                    ].join(' · '),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           InkWell(
@@ -709,6 +874,81 @@ class _TransporterCard extends StatelessWidget {
   }
 }
 
+/// Bidding Deadline epic: the two derived states once a job's deadline
+/// passes. 🔴 "Bidding Closed" (no bids ever came in) offers Repost/Edit &
+/// Repost — the job's own bid list stays empty, nothing here to review. 🟡
+/// "Bidding Closed — Select a Transporter" is purely informational: the
+/// bid list and Accept flow right below this banner are completely
+/// unchanged, since the job is still `status === 'open'` and the customer
+/// can still accept any of the bids already in.
+class _BiddingClosedBanner extends StatelessWidget {
+  const _BiddingClosedBanner({required this.hasBids, required this.onRepost});
+
+  final bool hasBids;
+  final VoidCallback onRepost;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: hasBids ? AppColors.infoTint : AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(hasBids ? '🟡' : '🔴', style: const TextStyle(fontSize: 15)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  hasBids
+                      ? 'Bidding Closed — Select a Transporter'
+                      : 'Bidding Closed',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          if (!hasBids) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Nobody bid before the deadline.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onRepost,
+                    child: const Text('Edit & Repost'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: onRepost,
+                    child: const Text('Repost Job'),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 4),
+            Text(
+              'The bids below are still available — choose who you\'d like to work with.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _CargoDetailsCard extends StatelessWidget {
   const _CargoDetailsCard({required this.job});
 
@@ -718,6 +958,7 @@ class _CargoDetailsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <(String, String)>[
       ('Type', '${job.containerType} · ${job.containerSize}'),
+      if (job.trucksNeeded > 1) ('Trucks needed', '${job.trucksNeeded}'),
       if (job.approxWeightTons != null)
         ('Weight', '${job.approxWeightTons!.toStringAsFixed(0)} tons'),
       if (job.cargoDescription != null && job.cargoDescription!.isNotEmpty)
@@ -731,6 +972,14 @@ class _CargoDetailsCard extends StatelessWidget {
         'Pickup window',
         DateFormat('d MMM, HH:mm').format(job.preferredPickupWindowStart),
       ),
+      // Bidding Deadline epic: informational only while still open — once
+      // closed, the banner above the bid list takes over communicating
+      // that (job_detail_screen.dart's _BiddingClosedBanner).
+      if (job.biddingExpiresAt != null && job.biddingClosed != true)
+        (
+          'Bidding closes',
+          DateFormat('d MMM, HH:mm').format(job.biddingExpiresAt!.toLocal()),
+        ),
     ];
 
     return Container(
@@ -780,6 +1029,174 @@ class _CargoDetailsCard extends StatelessWidget {
   }
 }
 
+/// Bulk Cargo epic: a read-only list of every truck+driver committed to a
+/// multi-truck job so far — the job's own shared status/GPS still comes
+/// from the lead truck only (shown separately in _TransporterCard above),
+/// this is purely "who's on the fleet."
+class _FleetRosterCard extends StatelessWidget {
+  const _FleetRosterCard({required this.fleet});
+
+  final List<AssignedTruckSummary> fleet;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < fleet.length; i++)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+              decoration: i == fleet.length - 1
+                  ? null
+                  : BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: AppColors.background),
+                      ),
+                    ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    fleet[i].registrationNumber ?? '',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    fleet[i].driverName ?? '',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Multi-Company Split Awards epic: one card per company that ended up
+/// covering only part of this job — each fully self-contained (its own
+/// status timeline, GPS, fleet roster, proof of delivery), since two
+/// unrelated companies' progress can never share one shared job-level
+/// status the way Tier 1/2 does.
+class _AwardedCompaniesList extends StatelessWidget {
+  const _AwardedCompaniesList({
+    required this.job,
+    required this.jobRepository,
+    required this.confirmingAwardId,
+    required this.onConfirmDelivery,
+  });
+
+  final Job job;
+  final JobRepository jobRepository;
+  final int? confirmingAwardId;
+  final void Function(int awardId) onConfirmDelivery;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final award in job.awards) ...[
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => TransporterProfileScreen(
+                              companyId: award.companyId,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          award.companyName ?? 'Transporter',
+                          style: const TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${award.trucksOffered} truck${award.trucksOffered == 1 ? '' : 's'} · ${job.currency} ${award.agreedPrice.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _StatusTimeline(status: award.status),
+                if (award.assignedFleet.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  GpsStatusCard(
+                    trackingActive: award.gpsTrackingActive,
+                    signalStatus: award.gpsSignalStatus,
+                    location: award.lastKnownLocation,
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => LiveGpsTrackingScreen(
+                          job: job.forAwardMapView(award),
+                          onRefresh: () async {
+                            final fresh = await jobRepository.show(job.id);
+                            return fresh.forAwardMapView(
+                              fresh.awards.firstWhere((a) => a.id == award.id),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.near_me_outlined, size: 16),
+                    label: const Text('Open live tracking'),
+                  ),
+                  const SizedBox(height: 12),
+                  _FleetRosterCard(fleet: award.assignedFleet),
+                ],
+                if (award.proofOfDelivery != null) ...[
+                  const SizedBox(height: 16),
+                  _ProofOfDeliveryCard(
+                    proofOfDelivery: award.proofOfDelivery!,
+                    completedAt: award.completedAt,
+                    canConfirm: award.isAwaitingDeliveryConfirmation,
+                    isConfirming: confirmingAwardId == award.id,
+                    onConfirm: () => onConfirmDelivery(award.id),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (award != job.awards.last) const SizedBox(height: 16),
+        ],
+      ],
+    );
+  }
+}
+
 /// UI/UX Brief §5.1: company name + verification checkmark, truck count,
 /// rating — the trust line — plus a calm GPS status dot/label, price large
 /// and clear, a simple Accept button. Featured/priority bids get a small
@@ -816,7 +1233,28 @@ class _BidCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (bid.isPriority) ...[
+            if (bid.isReturnLoadClaim) ...[
+              Row(
+                children: [
+                  Icon(
+                    Icons.replay_outlined,
+                    size: 13,
+                    color: AppColors.ctaBluePressed,
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'RETURN LOAD MATCH · NO NEGOTIATION',
+                    style: TextStyle(
+                      color: AppColors.ctaBluePressed,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+            ] else if (bid.isPriority) ...[
               const Text(
                 'FEATURED',
                 style: TextStyle(
@@ -831,27 +1269,35 @@ class _BidCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: company.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            TransporterProfileScreen(companyId: company.id),
+                      ),
+                    ),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: company.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
                           ),
-                        ),
-                        if (company.verified)
-                          const TextSpan(
-                            text: '  ✓',
-                            style: TextStyle(color: AppColors.statusLive),
-                          ),
-                      ],
+                          if (company.verified)
+                            const TextSpan(
+                              text: '  ✓',
+                              style: TextStyle(color: AppColors.statusLive),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
                 Text(
-                  'TZS ${bid.price.toStringAsFixed(0)}',
+                  '${job.currency} ${bid.price.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontFamily: 'Barlow Condensed',
                     fontSize: 20,
@@ -937,19 +1383,31 @@ class _BidCard extends StatelessWidget {
 class _ProofOfDeliveryCard extends StatelessWidget {
   const _ProofOfDeliveryCard({
     required this.proofOfDelivery,
+    required this.completedAt,
     required this.canConfirm,
     required this.isConfirming,
-    required this.isReportingProblem,
+    this.isReportingProblem = false,
     required this.onConfirm,
-    required this.onReportProblem,
+    this.onReportProblem,
   });
 
   final ProofOfDelivery proofOfDelivery;
+
+  /// The real completion moment (Job.completedAt) — set the instant
+  /// confirmedByCustomerAt is, so this is only null while a render happens
+  /// to race a just-sent confirm-delivery response (vanishingly rare, and
+  /// harmless: the "Confirmed" label below still shows on its own).
+  final DateTime? completedAt;
   final bool canConfirm;
   final bool isConfirming;
   final bool isReportingProblem;
   final VoidCallback onConfirm;
-  final VoidCallback onReportProblem;
+
+  /// Null for a Multi-Company Split Awards epic per-award card — there's
+  /// no award-scoped dispute endpoint (JobController::reportProblem()
+  /// gates on the JOB reaching 'delivered', which a split job's own
+  /// status never does), so that action simply isn't offered there yet.
+  final VoidCallback? onReportProblem;
 
   @override
   Widget build(BuildContext context) {
@@ -1023,34 +1481,51 @@ class _ProofOfDeliveryCard extends StatelessWidget {
                         : const Text('Confirm Receipt'),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: isReportingProblem ? null : onReportProblem,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.statusError,
-                      side: BorderSide(color: AppColors.dangerBorder),
+                if (onReportProblem != null) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: isReportingProblem ? null : onReportProblem,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.statusError,
+                        side: BorderSide(color: AppColors.dangerBorder),
+                      ),
+                      child: isReportingProblem
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Report issue'),
                     ),
-                    child: isReportingProblem
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Report issue'),
                   ),
-                ),
+                ],
               ],
             ),
           ] else if (proofOfDelivery.confirmedByCustomerAt != null)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: Text(
-                'Confirmed',
-                style: TextStyle(
-                  color: AppColors.statusLive,
-                  fontWeight: FontWeight.w600,
-                ),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Confirmed',
+                    style: TextStyle(
+                      color: AppColors.statusLive,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (completedAt != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Completed on ${DateFormat('d MMMM yyyy').format(completedAt!.toLocal())}',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
         ],

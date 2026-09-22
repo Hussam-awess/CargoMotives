@@ -158,7 +158,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'TZS ${bid.price.toStringAsFixed(0)}',
+                                  '${job.currency} ${bid.price.toStringAsFixed(0)}',
                                   style: TextStyle(
                                     fontFamily: 'Barlow Condensed',
                                     fontSize: 24,

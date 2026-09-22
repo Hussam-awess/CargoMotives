@@ -28,20 +28,20 @@ class BidQuotaServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_a_standard_company_gets_5_bids(): void
+    public function test_a_standard_company_gets_10_bids(): void
     {
         $company = TransporterCompany::factory()->approved()->create();
         $service = app(BidQuotaService::class);
 
-        $this->assertSame(5, $service->remaining($company));
+        $this->assertSame(10, $service->remaining($company));
     }
 
-    public function test_a_featured_company_gets_10_bids(): void
+    public function test_a_featured_company_has_no_limit(): void
     {
         $company = TransporterCompany::factory()->approved()->create(['is_featured' => true]);
         $service = app(BidQuotaService::class);
 
-        $this->assertSame(10, $service->remaining($company));
+        $this->assertSame(BidQuotaService::UNLIMITED, $service->remaining($company));
     }
 
     public function test_consuming_reduces_that_specific_companys_quota_only(): void
@@ -52,20 +52,36 @@ class BidQuotaServiceTest extends TestCase
 
         $service->consume($companyA);
 
-        $this->assertSame(4, $service->remaining($companyA));
-        $this->assertSame(5, $service->remaining($companyB));
+        $this->assertSame(9, $service->remaining($companyA));
+        $this->assertSame(10, $service->remaining($companyB));
     }
 
-    public function test_throws_once_a_standard_company_places_5_bids(): void
+    public function test_throws_once_a_standard_company_places_10_bids(): void
     {
         $company = TransporterCompany::factory()->approved()->create();
         $service = app(BidQuotaService::class);
 
-        for ($i = 0; $i < 5; $i++) {
+        for ($i = 0; $i < 10; $i++) {
             $service->consume($company);
         }
 
         $this->expectException(QuotaExceededException::class);
         $service->consume($company);
+    }
+
+    /**
+     * A Featured company never touches the rolling-quota counter at all —
+     * placing far more bids than the standard limit never throws.
+     */
+    public function test_a_featured_company_never_hits_a_limit(): void
+    {
+        $company = TransporterCompany::factory()->approved()->create(['is_featured' => true]);
+        $service = app(BidQuotaService::class);
+
+        for ($i = 0; $i < 25; $i++) {
+            $service->consume($company);
+        }
+
+        $this->assertSame(BidQuotaService::UNLIMITED, $service->remaining($company));
     }
 }

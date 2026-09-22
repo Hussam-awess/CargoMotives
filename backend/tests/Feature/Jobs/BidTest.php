@@ -5,7 +5,9 @@ namespace Tests\Feature\Jobs;
 use App\Models\Bid;
 use App\Models\Job;
 use App\Models\TransporterCompany;
+use App\Models\Truck;
 use App\Models\User;
+use App\Services\Bidding\BidQuotaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
@@ -27,7 +29,11 @@ class BidTest extends TestCase
     private function approvedCompanyUser(array $companyAttributes = []): User
     {
         $user = User::factory()->transporterCompany()->create();
-        TransporterCompany::factory()->approved()->for($user, 'owner')->create($companyAttributes);
+        $company = TransporterCompany::factory()->approved()->for($user, 'owner')->create($companyAttributes);
+        // Bulk Cargo epic: bidding now requires a verified fleet of at
+        // least trucks_needed (1 for an ordinary job) — every real company
+        // needs at least one approved truck to ever fulfill a job anyway.
+        Truck::factory()->approved()->for($company, 'company')->create();
 
         return $user;
     }
@@ -46,6 +52,54 @@ class BidTest extends TestCase
             ->assertJsonPath('data.price', 500000)
             ->assertJsonPath('data.status', 'pending')
             ->assertJsonPath('data.company.verified', true);
+    }
+
+    /**
+     * Bulk Cargo epic: the real, server-side gate — a company whose
+     * verified fleet is smaller than trucks_needed cannot bid, even
+     * hitting the API directly (not just a client that hides the form).
+     */
+    public function test_a_company_with_too_small_a_fleet_cannot_bid(): void
+    {
+        $companyUser = User::factory()->transporterCompany()->create();
+        TransporterCompany::factory()->approved()->for($companyUser, 'owner')->create();
+        // Deliberately no trucks at all — 0 verified trucks < the job's 5.
+        $job = Job::factory()->create(['status' => 'open', 'trucks_needed' => 5]);
+
+        $this->actingAs($companyUser)
+            ->postJson("/api/company/jobs/{$job->id}/bids", ['price' => 500000])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('company_id');
+
+        $this->assertDatabaseMissing('bids', ['job_id' => $job->id]);
+    }
+
+    /**
+     * Bidding Deadline epic: a second, independent gate from "is the job
+     * still open" — a job can be status='open' with its deadline already
+     * past (the customer just hasn't acted yet).
+     */
+    public function test_cannot_bid_once_the_jobs_bidding_deadline_has_passed(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $job = Job::factory()->create(['status' => 'open', 'bidding_expires_at' => now()->subHour()]);
+
+        $this->actingAs($company)
+            ->postJson("/api/company/jobs/{$job->id}/bids", ['price' => 500000])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('bidding_expires_at');
+
+        $this->assertDatabaseMissing('bids', ['job_id' => $job->id]);
+    }
+
+    public function test_can_still_bid_before_the_jobs_bidding_deadline(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $job = Job::factory()->create(['status' => 'open', 'bidding_expires_at' => now()->addDay()]);
+
+        $this->actingAs($company)
+            ->postJson("/api/company/jobs/{$job->id}/bids", ['price' => 500000])
+            ->assertCreated();
     }
 
     public function test_cannot_bid_on_a_job_that_is_not_open(): void
@@ -69,25 +123,9 @@ class BidTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_a_standard_company_is_limited_to_5_bids_per_rolling_window(): void
+    public function test_a_standard_company_is_limited_to_10_bids_per_rolling_window(): void
     {
         $company = $this->approvedCompanyUser();
-
-        for ($i = 0; $i < 5; $i++) {
-            $job = Job::factory()->create(['status' => 'open']);
-            $this->actingAs($company)
-                ->postJson("/api/company/jobs/{$job->id}/bids", ['price' => 500000])
-                ->assertCreated();
-        }
-
-        $sixthJob = Job::factory()->create(['status' => 'open']);
-        $response = $this->actingAs($company)->postJson("/api/company/jobs/{$sixthJob->id}/bids", ['price' => 500000]);
-        $response->assertStatus(429)->assertJsonStructure(['seconds_until_slot_frees']);
-    }
-
-    public function test_a_featured_company_is_limited_to_10_bids(): void
-    {
-        $company = $this->approvedCompanyUser(['is_featured' => true]);
 
         for ($i = 0; $i < 10; $i++) {
             $job = Job::factory()->create(['status' => 'open']);
@@ -97,9 +135,23 @@ class BidTest extends TestCase
         }
 
         $eleventhJob = Job::factory()->create(['status' => 'open']);
-        $this->actingAs($company)
-            ->postJson("/api/company/jobs/{$eleventhJob->id}/bids", ['price' => 500000])
-            ->assertStatus(429);
+        $response = $this->actingAs($company)->postJson("/api/company/jobs/{$eleventhJob->id}/bids", ['price' => 500000]);
+        $response->assertStatus(429)->assertJsonStructure(['seconds_until_slot_frees']);
+    }
+
+    /**
+     * Cargo Motives Plus: no bid limit at all, not just a higher one.
+     */
+    public function test_a_featured_company_has_no_bid_limit(): void
+    {
+        $company = $this->approvedCompanyUser(['is_featured' => true]);
+
+        for ($i = 0; $i < 25; $i++) {
+            $job = Job::factory()->create(['status' => 'open']);
+            $this->actingAs($company)
+                ->postJson("/api/company/jobs/{$job->id}/bids", ['price' => 500000])
+                ->assertCreated();
+        }
     }
 
     public function test_a_featured_companys_bid_is_marked_priority(): void
@@ -118,7 +170,17 @@ class BidTest extends TestCase
         $job = Job::factory()->create(['status' => 'open']);
         $this->actingAs($company)->postJson("/api/company/jobs/{$job->id}/bids", ['price' => 500000]);
 
-        $this->actingAs($company)->getJson('/api/company/bid-quota')->assertOk()->assertJsonPath('remaining', 4);
+        $this->actingAs($company)->getJson('/api/company/bid-quota')->assertOk()->assertJsonPath('remaining', 9);
+    }
+
+    public function test_bid_quota_endpoint_reports_unlimited_for_a_featured_company(): void
+    {
+        $company = $this->approvedCompanyUser(['is_featured' => true]);
+
+        $this->actingAs($company)
+            ->getJson('/api/company/bid-quota')
+            ->assertOk()
+            ->assertJsonPath('remaining', BidQuotaService::UNLIMITED);
     }
 
     public function test_a_company_can_withdraw_its_own_pending_bid(): void

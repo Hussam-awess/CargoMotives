@@ -14,10 +14,10 @@ Widget _appUnder(Widget home) {
   );
 }
 
-AppNotification _notification({int id = 1, DateTime? readAt, int? relatedJobId}) {
+AppNotification _notification({int id = 1, DateTime? readAt, int? relatedJobId, String type = 'new_bid'}) {
   return AppNotification(
     id: id,
-    type: 'new_bid',
+    type: type,
     title: 'New bid received',
     body: 'Someone bid on your job.',
     relatedJobId: relatedJobId,
@@ -28,18 +28,14 @@ AppNotification _notification({int id = 1, DateTime? readAt, int? relatedJobId})
 
 void main() {
   testWidgets('shows an empty state when there are no notifications', (tester) async {
-    await tester.pumpWidget(
-      _appUnder(NotificationsScreen(repository: FakeNotificationRepository(onList: () async => []))),
-    );
+    await tester.pumpWidget(_appUnder(NotificationsScreen(repository: FakeNotificationRepository(onList: () async => []))));
     await tester.pumpAndSettle();
 
     expect(find.text('No notifications yet.'), findsOneWidget);
   });
 
   testWidgets('lists notifications with title and body', (tester) async {
-    await tester.pumpWidget(
-      _appUnder(NotificationsScreen(repository: FakeNotificationRepository(onList: () async => [_notification()]))),
-    );
+    await tester.pumpWidget(_appUnder(NotificationsScreen(repository: FakeNotificationRepository(onList: () async => [_notification()]))));
     await tester.pumpAndSettle();
 
     expect(find.text('New bid received'), findsOneWidget);
@@ -82,6 +78,65 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tappedJobId, 42);
+  });
+
+  testWidgets('tapping a support message notification calls onOpenSupport, not onTapJob', (tester) async {
+    var openedSupport = false;
+    int? tappedJobId;
+    await tester.pumpWidget(
+      _appUnder(
+        NotificationsScreen(
+          repository: FakeNotificationRepository(onList: () async => [_notification(type: 'support_message')]),
+          onTapJob: (jobId) => tappedJobId = jobId,
+          onOpenSupport: () => openedSupport = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('New bid received'));
+    await tester.pumpAndSettle();
+
+    expect(openedSupport, isTrue);
+    expect(tappedJobId, isNull);
+  });
+
+  testWidgets('tapping a truck-approved notification calls onOpenFleet', (tester) async {
+    var openedFleet = false;
+    await tester.pumpWidget(
+      _appUnder(
+        NotificationsScreen(
+          repository: FakeNotificationRepository(onList: () async => [_notification(type: 'truck_approved')]),
+          onOpenFleet: () => openedFleet = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('New bid received'));
+    await tester.pumpAndSettle();
+
+    expect(openedFleet, isTrue);
+  });
+
+  testWidgets('tapping a notification with no destination just marks it read', (tester) async {
+    int? markedReadId;
+    await tester.pumpWidget(
+      _appUnder(
+        NotificationsScreen(
+          repository: FakeNotificationRepository(
+            onList: () async => [_notification(type: 'company_approved', readAt: null)],
+            onMarkRead: (id) async => markedReadId = id,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('New bid received'));
+    await tester.pumpAndSettle();
+
+    expect(markedReadId, 1);
   });
 
   testWidgets('mark all read button calls the repository and refreshes', (tester) async {

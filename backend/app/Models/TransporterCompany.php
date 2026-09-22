@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'owner_user_id', 'company_name', 'registration_number', 'tin', 'physical_address', 'company_phone', 'company_email',
     'logo_url', 'documents', 'rep_full_name', 'rep_position', 'rep_national_id_number',
     'rep_id_document_url', 'rep_selfie_url', 'rep_phone_verified', 'rep_email_verified',
-    'verification_status', 'verification_rejected_reason', 'verified_at',
+    'verification_status', 'verification_rejected_reason', 'auto_check_notes', 'verified_at',
     'is_featured', 'featured_until', 'home_region', 'preferred_routes',
 ])]
 class TransporterCompany extends Model
@@ -48,6 +48,7 @@ class TransporterCompany extends Model
     {
         return [
             'documents' => 'array',
+            'auto_check_notes' => 'array',
             'preferred_routes' => 'array',
             'rep_phone_verified' => 'boolean',
             'rep_email_verified' => 'boolean',
@@ -81,6 +82,11 @@ class TransporterCompany extends Model
     public function gpsConnections(): HasMany
     {
         return $this->hasMany(GpsConnection::class, 'transporter_company_id');
+    }
+
+    public function customerFollows(): HasMany
+    {
+        return $this->hasMany(CustomerFollow::class);
     }
 
     /**

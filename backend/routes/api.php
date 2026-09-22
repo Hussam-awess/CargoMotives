@@ -2,13 +2,13 @@
 
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminCompanyController;
-use App\Http\Controllers\Admin\AdminTruckController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Company\CompanyVerificationController;
 use App\Http\Controllers\Company\DriverController;
 use App\Http\Controllers\Company\FeaturedController as CompanyFeaturedController;
+use App\Http\Controllers\Company\FollowController;
 use App\Http\Controllers\Company\GpsConnectionController;
 use App\Http\Controllers\Company\TruckController;
 use App\Http\Controllers\Customer\FeaturedController as CustomerFeaturedController;
@@ -17,9 +17,13 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\Jobs\BidController;
 use App\Http\Controllers\Jobs\CompanyJobController;
 use App\Http\Controllers\Jobs\JobAssignmentController;
+use App\Http\Controllers\Jobs\JobAwardController;
 use App\Http\Controllers\Jobs\JobController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Profiles\CompanyProfileController;
+use App\Http\Controllers\Profiles\CustomerProfileController;
+use App\Http\Controllers\Reviews\JobReviewController;
 use App\Http\Controllers\SupportMessageController;
 use App\Http\Controllers\Webhooks\SelcomWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -59,7 +63,9 @@ Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile/language', [ProfileController::class, 'updateLanguage']);
+        Route::post('/profile/currency', [ProfileController::class, 'updatePreferredCurrency']);
         Route::post('/profile/name', [ProfileController::class, 'updateName']);
+        Route::post('/profile/password', [ProfileController::class, 'changePassword'])->middleware('throttle:profile-password-change');
         Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
         Route::post('/profile/business', [ProfileController::class, 'updateBusinessIdentity']);
         Route::post('/profile/notification-preferences', [ProfileController::class, 'updateNotificationPreferences']);
@@ -95,6 +101,10 @@ Route::middleware(['auth-active', 'account_type:customer'])->group(function () {
     Route::post('/jobs/{job}', [JobController::class, 'update']);
     Route::post('/jobs/{job}/cancel', [JobController::class, 'cancel']);
     Route::post('/jobs/{job}/confirm-delivery', [JobController::class, 'confirmDelivery']);
+    // Multi-Company Split Awards epic: confirms one company's own slice of
+    // a job with 2+ awards — JobController::confirmDelivery() above is
+    // never called for such a job (there's no single "the" delivery).
+    Route::post('/jobs/{job}/awards/{award}/confirm-delivery', [JobAwardController::class, 'confirmDelivery']);
     Route::post('/jobs/{job}/report-problem', [JobController::class, 'reportProblem']);
     Route::get('/jobs/{job}/bids', [BidController::class, 'index']);
 
@@ -112,6 +122,25 @@ Route::middleware(['auth-active', 'account_type:customer'])->group(function () {
 Route::middleware('auth-active')->group(function () {
     Route::get('/jobs/{job}/messages', [MessageController::class, 'index']);
     Route::post('/jobs/{job}/messages', [MessageController::class, 'store']);
+});
+
+// Two-way ratings (Phase: ratings) — reachable by either participant
+// (customer or the assigned company's owner) once the job is completed;
+// JobReviewController does its own per-job participant + status check,
+// same reasoning as the message thread above.
+Route::middleware('auth-active')->group(function () {
+    Route::post('/jobs/{job}/reviews', [JobReviewController::class, 'store']);
+});
+
+// Public profiles (Phase: public profiles) — reachable by any
+// authenticated user, either role, not just someone who shares a job with
+// the profile's owner. See CustomerProfileResource/CompanyProfileResource
+// for exactly what each shows.
+Route::middleware('auth-active')->prefix('profiles')->group(function () {
+    Route::get('/customers/{customer}', [CustomerProfileController::class, 'show']);
+    Route::get('/customers/{customer}/reviews', [CustomerProfileController::class, 'reviews']);
+    Route::get('/companies/{company}', [CompanyProfileController::class, 'show']);
+    Route::get('/companies/{company}/reviews', [CompanyProfileController::class, 'reviews']);
 });
 
 // A user's standalone Support thread with Admin (Phase 10.15) — distinct
@@ -146,6 +175,7 @@ Route::prefix('company')->middleware(['auth-active', 'account_type:transporter_c
         Route::post('/trucks', [TruckController::class, 'store']);
         Route::get('/trucks/{truck}', [TruckController::class, 'show']);
         Route::post('/trucks/{truck}', [TruckController::class, 'update']);
+        Route::post('/trucks/{truck}/disconnect-gps', [TruckController::class, 'disconnectGps']);
         Route::delete('/trucks/{truck}', [TruckController::class, 'destroy']);
 
         Route::get('/drivers', [DriverController::class, 'index']);
@@ -153,10 +183,12 @@ Route::prefix('company')->middleware(['auth-active', 'account_type:transporter_c
         Route::post('/drivers/{driver}', [DriverController::class, 'update']);
         Route::delete('/drivers/{driver}', [DriverController::class, 'destroy']);
 
-        // Jobs & Bidding (AppFlow §2.4) — the three Jobs-home tabs.
+        // Jobs & Bidding (AppFlow §2.4) — the Jobs-home tabs (Open, My
+        // Bids, Active, and — Featured-only — Return Loads).
         Route::get('/jobs/open', [CompanyJobController::class, 'open']);
         Route::get('/jobs/my-bids', [CompanyJobController::class, 'myBids']);
         Route::get('/jobs/active', [CompanyJobController::class, 'active']);
+        Route::get('/jobs/return-loads', [CompanyJobController::class, 'returnLoads']);
         Route::get('/jobs/{job}', [CompanyJobController::class, 'show']);
         Route::post('/jobs/{job}/bids', [BidController::class, 'store']);
         Route::get('/bid-quota', [BidController::class, 'quota']);
@@ -168,19 +200,29 @@ Route::prefix('company')->middleware(['auth-active', 'account_type:transporter_c
         Route::post('/jobs/{job}/assign', [JobAssignmentController::class, 'store']);
         Route::get('/jobs/{job}/driver-link', [JobAssignmentController::class, 'driverLink']);
 
-        // Connect GPS (AppFlow §2.3) — Wialon only for now (Phase 6).
+        // Connect GPS (AppFlow §2.3) — Wialon, Traccar, and Tracksolid Pro.
         Route::get('/gps-connections', [GpsConnectionController::class, 'index']);
         Route::post('/gps-connections', [GpsConnectionController::class, 'connect']);
         Route::post('/gps-connections/{connection}/import', [GpsConnectionController::class, 'import']);
+        Route::delete('/gps-connections/{connection}', [GpsConnectionController::class, 'disconnect']);
 
         // Featured (Company) — AppFlow §2.7.
         Route::get('/featured/status', [CompanyFeaturedController::class, 'status']);
         Route::post('/featured/purchase', [CompanyFeaturedController::class, 'purchase']);
         Route::post('/featured/preferred-routes', [CompanyFeaturedController::class, 'updatePreferredRoutes']);
 
-        // Featured-only fleet map and return-load suggestions.
+        // Fleet map (every transporter, not just Plus — Plus Polish Batch
+        // Phase 1) and Featured-only return-load suggestions.
         Route::get('/fleet/map', [TruckController::class, 'map']);
         Route::get('/jobs/{job}/return-load-suggestions', [CompanyJobController::class, 'returnLoadSuggestions']);
+        Route::post('/jobs/{job}/claim-return-load', [CompanyJobController::class, 'claimReturnLoad']);
+
+        // Follow system: which customers this company wants "new job
+        // posted" notifications from (JobObserver::created()) — replaces
+        // the old notify-every-approved-company broadcast.
+        Route::get('/followed-customers', [FollowController::class, 'index']);
+        Route::post('/customers/{customer}/follow', [FollowController::class, 'store']);
+        Route::delete('/customers/{customer}/follow', [FollowController::class, 'destroy']);
     });
 });
 
@@ -192,10 +234,5 @@ Route::prefix('admin')->group(function () {
         Route::get('/companies/{company}', [AdminCompanyController::class, 'show']);
         Route::post('/companies/{company}/approve', [AdminCompanyController::class, 'approve']);
         Route::post('/companies/{company}/reject', [AdminCompanyController::class, 'reject']);
-
-        Route::get('/trucks', [AdminTruckController::class, 'index']);
-        Route::get('/trucks/{truck}', [AdminTruckController::class, 'show']);
-        Route::post('/trucks/{truck}/approve', [AdminTruckController::class, 'approve']);
-        Route::post('/trucks/{truck}/reject', [AdminTruckController::class, 'reject']);
     });
 });

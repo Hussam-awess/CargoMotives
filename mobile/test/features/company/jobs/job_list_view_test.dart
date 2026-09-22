@@ -3,9 +3,16 @@ import 'package:cargo_motives/features/jobs/data/job_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Job _job({int? customerCompletedJobsCount, double? budgetPrice, int bidsCount = 0}) => Job(
+Job _job({
+  int? customerCompletedJobsCount,
+  double? budgetPrice,
+  int bidsCount = 0,
+  String status = 'open',
+  DateTime? completedAt,
+  int trucksNeeded = 1,
+}) => Job(
   id: 1,
-  status: 'open',
+  status: status,
   pickupAddress: 'Kariakoo',
   pickupLat: -6.8,
   pickupLng: 39.2,
@@ -14,6 +21,7 @@ Job _job({int? customerCompletedJobsCount, double? budgetPrice, int bidsCount = 
   dropoffLng: 39.1,
   containerType: 'Dry Van',
   containerSize: '40ft',
+  trucksNeeded: trucksNeeded,
   approxWeightTons: 12,
   cargoDescription: null,
   preferredPickupWindowStart: DateTime(2026, 9, 10, 9),
@@ -27,73 +35,146 @@ Job _job({int? customerCompletedJobsCount, double? budgetPrice, int bidsCount = 
   proofOfDelivery: null,
   bidsCount: bidsCount,
   customerCompletedJobsCount: customerCompletedJobsCount,
+  completedAt: completedAt,
 );
 
 void main() {
-  testWidgets('shows the customer trust signal for a featured company when the count is present', (tester) async {
+  testWidgets(
+    'shows the real completion date instead of the pickup window for a completed job',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: JobListView(
+              loader: () async => [
+                _job(
+                  status: 'completed',
+                  completedAt: DateTime(2026, 9, 21, 14, 32),
+                ),
+              ],
+              emptyMessage: 'No jobs',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Completed 21 Sep 2026'), findsOneWidget);
+      expect(find.textContaining('Pickup'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'shows the customer trust signal for a featured company when the count is present',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: JobListView(
+              loader: () async => [_job(customerCompletedJobsCount: 4)],
+              emptyMessage: 'No jobs',
+              showCustomerTrustSignal: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('4 completed shipments on Cargo Motives'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'hides the trust signal for a standard company even when the count is present',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: JobListView(
+              loader: () async => [_job(customerCompletedJobsCount: 4)],
+              emptyMessage: 'No jobs',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('completed shipment'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'hides the trust signal when the count is not populated by the backend',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: JobListView(
+              loader: () async => [_job()],
+              emptyMessage: 'No jobs',
+              showCustomerTrustSignal: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('completed shipment'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'shows the customer\'s budget on an open job when one was given',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: JobListView(
+              loader: () async => [_job(budgetPrice: 850000, bidsCount: 3)],
+              emptyMessage: 'No jobs',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('850000'), findsOneWidget);
+      expect(find.text('TZS budget'), findsOneWidget);
+      // The bid count still shows too, folded into the detail line, not lost.
+      expect(find.textContaining('3 bids'), findsOneWidget);
+    },
+  );
+
+  testWidgets('labels a bulk job\'s budget as per-truck', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: JobListView(
-            loader: () async => [_job(customerCompletedJobsCount: 4)],
+            loader: () async => [_job(budgetPrice: 500000, trucksNeeded: 20)],
             emptyMessage: 'No jobs',
-            showCustomerTrustSignal: true,
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('4 completed shipments on Cargo Motives'), findsOneWidget);
+    expect(find.text('TZS budget/truck'), findsOneWidget);
+    expect(find.text('TZS budget'), findsNothing);
   });
 
-  testWidgets('hides the trust signal for a standard company even when the count is present', (tester) async {
+  testWidgets('falls back to the bid count when no budget was given', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: JobListView(loader: () async => [_job(customerCompletedJobsCount: 4)], emptyMessage: 'No jobs'),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('completed shipment'), findsNothing);
-  });
-
-  testWidgets('hides the trust signal when the count is not populated by the backend', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: JobListView(loader: () async => [_job()], emptyMessage: 'No jobs', showCustomerTrustSignal: true),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('completed shipment'), findsNothing);
-  });
-
-  testWidgets('shows the customer\'s budget on an open job when one was given', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: JobListView(loader: () async => [_job(budgetPrice: 850000, bidsCount: 3)], emptyMessage: 'No jobs'),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('850000'), findsOneWidget);
-    expect(find.text('TZS budget'), findsOneWidget);
-    // The bid count still shows too, folded into the detail line, not lost.
-    expect(find.textContaining('3 bids'), findsOneWidget);
-  });
-
-  testWidgets('falls back to the bid count when no budget was given', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: JobListView(loader: () async => [_job(bidsCount: 2)], emptyMessage: 'No jobs'),
+          body: JobListView(
+            loader: () async => [_job(bidsCount: 2)],
+            emptyMessage: 'No jobs',
+          ),
         ),
       ),
     );
@@ -103,7 +184,9 @@ void main() {
     expect(find.text('bids so far'), findsOneWidget);
   });
 
-  testWidgets('pull-to-refresh reloads the list without throwing', (tester) async {
+  testWidgets('pull-to-refresh reloads the list without throwing', (
+    tester,
+  ) async {
     // Regression test: _refresh() used to reassign _future via
     // `setState(() => _future = future)` — an arrow closure whose value IS
     // the assignment's value (a Future), which Flutter's setState()
@@ -124,7 +207,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final refreshIndicator = tester.widget<RefreshIndicator>(find.byType(RefreshIndicator));
+    final refreshIndicator = tester.widget<RefreshIndicator>(
+      find.byType(RefreshIndicator),
+    );
     await refreshIndicator.onRefresh();
     await tester.pumpAndSettle();
 

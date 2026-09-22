@@ -4,7 +4,7 @@ class FakeJobAssignmentRepository extends JobAssignmentRepository {
   FakeJobAssignmentRepository({this.onAssign, this.onCurrentDriverLink});
 
   final Future<DriverLink> Function({required int jobId, required int truckId, required int driverId})? onAssign;
-  final Future<DriverLink?> Function(int jobId)? onCurrentDriverLink;
+  final Future<DriverLink?> Function(int jobId, {int? truckId})? onCurrentDriverLink;
 
   @override
   Future<DriverLink> assign({required int jobId, required int truckId, required int driverId}) {
@@ -12,7 +12,8 @@ class FakeJobAssignmentRepository extends JobAssignmentRepository {
   }
 
   @override
-  Future<DriverLink?> currentDriverLink(int jobId) => onCurrentDriverLink?.call(jobId) ?? Future.value(null);
+  Future<DriverLink?> currentDriverLink(int jobId, {int? truckId}) =>
+      onCurrentDriverLink?.call(jobId, truckId: truckId) ?? Future.value(null);
 }
 
 DriverLink _defaultLink() => DriverLink(

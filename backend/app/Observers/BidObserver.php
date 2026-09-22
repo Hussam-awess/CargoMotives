@@ -30,15 +30,29 @@ class BidObserver
             'price' => (string) $bid->price,
         ]);
 
-        // AppFlow §6: "New bid (incl. Featured)" -> Customer, Push.
+        // AppFlow §6: "New bid (incl. Featured)" -> Customer, Push. A
+        // return-load claim (Cargo Motives Plus benefit) is worded
+        // differently — it's a one-tap match at the job's own stated
+        // price, not a competitive offer the customer needs to compare
+        // against others, so it shouldn't read like one.
         $job = $bid->job;
-        $this->notifications->send(
-            $job->customer,
-            'new_bid',
-            'New bid received',
-            "{$bid->company->company_name} bid {$bid->price} {$job->currency} on your job.",
-            $job,
-        );
+        if ($bid->is_return_load_claim) {
+            $this->notifications->send(
+                $job->customer,
+                'return_load_claim',
+                'A transporter wants your job',
+                "{$bid->company->company_name} wants to take your job as a return load at your posted price ({$bid->price} {$job->currency}) — no bidding, just confirm to assign it.",
+                $job,
+            );
+        } else {
+            $this->notifications->send(
+                $job->customer,
+                'new_bid',
+                'New bid received',
+                "{$bid->company->company_name} bid {$bid->price} {$job->currency} on your job.",
+                $job,
+            );
+        }
     }
 
     public function updated(Bid $bid): void

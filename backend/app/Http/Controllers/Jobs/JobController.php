@@ -9,6 +9,7 @@ use App\Http\Resources\JobResource;
 use App\Models\Dispute;
 use App\Models\Job;
 use App\Models\Truck;
+use App\Models\User;
 use App\Services\Documents\DocumentStorage;
 use App\Services\Geo\GeoPoint;
 use App\Services\Jobs\JobPostQuotaService;
@@ -34,9 +35,20 @@ class JobController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
+        // assignedCompany was missing here too (see show()'s comment) — the
+        // shipment list's own assigned-company name/tap-to-profile link
+        // was silently absent for the same reason. assignedDriver was the
+        // same story for the Messages inbox: without it eager-loaded,
+        // JobResource::assigned_driver_name's whenLoaded() omits the field
+        // entirely, so a customer's own conversation list never had a
+        // driver name to show at all, even for a job that has one.
         $query = Job::withCoordinates()
             ->where('customer_id', $request->user()->id)
-            ->withCount('bids')
+            ->with([
+                'assignedCompany', 'assignedDriver', 'awards.company', 'awards.truckAssignments.truck', 'awards.truckAssignments.driver',
+                'awards.proofOfDelivery',
+            ])
+            ->withCount(['bids', 'jobViews'])
             ->latest();
 
         if ($status = $request->string('status')->toString()) {
@@ -50,8 +62,19 @@ class JobController extends Controller
     {
         $this->authorizeCustomerOwnership($request, $job);
 
+        // assignedCompany was missing here — a real, pre-existing gap: the
+        // customer's own Transporter card has shown truck/driver but never
+        // the assigned company's own name (JobResource.assigned_company_name
+        // is whenLoaded-gated), and there was no way to open its public
+        // profile either (Phase: public profiles) without this.
         return new JobResource(
-            Job::withCoordinates()->with(['assignedTruck', 'assignedDriver', 'proofOfDelivery'])->findOrFail($job->id)
+            Job::withCoordinates()
+                ->with([
+                    'assignedTruck', 'assignedDriver', 'assignedCompany', 'proofOfDelivery', 'truckAssignments.truck', 'truckAssignments.driver',
+                    'awards.company', 'awards.truckAssignments.truck', 'awards.truckAssignments.driver', 'awards.proofOfDelivery',
+                ])
+                ->withCount('jobViews')
+                ->findOrFail($job->id)
         );
     }
 
@@ -93,7 +116,12 @@ class JobController extends Controller
     {
         $this->authorizeCustomerOwnership($request, $job);
 
-        if ($job->status !== 'open') {
+        // Multi-Company Split Awards epic: a partially-covered bulk job
+        // can have committed awards while jobs.status is still 'open' —
+        // a customer can't cancel out from under a company that's already
+        // started fulfilling its slice, even though the job overall
+        // hasn't fully closed to bidding yet.
+        if ($job->status !== 'open' || $job->awards()->exists()) {
             // PRD §8: cancellation is only allowed from 'open' — once a bid
             // is accepted, the company has committed resources to it.
             throw ValidationException::withMessages([
@@ -132,10 +160,28 @@ class JobController extends Controller
 
         DB::transaction(function () use ($job) {
             $job->update(['status' => 'completed']);
+            // completed_at is the real completion moment — distinct from
+            // preferred_pickup_window_start/end (the originally requested
+            // schedule) and never backdated to any of it. Set directly
+            // rather than through update()'s mass assignment: it's
+            // deliberately excluded from Job's #[Fillable] (system-set
+            // only, same reasoning as User::password_hash), so a mass
+            // assignment here would be silently discarded.
+            $job->completed_at = now();
+            $job->save();
             $job->proofOfDelivery()->update(['confirmed_by_customer_at' => now()]);
 
             if ($job->assigned_truck_id !== null) {
                 Truck::whereKey($job->assigned_truck_id)->update(['current_status' => 'idle']);
+            }
+
+            // Bulk Cargo epic: the line above only frees the lead truck.
+            // A multi-truck job's other roster trucks would otherwise stay
+            // stuck 'on_job' forever — this additionally releases every
+            // roster truck (harmless double-update on the lead, already
+            // freed above).
+            if ($job->isMultiTruck()) {
+                Truck::whereIn('id', $job->truckAssignments()->pluck('truck_id'))->update(['current_status' => 'idle']);
             }
         });
 
@@ -208,8 +254,21 @@ class JobController extends Controller
         $attributes['photo_urls'] = $photoKeys ?: null;
 
         if ($job) {
+            // Currency is set once, at creation, and never changes after —
+            // a bid already placed on this job is denominated in whatever
+            // currency it was posted in, so editing it out from under an
+            // existing bid would silently mismatch the two.
+            unset($attributes['currency']);
             $job->fill($attributes);
         } else {
+            // 'currency' is a 'sometimes' rule (PostJobRequest) — an older
+            // client that predates it, or simply omits it, falls back to
+            // the posting customer's own preferred_currency rather than
+            // silently becoming Job's blanket 'TZS' default regardless of
+            // what this customer actually chose in Settings.
+            if (! array_key_exists('currency', $attributes)) {
+                $attributes['currency'] = User::find($customerId)?->preferred_currency ?? 'TZS';
+            }
             $job = new Job($attributes);
             $job->customer_id = $customerId;
         }

@@ -42,6 +42,102 @@ final _openJob = Job(
 );
 
 void main() {
+  testWidgets('a non-Featured company never sees the Return Loads tab', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appUnder(
+        CompanyJobsScreen(
+          repository: FakeCompanyJobRepository(
+            onOpen: ({usePreferredRoutes = false}) async => [],
+          ),
+          featuredRepository: FakeCompanyFeaturedRepository(
+            onStatus: () async => const CompanyFeaturedStatus(
+              isFeatured: false,
+              featuredUntil: null,
+              price: 5000,
+              durationDays: 30,
+              preferredRoutes: [],
+            ),
+          ),
+          notificationRepository: FakeNotificationRepository(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Return Loads'), findsNothing);
+  });
+
+  testWidgets(
+    'a Featured company sees the Return Loads tab populated from the new endpoint',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CompanyJobsScreen(
+            repository: FakeCompanyJobRepository(
+              onOpen: ({usePreferredRoutes = false}) async => [],
+              onReturnLoads: () async => [_openJob],
+            ),
+            featuredRepository: FakeCompanyFeaturedRepository(
+              onStatus: () async => const CompanyFeaturedStatus(
+                isFeatured: true,
+                featuredUntil: null,
+                price: 5000,
+                durationDays: 30,
+                preferredRoutes: [],
+              ),
+            ),
+            notificationRepository: FakeNotificationRepository(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Return Loads'), findsOneWidget);
+
+      await tester.tap(find.text('Return Loads'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dry Van · 40ft · 12 t · 0 bids'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a Featured company with no nearby return loads sees its own empty state',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CompanyJobsScreen(
+            repository: FakeCompanyJobRepository(
+              onOpen: ({usePreferredRoutes = false}) async => [],
+              onReturnLoads: () async => [],
+            ),
+            featuredRepository: FakeCompanyFeaturedRepository(
+              onStatus: () async => const CompanyFeaturedStatus(
+                isFeatured: true,
+                featuredUntil: null,
+                price: 5000,
+                durationDays: 30,
+                preferredRoutes: [],
+              ),
+            ),
+            notificationRepository: FakeNotificationRepository(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Return Loads'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('No return loads near your current jobs yet.'),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('shows the Open tab by default with its own empty state', (
     tester,
   ) async {
@@ -129,6 +225,106 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(capturedUsePreferredRoutes, true);
+    },
+  );
+
+  testWidgets(
+    'a non-Featured company sees an upsell banner that opens the Featured screen',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CompanyJobsScreen(
+            repository: FakeCompanyJobRepository(
+              onOpen: ({usePreferredRoutes = false}) async => [],
+            ),
+            featuredRepository: FakeCompanyFeaturedRepository(
+              onStatus: () async => const CompanyFeaturedStatus(
+                isFeatured: false,
+                featuredUntil: null,
+                price: 50000,
+                durationDays: 30,
+                preferredRoutes: [],
+              ),
+            ),
+            notificationRepository: FakeNotificationRepository(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Go Plus to customize your routes'), findsOneWidget);
+
+      await tester.tap(find.text('Go Plus to customize your routes'));
+      await tester.pumpAndSettle();
+
+      // The Featured (Plus) upsell screen itself opened — reuses the same
+      // fake repository, so this is safe to actually follow through.
+      expect(find.text('WHAT YOU GET'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a Featured company with no saved routes sees a Customize-routes CTA',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CompanyJobsScreen(
+            repository: FakeCompanyJobRepository(
+              onOpen: ({usePreferredRoutes = false}) async => [],
+            ),
+            featuredRepository: FakeCompanyFeaturedRepository(
+              onStatus: () async => const CompanyFeaturedStatus(
+                isFeatured: true,
+                featuredUntil: null,
+                price: 50000,
+                durationDays: 30,
+                preferredRoutes: [],
+              ),
+            ),
+            notificationRepository: FakeNotificationRepository(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Customize your routes'), findsOneWidget);
+
+      await tester.tap(find.text('Customize your routes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Preferred routes'), findsOneWidget);
+      expect(find.text('HOME REGION'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a Featured company with saved routes sees a summary of how many',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CompanyJobsScreen(
+            repository: FakeCompanyJobRepository(
+              onOpen: ({usePreferredRoutes = false}) async => [],
+            ),
+            featuredRepository: FakeCompanyFeaturedRepository(
+              onStatus: () async => const CompanyFeaturedStatus(
+                isFeatured: true,
+                featuredUntil: null,
+                price: 50000,
+                durationDays: 30,
+                preferredRoutes: [
+                  PreferredRoute(origin: 'Dar', destination: 'Arusha'),
+                  PreferredRoute(origin: 'Dar', destination: 'Mwanza'),
+                ],
+              ),
+            ),
+            notificationRepository: FakeNotificationRepository(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Showing jobs on 2 saved routes'), findsOneWidget);
     },
   );
 }

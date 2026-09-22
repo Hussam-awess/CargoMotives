@@ -45,6 +45,8 @@ class Bid {
     required this.status,
     required this.isPriority,
     required this.company,
+    this.trucksOffered = 1,
+    this.isReturnLoadClaim = false,
   });
 
   factory Bid.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,8 @@ class Bid {
       status: json['status'] as String,
       isPriority: json['is_priority'] as bool,
       company: BidCompany.fromJson(json['company'] as Map<String, dynamic>),
+      trucksOffered: json['trucks_offered'] as int? ?? 1,
+      isReturnLoadClaim: json['is_return_load_claim'] as bool? ?? false,
     );
   }
 
@@ -70,6 +74,16 @@ class Bid {
   final String status; // pending|accepted|rejected|withdrawn
   final bool isPriority;
   final BidCompany company;
+
+  /// How many trucks this bid covers (Multi-Company Split Awards epic) —
+  /// 1 for an ordinary bid.
+  final int trucksOffered;
+
+  /// A one-tap return-load match (CompanyJobRepository.claimReturnLoad()) —
+  /// no price negotiation, claimed at the job's own posted price. The
+  /// customer's bid list renders this distinctly rather than as a normal
+  /// competitive offer, though accepting it works exactly the same way.
+  final bool isReturnLoadClaim;
 }
 
 /// Bidding (PRD §7.4, TRD §6). Used by both roles: Customer accepts and
@@ -82,16 +96,34 @@ class BidRepository {
   Future<List<Bid>> forJob(int jobId) async {
     final body = await _client.get('/jobs/$jobId/bids');
 
-    return (body['data'] as List).map((e) => Bid.fromJson(e as Map<String, dynamic>)).toList();
+    return (body['data'] as List)
+        .map((e) => Bid.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<Bid> place({required int jobId, required double price, DateTime? estimatedPickupTime, String? note}) async {
+  Future<Bid> place({
+    required int jobId,
+    required double price,
+    DateTime? estimatedPickupTime,
+    String? note,
+    int? trucksOffered,
+  }) async {
     final body = await _client.post(
       '/company/jobs/$jobId/bids',
       data: {
         'price': price,
-        if (estimatedPickupTime != null) 'estimated_pickup_time': estimatedPickupTime.toIso8601String(),
+        // .toUtc() first — see JobSubmission.toJson()'s comment on the
+        // same pattern; a naive local DateTime's ISO string has no
+        // offset, so the (UTC) backend would otherwise parse these same
+        // wall-clock digits as UTC and silently shift the real instant.
+        if (estimatedPickupTime != null)
+          'estimated_pickup_time': estimatedPickupTime
+              .toUtc()
+              .toIso8601String(),
         if (note != null && note.isNotEmpty) 'note': note,
+        // Omitted on an ordinary job's bid form — the backend defaults it
+        // to 1, matching every client that predates this field.
+        if (trucksOffered != null) 'trucks_offered': trucksOffered,
       },
     );
 
@@ -107,7 +139,10 @@ class BidRepository {
   Future<({Job job, Bid bid})> accept(int bidId) async {
     final body = await _client.post('/bids/$bidId/accept');
 
-    return (job: Job.fromJson(body['job'] as Map<String, dynamic>), bid: Bid.fromJson(body['bid'] as Map<String, dynamic>));
+    return (
+      job: Job.fromJson(body['job'] as Map<String, dynamic>),
+      bid: Bid.fromJson(body['bid'] as Map<String, dynamic>),
+    );
   }
 
   Future<int> companyQuotaRemaining() async {

@@ -61,27 +61,19 @@ class NotificationTriggersTest extends TestCase
         $this->assertDatabaseMissing('notifications', ['user_id' => $company->owner_user_id]);
     }
 
-    public function test_truck_approval_notifies_the_companys_owner(): void
-    {
-        $company = TransporterCompany::factory()->approved()->create();
-        $truck = Truck::factory()->create(['transporter_company_id' => $company->id]);
-
-        $truck->update(['verification_status' => 'approved']);
-
-        $this->assertDatabaseHas('notifications', [
-            'user_id' => $company->owner_user_id,
-            'type' => 'truck_approved',
-        ]);
-    }
-
-    public function test_truck_rejection_notifies_the_companys_owner(): void
+    /**
+     * Truck review was removed — a registered truck is usable immediately,
+     * so there is no approval/rejection transition left to notify about.
+     * Company verification (above) is unaffected and still notifies.
+     */
+    public function test_a_truck_verification_change_no_longer_notifies(): void
     {
         $company = TransporterCompany::factory()->approved()->create();
         $truck = Truck::factory()->create(['transporter_company_id' => $company->id]);
 
         $truck->update(['verification_status' => 'rejected', 'verification_rejected_reason' => 'Unreadable photo.']);
 
-        $this->assertDatabaseHas('notifications', [
+        $this->assertDatabaseMissing('notifications', [
             'user_id' => $company->owner_user_id,
             'type' => 'truck_rejected',
         ]);
@@ -147,6 +139,44 @@ class NotificationTriggersTest extends TestCase
         $job->update(['gps_signal_status' => 'ok']);
 
         $this->assertDatabaseMissing('notifications', ['type' => 'gps_signal_lost']);
+    }
+
+    /**
+     * These three fire the same way whether a driver manually taps the
+     * status forward on the Driver Link page or JobStatusAutoAdvancer
+     * drives it off GPS — JobObserver only reacts to wasChanged('status'),
+     * it never asks who caused the change.
+     */
+    public function test_en_route_pickup_notifies_the_customer(): void
+    {
+        $customer = User::factory()->create();
+        $job = Job::factory()->create(['customer_id' => $customer->id, 'status' => 'assigned']);
+
+        $job->update(['status' => 'en_route_pickup']);
+
+        $this->assertDatabaseHas('notifications', ['user_id' => $customer->id, 'type' => 'job_status_changed']);
+    }
+
+    public function test_picked_up_notifies_the_customer(): void
+    {
+        $customer = User::factory()->create();
+        $job = Job::factory()->create(['customer_id' => $customer->id, 'status' => 'en_route_pickup']);
+
+        $job->update(['status' => 'picked_up']);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $customer->id, 'type' => 'job_status_changed', 'body' => 'Loading the cargo.',
+        ]);
+    }
+
+    public function test_in_transit_notifies_the_customer(): void
+    {
+        $customer = User::factory()->create();
+        $job = Job::factory()->create(['customer_id' => $customer->id, 'status' => 'picked_up']);
+
+        $job->update(['status' => 'in_transit']);
+
+        $this->assertDatabaseHas('notifications', ['user_id' => $customer->id, 'type' => 'job_status_changed']);
     }
 
     public function test_job_delivered_notifies_customer_and_company(): void

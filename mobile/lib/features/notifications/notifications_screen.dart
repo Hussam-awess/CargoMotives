@@ -4,22 +4,29 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import 'data/notification_repository.dart';
+import 'notification_router.dart';
 
 /// The bell icon's destination (AppFlow §3.1) — a plain list, refreshed on
 /// open/pull-to-refresh (TRD §4: notifications are explicitly not a
-/// WebSocket use case). [onTapJob], when a notification carries a
-/// related_job_id, is left to the caller: Customer and Company each push a
-/// different job-detail screen, and this screen has no reason to know
-/// which — see CustomerJobsTab/CompanyJobsScreen for how each wires it.
+/// WebSocket use case). Where a tap actually navigates is decided by
+/// [destinationFor] and left to the caller via [onTapJob]/[onOpenSupport]/
+/// [onOpenFleet]: Customer and Company each push a different job-detail
+/// screen (or, for Customer, have no Fleet screen at all), and this screen
+/// has no reason to know which — see CustomerJobsTab/CompanyJobsScreen for
+/// how each wires it.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({
     super.key,
     required this.repository,
     this.onTapJob,
+    this.onOpenSupport,
+    this.onOpenFleet,
   });
 
   final NotificationRepository repository;
   final void Function(int jobId)? onTapJob;
+  final VoidCallback? onOpenSupport;
+  final VoidCallback? onOpenFleet;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -67,8 +74,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
     if (!mounted) return;
-    if (notification.relatedJobId != null) {
-      widget.onTapJob?.call(notification.relatedJobId!);
+    switch (destinationFor(notification.type)) {
+      case NotificationDestination.job:
+        if (notification.relatedJobId != null) {
+          widget.onTapJob?.call(notification.relatedJobId!);
+        }
+      case NotificationDestination.support:
+        widget.onOpenSupport?.call();
+      case NotificationDestination.fleet:
+        widget.onOpenFleet?.call();
+      case NotificationDestination.none:
+        break;
     }
   }
 
@@ -277,6 +293,7 @@ class _NotificationRow extends StatelessWidget {
     'support_message' => (Icons.support_agent, true),
     'gps_signal_lost' => (Icons.location_off_outlined, true),
     'job_status_changed' => (Icons.local_shipping_outlined, true),
+    'job_arrived_at_dropoff' => (Icons.flag_outlined, true),
     'new_bid' || 'bid_placed' => (Icons.gavel_outlined, false),
     'bid_accepted' => (Icons.check_circle_outline, false),
     'bid_not_selected' ||
@@ -289,6 +306,7 @@ class _NotificationRow extends StatelessWidget {
     'truck_rejected' ||
     'company_flagged_duplicate' => (Icons.report_gmailerrorred_outlined, false),
     'new_job_posted' => (Icons.local_shipping_outlined, true),
+    'job_completed_rate_prompt' => (Icons.star_outline, true),
     're_engagement' => (Icons.notifications_active_outlined, true),
     _ => (Icons.notifications_none, false),
   };

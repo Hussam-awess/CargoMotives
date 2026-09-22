@@ -30,6 +30,16 @@ class BidResource extends JsonResource
             'note' => $this->note,
             'status' => $this->status,
             'is_priority' => $this->is_priority,
+            // A one-tap return-load match (CompanyJobController::
+            // claimReturnLoad()), not a competitive price bid — the client
+            // renders this distinctly ("return load match" rather than a
+            // normal bid card), though accepting it still goes through the
+            // exact same BidController::accept() flow.
+            'is_return_load_claim' => $this->is_return_load_claim,
+            // Multi-Company Split Awards epic: how many trucks this bid
+            // covers — 1 for an ordinary bid, indistinguishable from every
+            // bid placed before this field existed.
+            'trucks_offered' => $this->trucks_offered,
             'company' => [
                 'id' => $this->company->id,
                 'name' => $this->company->company_name,

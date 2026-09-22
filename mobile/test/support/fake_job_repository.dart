@@ -8,6 +8,7 @@ class FakeJobRepository extends JobRepository {
     this.onCancel,
     this.onPostQuotaRemaining,
     this.onConfirmDelivery,
+    this.onConfirmAwardDelivery,
   });
 
   final Future<List<Job>> Function()? onList;
@@ -16,24 +17,35 @@ class FakeJobRepository extends JobRepository {
   final Future<Job> Function(int jobId, {String? reason})? onCancel;
   final Future<int> Function()? onPostQuotaRemaining;
   final Future<Job> Function(int jobId)? onConfirmDelivery;
+  final Future<Job> Function(int jobId, int awardId)? onConfirmAwardDelivery;
 
   @override
   Future<List<Job>> list() => onList?.call() ?? Future.value(const []);
 
   @override
-  Future<Job> show(int jobId) => onShow?.call(jobId) ?? Future.value(_defaultJob(jobId));
+  Future<Job> show(int jobId) =>
+      onShow?.call(jobId) ?? Future.value(_defaultJob(jobId));
 
   @override
-  Future<Job> post(JobSubmission submission) => onPost?.call(submission) ?? Future.value(_defaultJob(1));
+  Future<Job> post(JobSubmission submission) =>
+      onPost?.call(submission) ?? Future.value(_defaultJob(1));
 
   @override
-  Future<Job> cancel(int jobId, {String? reason}) => onCancel?.call(jobId, reason: reason) ?? Future.value(_defaultJob(jobId));
+  Future<Job> cancel(int jobId, {String? reason}) =>
+      onCancel?.call(jobId, reason: reason) ?? Future.value(_defaultJob(jobId));
 
   @override
-  Future<int> postQuotaRemaining() => onPostQuotaRemaining?.call() ?? Future.value(5);
+  Future<int> postQuotaRemaining() =>
+      onPostQuotaRemaining?.call() ?? Future.value(5);
 
   @override
-  Future<Job> confirmDelivery(int jobId) => onConfirmDelivery?.call(jobId) ?? Future.value(_defaultJob(jobId));
+  Future<Job> confirmDelivery(int jobId) =>
+      onConfirmDelivery?.call(jobId) ?? Future.value(_defaultJob(jobId));
+
+  @override
+  Future<Job> confirmAwardDelivery(int jobId, int awardId) =>
+      onConfirmAwardDelivery?.call(jobId, awardId) ??
+      Future.value(_defaultJob(jobId));
 }
 
 Job _defaultJob(int id) => Job(

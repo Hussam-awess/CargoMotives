@@ -17,6 +17,7 @@ class AssignJobScreen extends StatefulWidget {
   AssignJobScreen({
     super.key,
     required this.job,
+    this.excludedTruckIds = const {},
     TruckRepository? truckRepository,
     DriverRepository? driverRepository,
     JobAssignmentRepository? assignmentRepository,
@@ -25,6 +26,11 @@ class AssignJobScreen extends StatefulWidget {
        assignmentRepository = assignmentRepository ?? JobAssignmentRepository();
 
   final Job job;
+
+  /// Trucks already on this job's roster (Bulk Cargo epic) — excluded from
+  /// the dropdown so the same truck can't be added twice. Always empty for
+  /// an ordinary single-truck job.
+  final Set<int> excludedTruckIds;
   final TruckRepository truckRepository;
   final DriverRepository driverRepository;
   final JobAssignmentRepository assignmentRepository;
@@ -64,12 +70,13 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
       setState(() {
         // An already-idle-or-assigned-to-this-job truck is eligible — the
         // backend applies the same "already on this job" carve-out.
-        _trucks = trucks.where((t) => t.isApproved && t.isIdle).toList();
+        // excludedTruckIds additionally hides trucks already on this
+        // job's own roster (Bulk Cargo epic) — always empty otherwise.
+        _trucks = trucks.where((t) => t.isApproved && t.isIdle && !widget.excludedTruckIds.contains(t.id)).toList();
         _drivers = drivers.where((d) => d.isActive).toList();
       });
     } catch (_) {
-      if (mounted)
-        setState(() => _loadError = 'Could not load trucks and drivers.');
+      if (mounted) setState(() => _loadError = 'Could not load trucks and drivers.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -87,11 +94,7 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
     });
 
     try {
-      final link = await widget.assignmentRepository.assign(
-        jobId: widget.job.id,
-        truckId: _selectedTruckId!,
-        driverId: _selectedDriverId!,
-      );
+      final link = await widget.assignmentRepository.assign(jobId: widget.job.id, truckId: _selectedTruckId!, driverId: _selectedDriverId!);
       if (mounted) setState(() => _link = link);
     } on ApiException catch (e) {
       setState(() => _submitError = e.message);
@@ -100,14 +103,25 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
     }
   }
 
+  /// Bulk Cargo epic only: resets the form so the company can immediately
+  /// assign the next truck+driver pair without leaving this screen — an
+  /// ordinary single-truck job never reaches this (it only ever shows
+  /// "Done").
+  Future<void> _addAnother() async {
+    setState(() {
+      _link = null;
+      _selectedTruckId = null;
+      _selectedDriverId = null;
+    });
+    await _load();
+  }
+
   Future<void> _copyLink() async {
     final link = _link;
     if (link == null) return;
     await Clipboard.setData(ClipboardData(text: link.url));
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Link copied.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied.')));
     }
   }
 
@@ -124,10 +138,7 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
                 children: [
                   Text(_loadError!),
                   const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _load,
-                    child: const Text('Try again'),
-                  ),
+                  OutlinedButton(onPressed: _load, child: const Text('Try again')),
                 ],
               ),
             )
@@ -136,6 +147,7 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
               link: _link!,
               onCopy: _copyLink,
               onDone: () => Navigator.of(context).pop(true),
+              onAddAnother: widget.job.isMultiTruck ? _addAnother : null,
             )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -143,70 +155,32 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (_trucks.isEmpty)
-                    Text(
-                      'No idle, approved trucks available.',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    )
+                    Text('No idle, approved trucks available.', style: TextStyle(color: AppColors.textSecondary))
                   else
                     DropdownButtonFormField<int>(
                       initialValue: _selectedTruckId,
                       decoration: const InputDecoration(labelText: 'Truck'),
                       items: _trucks
-                          .map(
-                            (t) => DropdownMenuItem(
-                              value: t.id,
-                              child: Text(
-                                '${t.registrationNumber} — ${t.makeModel}',
-                              ),
-                            ),
-                          )
+                          .map((t) => DropdownMenuItem(value: t.id, child: Text('${t.registrationNumber} — ${t.makeModel}')))
                           .toList(),
-                      onChanged: (value) =>
-                          setState(() => _selectedTruckId = value),
+                      onChanged: (value) => setState(() => _selectedTruckId = value),
                     ),
                   const SizedBox(height: 16),
                   if (_drivers.isEmpty)
-                    Text(
-                      'No active drivers in your roster.',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    )
+                    Text('No active drivers in your roster.', style: TextStyle(color: AppColors.textSecondary))
                   else
                     DropdownButtonFormField<int>(
                       initialValue: _selectedDriverId,
                       decoration: const InputDecoration(labelText: 'Driver'),
-                      items: _drivers
-                          .map(
-                            (d) => DropdownMenuItem(
-                              value: d.id,
-                              child: Text(d.fullName),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _selectedDriverId = value),
+                      items: _drivers.map((d) => DropdownMenuItem(value: d.id, child: Text(d.fullName))).toList(),
+                      onChanged: (value) => setState(() => _selectedDriverId = value),
                     ),
-                  if (_submitError != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      _submitError!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
+                  if (_submitError != null) ...[const SizedBox(height: 16), Text(_submitError!, style: const TextStyle(color: Colors.red))],
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed:
-                        (_isSubmitting || _trucks.isEmpty || _drivers.isEmpty)
-                        ? null
-                        : _assign,
+                    onPressed: (_isSubmitting || _trucks.isEmpty || _drivers.isEmpty) ? null : _assign,
                     child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Text('Confirm'),
                   ),
                 ],
@@ -217,15 +191,15 @@ class _AssignJobScreenState extends State<AssignJobScreen> {
 }
 
 class _AssignedConfirmation extends StatelessWidget {
-  const _AssignedConfirmation({
-    required this.link,
-    required this.onCopy,
-    required this.onDone,
-  });
+  const _AssignedConfirmation({required this.link, required this.onCopy, required this.onDone, this.onAddAnother});
 
   final DriverLink link;
   final VoidCallback onCopy;
   final VoidCallback onDone;
+
+  /// Non-null only for a multi-truck job (Bulk Cargo epic) — lets the
+  /// company assign the next truck+driver pair without leaving this screen.
+  final VoidCallback? onAddAnother;
 
   @override
   Widget build(BuildContext context) {
@@ -237,14 +211,15 @@ class _AssignedConfirmation extends StatelessWidget {
         children: [
           const Icon(Icons.check_circle, color: AppColors.statusLive, size: 48),
           const SizedBox(height: 16),
-          const Text(
-            'Assigned. The driver link has been texted to the driver.',
-            textAlign: TextAlign.center,
-          ),
+          const Text('Assigned. The driver link has been texted to the driver.', textAlign: TextAlign.center),
           const SizedBox(height: 16),
           SelectableText(link.url, textAlign: TextAlign.center),
           const SizedBox(height: 16),
           OutlinedButton(onPressed: onCopy, child: const Text('Copy link')),
+          if (onAddAnother != null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: onAddAnother, child: const Text('Add another truck')),
+          ],
           const SizedBox(height: 12),
           ElevatedButton(onPressed: onDone, child: const Text('Done')),
         ],

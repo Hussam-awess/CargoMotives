@@ -1,5 +1,6 @@
 <?php
 
+use App\Broadcasting\AwardLocationChannel;
 use App\Broadcasting\JobChannel;
 use App\Broadcasting\JobLocationChannel;
 use Illuminate\Support\Facades\Broadcast;
@@ -22,3 +23,8 @@ Broadcast::channel('job.{jobId}', JobChannel::class);
 // its audience is broader: both the customer AND the assigned company
 // watch the same truck's position, not just the customer.
 Broadcast::channel('job.{jobId}.location', JobLocationChannel::class);
+
+// Multi-Company Split Awards epic: one company's own award-scoped live
+// GPS — a separate channel per award (not job.{jobId}.location) since two
+// unrelated companies' positions must never share one private channel.
+Broadcast::channel('award.{awardId}.location', AwardLocationChannel::class);

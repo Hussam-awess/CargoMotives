@@ -3,8 +3,11 @@
 namespace Tests\Feature\Jobs;
 
 use App\Models\Bid;
+use App\Models\CustomerFollow;
 use App\Models\Job;
+use App\Models\JobAward;
 use App\Models\TransporterCompany;
+use App\Models\Truck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -36,6 +39,33 @@ class CompanyJobFeedTest extends TestCase
         $this->assertCount(1, $response->json('data'));
     }
 
+    /**
+     * Bidding Deadline epic: "no longer visible as an available bidding
+     * opportunity" once its deadline passes — status alone (still 'open')
+     * isn't enough to keep it in this feed.
+     */
+    public function test_open_feed_excludes_a_job_whose_bidding_deadline_has_passed(): void
+    {
+        $company = $this->approvedCompanyUser();
+        Job::factory()->create(['status' => 'open', 'created_at' => now()->subMinutes(5), 'bidding_expires_at' => now()->subHour()]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk();
+        $this->assertCount(0, $response->json('data'));
+    }
+
+    public function test_open_feed_includes_a_job_whose_bidding_deadline_has_not_passed_yet(): void
+    {
+        $company = $this->approvedCompanyUser();
+        Job::factory()->create(['status' => 'open', 'created_at' => now()->subMinutes(5), 'bidding_expires_at' => now()->addDay()]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+    }
+
     public function test_open_feed_shows_the_posting_customers_business_identity(): void
     {
         // Phase 11 product decision: a Customer's optional company_name
@@ -50,6 +80,26 @@ class CompanyJobFeedTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.0.customer_name', 'Amina Hassan')
             ->assertJsonPath('data.0.customer_company_name', 'Amina Textiles Ltd');
+    }
+
+    public function test_open_feed_shows_whether_the_viewing_company_already_follows_the_customer(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $followed = User::factory()->create();
+        $notFollowed = User::factory()->create();
+        CustomerFollow::create([
+            'transporter_company_id' => $company->transporterCompany->id,
+            'customer_id' => $followed->id,
+        ]);
+        Job::factory()->create(['status' => 'open', 'customer_id' => $followed->id, 'created_at' => now()->subMinutes(5)]);
+        Job::factory()->create(['status' => 'open', 'customer_id' => $notFollowed->id, 'created_at' => now()->subMinutes(5)]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk();
+        $byCustomer = collect($response->json('data'))->keyBy('customer_name');
+        $this->assertTrue($byCustomer[$followed->full_name]['is_following_customer']);
+        $this->assertFalse($byCustomer[$notFollowed->full_name]['is_following_customer']);
     }
 
     public function test_open_feed_shows_the_customers_budget_price_so_a_company_can_bid_informed(): void
@@ -167,5 +217,91 @@ class CompanyJobFeedTest extends TestCase
         TransporterCompany::factory()->for($user, 'owner')->create(); // still pending
 
         $this->actingAs($user)->getJson('/api/company/jobs/open')->assertForbidden();
+    }
+
+    /**
+     * Multi-Company Split Awards epic: a company with zero verified trucks
+     * structurally can never bid on anything, regardless of the job's
+     * trucks_needed or remaining capacity.
+     */
+    public function test_open_feed_marks_a_job_ineligible_when_the_company_has_no_verified_trucks(): void
+    {
+        $company = $this->approvedCompanyUser();
+        Job::factory()->create(['status' => 'open', 'trucks_needed' => 5, 'created_at' => now()->subMinutes(5)]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk()->assertJsonPath('data.0.is_eligible', false);
+    }
+
+    /**
+     * Multi-Company Split Awards epic: is_eligible no longer requires a
+     * company's fleet to single-handedly cover the whole job — one
+     * verified truck is enough to be eligible for a slice of a much
+     * bigger job. The all-or-nothing gate this replaced now only lives in
+     * BidController::store()'s per-bid trucks_offered check.
+     */
+    public function test_open_feed_marks_a_job_eligible_when_the_company_has_a_small_fleet_but_capacity_remains(): void
+    {
+        $company = $this->approvedCompanyUser();
+        Truck::factory()->approved()->for($company->transporterCompany, 'company')->create();
+        Job::factory()->create(['status' => 'open', 'trucks_needed' => 5, 'created_at' => now()->subMinutes(5)]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.is_eligible', true)
+            ->assertJsonPath('data.0.remaining_trucks_needed', 5);
+    }
+
+    public function test_open_feed_marks_a_job_eligible_when_the_companys_fleet_is_large_enough(): void
+    {
+        $company = $this->approvedCompanyUser();
+        Truck::factory()->approved()->count(5)->for($company->transporterCompany, 'company')->create();
+        Job::factory()->create(['status' => 'open', 'trucks_needed' => 5, 'created_at' => now()->subMinutes(5)]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk()->assertJsonPath('data.0.is_eligible', true);
+    }
+
+    /**
+     * Multi-Company Split Awards epic: once every truck on a job has
+     * already been awarded to other companies, remaining capacity is 0 —
+     * a company with plenty of its own trucks is still ineligible, since
+     * there's nothing left to bid for.
+     */
+    public function test_open_feed_marks_a_job_ineligible_once_its_remaining_capacity_is_fully_awarded(): void
+    {
+        $company = $this->approvedCompanyUser();
+        Truck::factory()->approved()->count(5)->for($company->transporterCompany, 'company')->create();
+        $job = Job::factory()->create(['status' => 'open', 'trucks_needed' => 5, 'created_at' => now()->subMinutes(5)]);
+
+        $otherCompany = $this->approvedCompanyUser()->transporterCompany;
+        $bid = Bid::factory()->for($job)->for($otherCompany, 'company')->create(['trucks_offered' => 5]);
+        JobAward::create([
+            'job_id' => $job->id,
+            'bid_id' => $bid->id,
+            'transporter_company_id' => $otherCompany->id,
+            'trucks_offered' => 5,
+            'agreed_price' => $bid->price,
+        ]);
+
+        $response = $this->actingAs($company)->getJson('/api/company/jobs/open');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.is_eligible', false)
+            ->assertJsonPath('data.0.remaining_trucks_needed', 0);
+    }
+
+    public function test_job_detail_reflects_the_viewing_companys_eligibility(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $job = Job::factory()->create(['status' => 'open', 'trucks_needed' => 3]);
+
+        $this->actingAs($company)
+            ->getJson("/api/company/jobs/{$job->id}")
+            ->assertOk()
+            ->assertJsonPath('data.is_eligible', false);
     }
 }

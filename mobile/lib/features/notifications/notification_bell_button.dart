@@ -11,11 +11,13 @@ import 'notifications_screen.dart';
 /// initState and re-fetches whenever NotificationsScreen is popped, so a
 /// parent AppBar only ever needs `actions: [NotificationBellButton(...)]`.
 class NotificationBellButton extends StatefulWidget {
-  NotificationBellButton({super.key, NotificationRepository? repository, this.onTapJob})
+  NotificationBellButton({super.key, NotificationRepository? repository, this.onTapJob, this.onOpenSupport, this.onOpenFleet})
     : repository = repository ?? NotificationRepository();
 
   final NotificationRepository repository;
   final void Function(int jobId)? onTapJob;
+  final VoidCallback? onOpenSupport;
+  final VoidCallback? onOpenFleet;
 
   @override
   State<NotificationBellButton> createState() => _NotificationBellButtonState();
@@ -44,7 +46,12 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
   Future<void> _open() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => NotificationsScreen(repository: widget.repository, onTapJob: widget.onTapJob),
+        builder: (_) => NotificationsScreen(
+          repository: widget.repository,
+          onTapJob: widget.onTapJob,
+          onOpenSupport: widget.onOpenSupport,
+          onOpenFleet: widget.onOpenFleet,
+        ),
       ),
     );
     _refreshCount();
@@ -57,11 +64,7 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
     return IconButton(
       tooltip: l10n.notificationsBellTooltip,
       onPressed: _open,
-      icon: Badge(
-        label: Text('$_unreadCount'),
-        isLabelVisible: _unreadCount > 0,
-        child: const Icon(Icons.notifications_outlined),
-      ),
+      icon: Badge(label: Text('$_unreadCount'), isLabelVisible: _unreadCount > 0, child: const Icon(Icons.notifications_outlined)),
     );
   }
 }

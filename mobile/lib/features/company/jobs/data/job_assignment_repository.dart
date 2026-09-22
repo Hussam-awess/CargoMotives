@@ -42,9 +42,15 @@ class JobAssignmentRepository {
   /// none is active, so callers can render "no link yet" instead of an
   /// error state for what is a perfectly normal condition before a first
   /// assignment.
-  Future<DriverLink?> currentDriverLink(int jobId) async {
+  ///
+  /// [truckId] disambiguates which roster truck's link to fetch on a
+  /// multi-truck job (Bulk Cargo epic), which can have several
+  /// simultaneously active links; omitted, or on an ordinary job, this
+  /// fetches the job's one active link exactly as before that epic.
+  Future<DriverLink?> currentDriverLink(int jobId, {int? truckId}) async {
     try {
-      final body = await _client.get('/company/jobs/$jobId/driver-link');
+      final path = truckId != null ? '/company/jobs/$jobId/driver-link?truck_id=$truckId' : '/company/jobs/$jobId/driver-link';
+      final body = await _client.get(path);
 
       return DriverLink.fromJson(body['data'] as Map<String, dynamic>);
     } on ApiException catch (e) {

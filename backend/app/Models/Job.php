@@ -23,10 +23,10 @@ use Illuminate\Support\Facades\DB;
  */
 #[Fillable([
     'customer_id', 'status', 'pickup_address', 'dropoff_address', 'container_type', 'container_size',
-    'approx_weight_tons', 'cargo_description', 'preferred_pickup_window_start', 'preferred_pickup_window_end',
-    'customer_notes', 'budget_price', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'assigned_truck_id',
+    'trucks_needed', 'approx_weight_tons', 'cargo_description', 'preferred_pickup_window_start', 'preferred_pickup_window_end',
+    'customer_notes', 'budget_price', 'currency', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'assigned_truck_id',
     'assigned_driver_id', 'agreed_price', 'cancelled_reason', 'gps_tracking_active', 'gps_signal_status',
-    'gps_tracking_started_at',
+    'gps_tracking_started_at', 'bidding_expires_at',
 ])]
 class Job extends Model
 {
@@ -44,6 +44,7 @@ class Job extends Model
     protected $attributes = [
         'status' => 'open',
         'currency' => 'TZS',
+        'trucks_needed' => 1,
         'gps_tracking_active' => false,
         'gps_signal_status' => 'not_applicable',
     ];
@@ -62,6 +63,10 @@ class Job extends Model
             'preferred_pickup_window_end' => 'datetime',
             'gps_tracking_active' => 'boolean',
             'gps_tracking_started_at' => 'datetime',
+            'completed_at' => 'datetime',
+            'bidding_expires_at' => 'datetime',
+            'bidding_expiry_notified_at' => 'datetime',
+            'dropoff_arrival_notified_at' => 'datetime',
         ];
     }
 
@@ -127,6 +132,39 @@ class Job extends Model
         return $this->hasMany(DriverLink::class);
     }
 
+    /**
+     * The full multi-truck roster (Bulk Cargo epic) — only ever populated
+     * for trucks_needed > 1; an ordinary job's roster is always empty (its
+     * single truck/driver lives on assignedTruck()/assignedDriver() instead).
+     */
+    public function truckAssignments(): HasMany
+    {
+        return $this->hasMany(JobTruckAssignment::class);
+    }
+
+    /**
+     * Multi-Company Split Awards epic: one row per company that ended up
+     * covering only PART of trucks_needed — empty for every ordinary job
+     * and for a bulk job fully covered by a single company's bid (those
+     * keep using assigned_company_id/assigned_bid_id exactly as before
+     * this epic; see BidController::accept()).
+     */
+    public function awards(): HasMany
+    {
+        return $this->hasMany(JobAward::class);
+    }
+
+    /**
+     * Whether this job needs more than one truck — the single switch that
+     * decides whether JobAssignmentService/DriverLinkPageController/
+     * confirmDelivery() use the roster path or leave today's single-truck
+     * behavior completely untouched.
+     */
+    public function isMultiTruck(): bool
+    {
+        return $this->trucks_needed > 1;
+    }
+
     public function proofOfDelivery(): HasOne
     {
         return $this->hasOne(ProofOfDelivery::class);
@@ -135,6 +173,16 @@ class Job extends Model
     public function locationSnapshots(): HasMany
     {
         return $this->hasMany(JobLocationSnapshot::class);
+    }
+
+    /**
+     * Distinct transporter companies that have opened this job's detail
+     * (Cargo Motives Plus benefit: job view counts) — see JobView's
+     * docblock.
+     */
+    public function jobViews(): HasMany
+    {
+        return $this->hasMany(JobView::class);
     }
 
     public function messages(): HasMany
@@ -156,5 +204,53 @@ class Job extends Model
     public function isGpsTrackable(): bool
     {
         return in_array($this->status, ['assigned', 'en_route_pickup', 'picked_up', 'in_transit'], true);
+    }
+
+    /**
+     * Bidding Deadline epic: a computed state, never stored — jobs.status
+     * stays 'open' the entire time a deadline is in effect, so this is
+     * purely `bidding_expires_at` compared against now(). Null (every job
+     * posted before this feature existed, or one that never got a
+     * deadline) means "never closes on its own," matching today's
+     * indefinite-until-accepted behavior exactly. Once status moves past
+     * 'open' — accepted, cancelled, or (Multi-Company Split Awards epic)
+     * fully covered — the deadline becomes irrelevant, since bidding has
+     * already ended for a different reason.
+     */
+    public function isBiddingClosed(): bool
+    {
+        return $this->status === 'open' && $this->bidding_expires_at !== null && $this->bidding_expires_at->isPast();
+    }
+
+    /**
+     * A public profile's "recent completed jobs" (Phase: public profiles)
+     * — always anonymized on every copy, for every viewer: no job id, no
+     * counterparty name/company, since any authenticated user can view any
+     * profile, not just someone who actually worked with this party. The
+     * "route" is a rough city/area approximation (the first comma-segment
+     * of each address) — there's no structured city field on a job today,
+     * so this is a pragmatic stand-in, not a real geocode.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function recentCompletedSummariesFor(string $column, int $id, int $limit = 5): array
+    {
+        return static::where($column, $id)
+            ->where('status', 'completed')
+            ->whereNotNull('completed_at')
+            ->latest('completed_at')
+            ->limit($limit)
+            ->get(['completed_at', 'container_type', 'pickup_address', 'dropoff_address'])
+            ->map(fn (self $job) => [
+                'completed_at' => $job->completed_at->toIso8601String(),
+                'container_type' => $job->container_type,
+                'route' => self::firstAddressSegment($job->pickup_address).' → '.self::firstAddressSegment($job->dropoff_address),
+            ])
+            ->all();
+    }
+
+    private static function firstAddressSegment(string $address): string
+    {
+        return trim(explode(',', $address)[0]);
     }
 }

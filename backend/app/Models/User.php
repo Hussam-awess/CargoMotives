@@ -20,8 +20,9 @@ use Laravel\Sanctum\HasApiTokens;
  * (PRD §5, TRD §7).
  */
 #[Fillable([
-    'account_type', 'phone_number', 'email', 'full_name', 'avatar_url', 'language_preference', 'is_featured', 'featured_until',
-    'company_name', 'company_logo_url', 'email_verified_at', 'notification_preferences', 'last_active_at', 'last_inactivity_nudge_at',
+    'account_type', 'phone_number', 'email', 'full_name', 'avatar_url', 'language_preference', 'preferred_currency', 'is_featured',
+    'featured_until', 'company_name', 'company_logo_url', 'email_verified_at', 'notification_preferences', 'last_active_at',
+    'last_inactivity_nudge_at',
 ])]
 #[Hidden(['password_hash', 'remember_token'])]
 class User extends Authenticatable
@@ -46,7 +47,9 @@ class User extends Authenticatable
         // docs' original "Swahili default" — see LocaleController on the
         // Flutter side for the matching change).
         'language_preference' => 'en',
+        'preferred_currency' => 'TZS',
         'is_featured' => false,
+        'rating_count' => 0,
     ];
 
     /**
@@ -62,6 +65,10 @@ class User extends Authenticatable
             'notification_preferences' => 'array',
             'last_active_at' => 'datetime',
             'last_inactivity_nudge_at' => 'datetime',
+            // System-computed only (never in #[Fillable] above), same
+            // reasoning as TransporterCompany.average_rating — recomputed
+            // from job_reviews by JobReviewObserver, never client-set.
+            'average_rating' => 'decimal:1',
         ];
     }
 

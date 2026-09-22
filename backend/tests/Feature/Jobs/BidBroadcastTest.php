@@ -5,6 +5,7 @@ namespace Tests\Feature\Jobs;
 use App\Events\BidPlaced;
 use App\Models\Job;
 use App\Models\TransporterCompany;
+use App\Models\Truck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -29,7 +30,8 @@ class BidBroadcastTest extends TestCase
         Event::fake([BidPlaced::class]);
 
         $companyUser = User::factory()->transporterCompany()->create();
-        TransporterCompany::factory()->approved()->for($companyUser, 'owner')->create();
+        $company = TransporterCompany::factory()->approved()->for($companyUser, 'owner')->create();
+        Truck::factory()->approved()->for($company, 'company')->create();
         $job = Job::factory()->create(['status' => 'open']);
 
         $this->actingAs($companyUser)

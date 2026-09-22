@@ -38,14 +38,20 @@ class NotificationService
      */
     private const CATEGORY_BY_TYPE = [
         'new_bid' => 'bids',
+        'return_load_claim' => 'bids',
         'bid_accepted' => 'bids',
         'bid_not_selected' => 'bids',
         'proof_of_delivery_submitted' => 'shipment_updates',
         'delivery_confirmed' => 'shipment_updates',
         'gps_signal_lost' => 'shipment_updates',
+        'job_status_changed' => 'shipment_updates',
+        'job_arrived_at_dropoff' => 'shipment_updates',
         'new_message' => 'messages',
         'support_message' => 'messages',
         'new_job_posted' => 'new_job_matches',
+        'job_completed_rate_prompt' => 'shipment_updates',
+        'bidding_closed_no_bids' => 'shipment_updates',
+        'bidding_closed_has_bids' => 'shipment_updates',
     ];
 
     public function send(User $user, string $type, string $title, string $body, ?Job $relatedJob = null): ?Notification
