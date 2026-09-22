@@ -18,12 +18,18 @@ class CompanyVerificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * A submission that passes every CompanyAutoVerifier check, so it is
+     * auto-approved. The TIN and national ID are deliberately written with
+     * their usual separators to prove those are normalised away before the
+     * digit counts are applied.
+     */
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
             'company_name' => 'ABC Logistics',
             'registration_number' => 'REG-100001',
-            'tin' => 'TIN-200001',
+            'tin' => '123-456-789',
             'physical_address' => 'Plot 12, Nyerere Road, Dar es Salaam',
             'company_phone' => '+255712000001',
             'company_email' => 'ops@abclogistics.co.tz',
@@ -31,24 +37,90 @@ class CompanyVerificationTest extends TestCase
             'tin_certificate' => UploadedFile::fake()->create('tin-certificate.pdf', 200, 'application/pdf'),
             'rep_full_name' => 'Juma Hassan',
             'rep_position' => 'Managing Director',
-            'rep_national_id_number' => 'NIDA-300001',
+            'rep_national_id_number' => '19900101-12345-12345-12',
             'rep_id_document' => UploadedFile::fake()->create('id.pdf', 200, 'application/pdf'),
         ], $overrides);
     }
 
-    public function test_transporter_company_can_submit_verification(): void
+    public function test_a_clean_submission_is_auto_approved_without_an_admin(): void
     {
         Storage::fake('local');
         $user = User::factory()->transporterCompany()->create();
 
         $response = $this->actingAs($user)->postJson('/api/company/verification', $this->validPayload());
 
-        $response->assertCreated()->assertJsonPath('data.verification_status', 'pending');
-        $this->assertDatabaseHas('transporter_companies', [
-            'owner_user_id' => $user->id,
-            'company_name' => 'ABC Logistics',
-            'verification_status' => 'pending',
+        $response->assertCreated()->assertJsonPath('data.verification_status', 'approved');
+        $company = TransporterCompany::where('owner_user_id', $user->id)->sole();
+        $this->assertSame('ABC Logistics', $company->company_name);
+        $this->assertNotNull($company->verified_at);
+        $this->assertNull($company->auto_check_notes);
+    }
+
+    /**
+     * The one approval with no Admin behind it is the one most worth
+     * logging — and the owner still has to be told they're live.
+     */
+    public function test_an_auto_approval_notifies_the_owner_and_is_logged(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+
+        $this->actingAs($user)->postJson('/api/company/verification', $this->validPayload())->assertCreated();
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $user->id,
+            'type' => 'company_approved',
         ]);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'company_approved']);
+    }
+
+    public function test_a_malformed_tin_goes_to_a_human_instead_of_being_approved(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+
+        $response = $this->actingAs($user)->postJson(
+            '/api/company/verification',
+            $this->validPayload(['tin' => 'TIN-200001'])
+        );
+
+        $response->assertCreated()->assertJsonPath('data.verification_status', 'pending');
+        $company = TransporterCompany::where('owner_user_id', $user->id)->sole();
+        $this->assertNull($company->verified_at);
+        // Admin opening the queue needs to know what looked wrong.
+        $this->assertStringContainsString('TIN', implode(' ', $company->auto_check_notes));
+    }
+
+    public function test_a_malformed_national_id_goes_to_a_human(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+
+        $response = $this->actingAs($user)->postJson(
+            '/api/company/verification',
+            $this->validPayload(['rep_national_id_number' => '12345'])
+        );
+
+        $response->assertCreated()->assertJsonPath('data.verification_status', 'pending');
+    }
+
+    /**
+     * A file small enough to be a blank page or a placeholder is exactly
+     * the case auto-approval must not wave through — nothing here reads the
+     * document, so its size is the only signal that it's real at all.
+     */
+    public function test_a_suspiciously_small_document_goes_to_a_human(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+
+        $response = $this->actingAs($user)->postJson('/api/company/verification', $this->validPayload([
+            'tin_certificate' => UploadedFile::fake()->create('tin-certificate.pdf', 1, 'application/pdf'),
+        ]));
+
+        $response->assertCreated()->assertJsonPath('data.verification_status', 'pending');
+        $company = TransporterCompany::where('owner_user_id', $user->id)->sole();
+        $this->assertStringContainsString('TIN certificate', implode(' ', $company->auto_check_notes));
     }
 
     public function test_customer_cannot_submit_company_verification(): void
@@ -135,18 +207,40 @@ class CompanyVerificationTest extends TestCase
         $user = User::factory()->transporterCompany()->create();
         $response = $this->actingAs($user)->postJson('/api/company/verification', $this->validPayload());
 
-        $response->assertCreated()->assertJsonPath('data.verification_status', 'pending');
+        // Not flagged — and with nothing else amiss, that means approved.
+        $response->assertCreated()->assertJsonPath('data.verification_status', 'approved');
     }
 
-    public function test_cannot_resubmit_while_pending(): void
+    /**
+     * The point of auto-verification holding a submission rather than
+     * rejecting it outright: the transporter can correct whatever tripped
+     * a check and resubmit immediately, without waiting on an Admin who
+     * might never need to be involved at all.
+     */
+    public function test_can_resubmit_while_pending(): void
     {
         Storage::fake('local');
         $user = User::factory()->transporterCompany()->create();
-        TransporterCompany::factory()->for($user, 'owner')->create();
+        $company = TransporterCompany::factory()->for($user, 'owner')->create(['verification_status' => 'pending']);
 
-        $this->actingAs($user)
-            ->postJson('/api/company/verification', $this->validPayload())
-            ->assertUnprocessable();
+        $response = $this->actingAs($user)->postJson(
+            '/api/company/verification',
+            $this->validPayload(['company_name' => 'ABC Logistics (corrected)'])
+        );
+
+        $response->assertOk()->assertJsonPath('data.verification_status', 'approved');
+        $this->assertSame($company->id, $response->json('data.id'));
+    }
+
+    public function test_can_resubmit_while_flagged_duplicate(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+        TransporterCompany::factory()->for($user, 'owner')->create(['verification_status' => 'flagged_duplicate']);
+
+        $response = $this->actingAs($user)->postJson('/api/company/verification', $this->validPayload());
+
+        $response->assertOk()->assertJsonPath('data.verification_status', 'approved');
     }
 
     public function test_cannot_resubmit_once_approved(): void
@@ -170,7 +264,7 @@ class CompanyVerificationTest extends TestCase
             'company_name' => 'ABC Logistics (corrected)',
         ]));
 
-        $response->assertOk()->assertJsonPath('data.verification_status', 'pending');
+        $response->assertOk()->assertJsonPath('data.verification_status', 'approved');
         $this->assertSame($company->id, $response->json('data.id'));
         $this->assertDatabaseHas('transporter_companies', [
             'id' => $company->id,
@@ -187,6 +281,35 @@ class CompanyVerificationTest extends TestCase
             ->getJson('/api/company/verification')
             ->assertOk()
             ->assertExactJson(['data' => null]);
+    }
+
+    /**
+     * The transporter needs the same "why" an Admin sees, or "edit and
+     * resubmit" is just guesswork.
+     */
+    public function test_show_returns_the_auto_check_notes_when_held(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->transporterCompany()->create();
+
+        $this->actingAs($user)->postJson(
+            '/api/company/verification',
+            $this->validPayload(['tin' => 'not-a-tin'])
+        )->assertCreated()->assertJsonPath('data.verification_status', 'pending');
+
+        // A fresh model, not the same $user object reused: submit() reads
+        // $user->transporterCompany before the row exists (correctly null
+        // then), and Eloquent caches that on the instance — actingAs()
+        // hands subsequent simulated requests the exact same object, so
+        // reusing it here would return that stale cached null instead of
+        // querying the row this test just created. A real second request
+        // never hits this, since production never shares one PHP object
+        // across requests the way a single test method does.
+        $this->actingAs($user->fresh())
+            ->getJson('/api/company/verification')
+            ->assertOk()
+            ->assertJsonPath('data.verification_status', 'pending')
+            ->assertJsonFragment(['auto_check_notes' => ['TIN is not 9 digits.']]);
     }
 
     public function test_show_returns_current_status(): void

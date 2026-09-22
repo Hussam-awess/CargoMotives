@@ -48,6 +48,10 @@ class CompanyResource extends JsonResource
             'rep_selfie_url' => $this->rep_selfie_url ? $storage->signedUrl($this->rep_selfie_url) : null,
             'verification_status' => $this->verification_status,
             'verification_rejected_reason' => $this->verification_rejected_reason,
+            // Why CompanyAutoVerifier held this instead of approving it
+            // outright — the transporter needs this to know what to fix
+            // before resubmitting, same as the Admin queue shows it.
+            'auto_check_notes' => $this->auto_check_notes,
             'verified_at' => $this->verified_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\SubmitCompanyVerificationRequest;
 use App\Http\Resources\CompanyResource;
 use App\Models\TransporterCompany;
-use App\Services\Company\CompanyDuplicateDetector;
+use App\Services\Company\CompanyAutoVerifier;
 use App\Services\Documents\DocumentStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,14 +14,17 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * The two-section verification flow (AppFlow §1): Company Info, then
- * Representative Info, submitted as one request. Handles both the first
- * submission and resubmission after a rejection.
+ * Representative Info, submitted as one request. Handles the first
+ * submission and every resubmission — after a rejection, or while
+ * CompanyAutoVerifier has it held (pending/flagged_duplicate) waiting on a
+ * correction. Only an already-approved company can't resubmit: there's
+ * nothing left to correct once Admin (or the auto-verifier) has cleared it.
  */
 class CompanyVerificationController extends Controller
 {
     public function __construct(
         private readonly DocumentStorage $documents,
-        private readonly CompanyDuplicateDetector $duplicateDetector,
+        private readonly CompanyAutoVerifier $autoVerifier,
     ) {}
 
     /**
@@ -44,11 +47,9 @@ class CompanyVerificationController extends Controller
         $user = $request->user();
         $existing = $user->transporterCompany;
 
-        if ($existing && in_array($existing->verification_status, ['pending', 'approved'], true)) {
+        if ($existing && $existing->verification_status === 'approved') {
             throw ValidationException::withMessages([
-                'company_name' => [$existing->verification_status === 'approved'
-                    ? 'This company is already verified.'
-                    : 'A verification submission is already under review.'],
+                'company_name' => ['This company is already verified.'],
             ]);
         }
 
@@ -66,10 +67,17 @@ class CompanyVerificationController extends Controller
         $logoKey = $request->hasFile('logo') ? $this->documents->store($request->file('logo'), 'companies/logos') : null;
         $repIdDocumentKey = $this->documents->store($request->file('rep_id_document'), 'companies/rep-documents');
 
-        $hasConflict = $this->duplicateDetector->hasConflict(
-            $validated['registration_number'],
-            $validated['tin'],
-            $validated['rep_national_id_number'],
+        // Automated review, so a clean submission never waits on an Admin.
+        // See CompanyAutoVerifier for exactly what this does and doesn't
+        // establish — notably, it never rejects, it only routes anything
+        // questionable to a human.
+        $review = $this->autoVerifier->review(
+            $validated,
+            [
+                'company registration certificate' => $request->file('registration_certificate'),
+                'TIN certificate' => $request->file('tin_certificate'),
+                'representative ID' => $request->file('rep_id_document'),
+            ],
             excludingCompanyId: $existing?->id,
         );
 
@@ -88,9 +96,10 @@ class CompanyVerificationController extends Controller
             // OTP-verified at signup (Phase 1) — not a second OTP step.
             'rep_phone_verified' => true,
             'rep_email_verified' => false,
-            'verification_status' => $hasConflict ? 'flagged_duplicate' : 'pending',
+            'verification_status' => $review['status'],
             'verification_rejected_reason' => null,
-            'verified_at' => null,
+            'auto_check_notes' => $review['notes'] === [] ? null : $review['notes'],
+            'verified_at' => $review['status'] === 'approved' ? now() : null,
         ];
 
         $company = $existing

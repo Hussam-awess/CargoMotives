@@ -1,6 +1,5 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
@@ -14,8 +13,12 @@ import 'data/company_repository.dart';
 /// Post a Job), so the simpler layout is a deliberate scope call, not an
 /// oversight.
 class CompanyVerificationScreen extends StatefulWidget {
-  CompanyVerificationScreen({super.key, CompanyRepository? repository, this.rejectedReason})
-    : repository = repository ?? CompanyRepository();
+  CompanyVerificationScreen({
+    super.key,
+    required this.onSubmitted,
+    CompanyRepository? repository,
+    this.rejectedReason,
+  }) : repository = repository ?? CompanyRepository();
 
   final CompanyRepository repository;
 
@@ -23,8 +26,18 @@ class CompanyVerificationScreen extends StatefulWidget {
   /// the form rather than making the company go hunting for it again.
   final String? rejectedReason;
 
+  /// Called once the submission succeeds. Required, and deliberately a
+  /// callback rather than a route push: this screen is rendered by
+  /// CompanyHomeGate, which owns the decision of what a company sees next
+  /// (the pending-review screen, here). Navigating to '/company' from here
+  /// instead — as this used to — lands on the route the company is already
+  /// on, so the gate never re-fetched the status and simply re-rendered
+  /// this same form, looking to the user like nothing happened.
+  final VoidCallback onSubmitted;
+
   @override
-  State<CompanyVerificationScreen> createState() => _CompanyVerificationScreenState();
+  State<CompanyVerificationScreen> createState() =>
+      _CompanyVerificationScreenState();
 }
 
 class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
@@ -82,7 +95,10 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final result = await FilePicker.pickFiles(type: FileType.image, withData: true);
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
     final file = result?.files.singleOrNull;
     if (file != null) setState(() => _logo = file);
   }
@@ -103,25 +119,39 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_registrationCertificate == null || _tinCertificate == null || _repIdDocument == null) {
-      setState(() => _errorText = 'Please attach the company registration certificate, TIN certificate, and ID document.');
+    if (_registrationCertificate == null ||
+        _tinCertificate == null ||
+        _repIdDocument == null) {
+      setState(
+        () => _errorText =
+            'Please attach the company registration certificate, TIN certificate, and ID document.',
+      );
       return;
     }
 
     // A confirmation step, not a second validation pass — everything above
     // already checked required fields/attachments are present; this just
-    // gives the company one last look before a submission that (per
-    // AppFlow §1) locks the form until Admin reviews it.
+    // gives the company one last look before submitting. Automated review
+    // (CompanyAutoVerifier) may approve this instantly, or hold it with a
+    // stated reason and a chance to correct and resubmit — never a form
+    // that locks until an Admin looks at it, unlike this dialog's own
+    // wording used to claim.
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Submit for review?'),
         content: const Text(
-          'Please confirm all the information and documents you provided are correct. You won\'t be able to edit this submission while it\'s under review.',
+          'Please confirm all the information and documents you provided are correct.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Submit')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Submit'),
+          ),
         ],
       ),
     );
@@ -141,7 +171,9 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
           tin: _tin.text.trim(),
           physicalAddress: _physicalAddress.text.trim(),
           companyPhone: _companyPhone.text.trim(),
-          companyEmail: _companyEmail.text.trim().isEmpty ? null : _companyEmail.text.trim(),
+          companyEmail: _companyEmail.text.trim().isEmpty
+              ? null
+              : _companyEmail.text.trim(),
           registrationCertificate: _registrationCertificate!,
           tinCertificate: _tinCertificate!,
           otherDocuments: _otherDocuments,
@@ -153,7 +185,7 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
         ),
       );
       if (!mounted) return;
-      context.go('/company');
+      widget.onSubmitted();
     } on ApiException catch (e) {
       setState(() => _errorText = e.message);
     } finally {
@@ -161,7 +193,8 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
     }
   }
 
-  String? _required(String? value) => (value == null || value.trim().isEmpty) ? 'Required' : null;
+  String? _required(String? value) =>
+      (value == null || value.trim().isEmpty) ? 'Required' : null;
 
   // Optional field (backend: nullable|email) — only validated when non-empty
   // so a blank value stays valid, but a malformed one is caught before
@@ -190,12 +223,17 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.statusError.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.statusError.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: AppColors.statusError.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Previous submission rejected', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Previous submission rejected',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 4),
                       Text(widget.rejectedReason!),
                     ],
@@ -203,7 +241,10 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
                 ),
                 const SizedBox(height: 24),
               ],
-              Text('Company Info', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Company Info',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _companyName,
@@ -213,7 +254,9 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _registrationNumber,
-                decoration: const InputDecoration(labelText: 'Registration number'),
+                decoration: const InputDecoration(
+                  labelText: 'Registration number',
+                ),
                 validator: _required,
               ),
               const SizedBox(height: 12),
@@ -225,7 +268,9 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _physicalAddress,
-                decoration: const InputDecoration(labelText: 'Physical address'),
+                decoration: const InputDecoration(
+                  labelText: 'Physical address',
+                ),
                 maxLines: 2,
                 validator: _required,
               ),
@@ -239,7 +284,9 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _companyEmail,
-                decoration: const InputDecoration(labelText: 'Company email (optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Company email (optional)',
+                ),
                 keyboardType: TextInputType.emailAddress,
                 validator: _optionalEmail,
               ),
@@ -256,11 +303,22 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
                 onTap: () => _pickFile((f) => _registrationCertificate = f),
               ),
               const SizedBox(height: 12),
-              _FilePickerTile(label: 'TIN certificate', file: _tinCertificate, onTap: () => _pickFile((f) => _tinCertificate = f)),
+              _FilePickerTile(
+                label: 'TIN certificate',
+                file: _tinCertificate,
+                onTap: () => _pickFile((f) => _tinCertificate = f),
+              ),
               const SizedBox(height: 12),
-              _FilePickerTile(label: 'Other documents (optional)', fileCount: _otherDocuments.length, onTap: _pickOtherDocuments),
+              _FilePickerTile(
+                label: 'Other documents (optional)',
+                fileCount: _otherDocuments.length,
+                onTap: _pickOtherDocuments,
+              ),
               const SizedBox(height: 32),
-              Text('Representative Info', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Representative Info',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _repFullName,
@@ -270,23 +328,41 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _repPosition,
-                decoration: const InputDecoration(labelText: 'Position in company'),
+                decoration: const InputDecoration(
+                  labelText: 'Position in company',
+                ),
                 validator: _required,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _repNationalIdNumber,
-                decoration: const InputDecoration(labelText: 'National ID (NIDA) number'),
+                decoration: const InputDecoration(
+                  labelText: 'National ID (NIDA) number',
+                ),
                 validator: _required,
               ),
               const SizedBox(height: 12),
-              _FilePickerTile(label: 'ID document', file: _repIdDocument, onTap: () => _pickFile((f) => _repIdDocument = f)),
-              if (_errorText != null) ...[const SizedBox(height: 16), Text(_errorText!, style: const TextStyle(color: Colors.red))],
+              _FilePickerTile(
+                label: 'ID document',
+                file: _repIdDocument,
+                onTap: () => _pickFile((f) => _repIdDocument = f),
+              ),
+              if (_errorText != null) ...[
+                const SizedBox(height: 16),
+                Text(_errorText!, style: const TextStyle(color: Colors.red)),
+              ],
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Text('Submit for review'),
               ),
             ],
@@ -298,7 +374,12 @@ class _CompanyVerificationScreenState extends State<CompanyVerificationScreen> {
 }
 
 class _FilePickerTile extends StatelessWidget {
-  const _FilePickerTile({required this.label, this.file, this.fileCount = 0, required this.onTap});
+  const _FilePickerTile({
+    required this.label,
+    this.file,
+    this.fileCount = 0,
+    required this.onTap,
+  });
 
   final String label;
 
@@ -317,7 +398,9 @@ class _FilePickerTile extends StatelessWidget {
 
   String get _displayText {
     if (file != null) return file!.name;
-    if (fileCount > 0) return '$fileCount file${fileCount == 1 ? '' : 's'} selected';
+    if (fileCount > 0) {
+      return '$fileCount file${fileCount == 1 ? '' : 's'} selected';
+    }
 
     return label;
   }
@@ -337,10 +420,14 @@ class _FilePickerTile extends StatelessWidget {
           children: [
             Icon(
               _hasSelection ? Icons.check_circle : Icons.attach_file,
-              color: _hasSelection ? AppColors.statusLive : AppColors.textSecondary,
+              color: _hasSelection
+                  ? AppColors.statusLive
+                  : AppColors.textSecondary,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(_displayText, overflow: TextOverflow.ellipsis)),
+            Expanded(
+              child: Text(_displayText, overflow: TextOverflow.ellipsis),
+            ),
           ],
         ),
       ),
