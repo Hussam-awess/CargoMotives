@@ -11,13 +11,12 @@ use Throwable;
 /**
  * Beem Africa SMS API v1 (https://apisms.beem.africa/v1/send) — the SMS
  * gateway named as the "leading candidate" in the README's vendor table.
- * Modeled on Beem's public v1 REST API (HTTP Basic Auth with the API
- * key/secret pair, a JSON body naming the sender ID and a list of
- * recipients), the same "best available public documentation, no live
- * account in this environment to confirm the exact wire shape against"
- * caveat as SelcomMobileMoneyGateway's own docblock — verify the endpoint,
- * field names, and response shape against a real Beem dashboard/API key
- * before this ever carries production OTP or Driver Link traffic.
+ * Live-verified 2026-09-18 once the "CargoMotive" sender ID was approved:
+ * real SMS delivered to three real Tanzanian numbers, sender name showing
+ * correctly, `successful: true` with a real `request_id` in Beem's own
+ * response — the wire shape below (HTTP Basic Auth, `source_addr`/
+ * `recipients` JSON body, `successful`/`request_id` in the response) is
+ * confirmed correct, not a documentation guess anymore.
  *
  * Never throws — every failure mode (network error, malformed response, a
  * provider-reported decline) is caught and returned as

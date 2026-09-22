@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/validation/phone_input.dart';
 import '../data/featured_repository.dart';
 
 /// Plus's own premium palette — deliberately distinct from the app's
@@ -15,10 +16,11 @@ const _plusTextDark = Color(0xFF5C4409);
 const _plusTextMuted = Color(0xFF8A6410);
 
 /// Upgrade to Featured (Company) — AppFlow §2.7: "explains the
-/// higher/faster bid quota, priority placement, fleet map, route filter,
+/// [bid quota], priority placement, fleet map, route filter,
 /// and return-load suggestions → pay via mobile money → unlocks
 /// immediately." The tools themselves are automatic once is_featured
-/// flips (bid quota/priority: BidQuotaService/BidController, Phase 4;
+/// flips (bid quota/priority: BidQuotaService/BidController — Plus now
+/// removes the bid quota outright rather than just raising it;
 /// fleet map/route filter/return-load: Phase 8's other endpoints) — this
 /// screen is only the purchase flow and the preferred-routes setting.
 class CompanyFeaturedScreen extends StatefulWidget {
@@ -52,8 +54,9 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
       final status = await widget.repository.status();
       if (mounted) setState(() => _status = status);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _loadError = 'Could not load Featured status.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -80,6 +83,7 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
         builder: (_) => PreferredRoutesScreen(
           repository: widget.repository,
           initialRoutes: _status!.preferredRoutes,
+          initialHomeRegion: _status!.homeRegion,
         ),
       ),
     );
@@ -146,6 +150,27 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                             ),
                             const SizedBox(height: 20),
                             Text(
+                              'HOME REGION',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textLabel,
+                                letterSpacing: 0.7,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _status!.homeRegion?.isNotEmpty == true
+                                  ? _status!.homeRegion!
+                                  : 'Not set — return-load matches near where you drop off, without preferring any direction back home.',
+                              style: TextStyle(
+                                color: _status!.homeRegion?.isNotEmpty == true
+                                    ? null
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
                               'PREFERRED ROUTES',
                               style: TextStyle(
                                 fontSize: 11.5,
@@ -208,6 +233,8 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                               onPressed: _editPreferredRoutes,
                               child: const Text('Edit preferred routes'),
                             ),
+                            const SizedBox(height: 24),
+                            const _CompanyBenefitsList(),
                           ],
                         )
                       : Column(
@@ -253,78 +280,7 @@ class _CompanyFeaturedScreenState extends State<CompanyFeaturedScreen> {
                               ),
                             ),
                             const SizedBox(height: 18),
-                            Text(
-                              'WHAT YOU GET',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textLabel,
-                                letterSpacing: 0.7,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.gavel_outlined,
-                              title: 'Higher, faster bid quota',
-                              body:
-                                  'Place more bids per day, with your allowance refreshing sooner.',
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.push_pin_outlined,
-                              title: 'Priority placement on your bids',
-                              body:
-                                  'Your bids are pinned above the rest on every job you bid on.',
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.map_outlined,
-                              title: 'A map of your GPS-connected fleet',
-                              body:
-                                  'See every truck with GPS connected on one live map.',
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.route_outlined,
-                              title: 'Filter Open Jobs to your routes',
-                              body:
-                                  'Save the lanes you run and filter the job board down to just those.',
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.replay_outlined,
-                              title: 'Return-load suggestions',
-                              body:
-                                  'After a delivery, see other open jobs near where you just dropped off.',
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.workspace_premium_outlined,
-                              title: 'Plus badge on your bids',
-                              body:
-                                  'Customers see a Cargo Motives Plus badge next to your company name on every bid you place.',
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.bolt_outlined,
-                              title: 'Early visibility on new jobs',
-                              body:
-                                  'See newly posted jobs immediately — standard accounts see them a couple of minutes later.',
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.verified_user_outlined,
-                              title: 'Customer trust signal',
-                              body:
-                                  "See a customer's completed-shipment count on the platform before you bid.",
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.support_agent,
-                              title: 'Priority support',
-                              body:
-                                  'Your Help & Support requests are flagged for faster handling by our team.',
-                            ),
+                            const _CompanyBenefitsList(),
                             const SizedBox(height: 24),
                             ElevatedButton(
                               onPressed: _openPurchaseForm,
@@ -443,6 +399,91 @@ class _PlusHero extends StatelessWidget {
   }
 }
 
+/// The benefit list (Phase 3a) — shown both to a prospective subscriber
+/// deciding whether to buy Plus, and to an existing subscriber revisiting
+/// this screen to see what they're paying for.
+class _CompanyBenefitsList extends StatelessWidget {
+  const _CompanyBenefitsList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'WHAT YOU GET',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textLabel,
+            letterSpacing: 0.7,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.gavel_outlined,
+          title: 'Unlimited bidding',
+          body: 'No daily cap — bid on as many jobs as you want.',
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.push_pin_outlined,
+          title: 'Priority placement on your bids',
+          body: 'Your bids are pinned above the rest on every job you bid on.',
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.map_outlined,
+          title: 'A map of your GPS-connected fleet',
+          body: 'See every truck with GPS connected on one live map.',
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.route_outlined,
+          title: 'Filter Open Jobs to your routes',
+          body:
+              'Save the lanes you run and filter the job board down to just those.',
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.replay_outlined,
+          title: 'Return-load suggestions',
+          body:
+              'After a delivery, see other open jobs near where you just dropped off.',
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.workspace_premium_outlined,
+          title: 'Plus badge on your bids',
+          body:
+              'Customers see a Cargo Motives Plus badge next to your company name on every bid you place.',
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.bolt_outlined,
+          title: 'Early visibility on new jobs',
+          body:
+              'See newly posted jobs immediately — standard accounts see them a couple of minutes later.',
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.verified_user_outlined,
+          title: 'Customer trust signal',
+          body:
+              "See a customer's completed-shipment count on the platform before you bid.",
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.support_agent,
+          title: 'Priority support',
+          body:
+              'Your Help & Support requests are flagged for faster handling by our team.',
+        ),
+      ],
+    );
+  }
+}
+
 class _BenefitCard extends StatelessWidget {
   const _BenefitCard({
     required this.icon,
@@ -529,8 +570,16 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
   }
 
   Future<void> _submit() async {
-    if (_phoneController.text.trim().isEmpty) {
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) {
       setState(() => _error = 'Enter your mobile money phone number.');
+      return;
+    }
+    if (!isValidTanzanianPhone(phone)) {
+      setState(
+        () => _error =
+            'Enter a valid 10-digit phone number starting with 0 (e.g. 0712345678).',
+      );
       return;
     }
 
@@ -598,6 +647,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
               labelText: 'Mobile money phone number',
             ),
             keyboardType: TextInputType.phone,
+            inputFormatters: tanzanianPhoneInputFormatters,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
@@ -631,10 +681,12 @@ class PreferredRoutesScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.initialRoutes,
+    this.initialHomeRegion,
   });
 
   final CompanyFeaturedRepository repository;
   final List<PreferredRoute> initialRoutes;
+  final String? initialHomeRegion;
 
   @override
   State<PreferredRoutesScreen> createState() => _PreferredRoutesScreenState();
@@ -642,6 +694,9 @@ class PreferredRoutesScreen extends StatefulWidget {
 
 class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
   late List<PreferredRoute> _routes;
+  late final _homeRegionController = TextEditingController(
+    text: widget.initialHomeRegion ?? '',
+  );
   bool _isSaving = false;
   String? _error;
 
@@ -649,6 +704,12 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
   void initState() {
     super.initState();
     _routes = List.of(widget.initialRoutes);
+  }
+
+  @override
+  void dispose() {
+    _homeRegionController.dispose();
+    super.dispose();
   }
 
   Future<void> _addRoute() async {
@@ -666,7 +727,11 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
     });
 
     try {
-      await widget.repository.updatePreferredRoutes(_routes);
+      final homeRegion = _homeRegionController.text.trim();
+      await widget.repository.updatePreferredRoutes(
+        _routes,
+        homeRegion: homeRegion.isEmpty ? null : homeRegion,
+      );
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -684,6 +749,36 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              'HOME REGION',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textLabel,
+                letterSpacing: 0.7,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _homeRegionController,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Dar es Salaam',
+                helperText:
+                    "Where you're based — return-load suggestions after a delivery prefer jobs heading back here.",
+                helperMaxLines: 2,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'PREFERRED ROUTES',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textLabel,
+                letterSpacing: 0.7,
+              ),
+            ),
+            const SizedBox(height: 8),
             Expanded(
               child: _routes.isEmpty
                   ? Center(
@@ -788,8 +883,9 @@ class _AddRouteDialogState extends State<_AddRouteDialog> {
         TextButton(
           onPressed: () {
             if (_originController.text.trim().isEmpty ||
-                _destinationController.text.trim().isEmpty)
+                _destinationController.text.trim().isEmpty) {
               return;
+            }
             Navigator.of(context).pop(
               PreferredRoute(
                 origin: _originController.text.trim(),

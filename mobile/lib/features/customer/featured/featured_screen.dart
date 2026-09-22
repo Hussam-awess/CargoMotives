@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/validation/phone_input.dart';
 import '../data/featured_repository.dart';
 
 /// Plus's own premium palette — deliberately distinct from the app's
@@ -14,10 +15,11 @@ const _plusTintBorder = Color(0xFFE2D3A8);
 const _plusTextDark = Color(0xFF5C4409);
 const _plusTextMuted = Color(0xFF8A6410);
 
-/// Upgrade to Featured (Customer) — AppFlow §3.6: "explains the higher
-/// daily post quota → pay via mobile money → unlocks immediately."
-/// JobPostQuotaService already reads users.is_featured (Phase 4); this
-/// screen is only the purchase flow.
+/// Upgrade to Featured (Customer) — AppFlow §3.6: "explains the [daily
+/// post quota] → pay via mobile money → unlocks immediately."
+/// JobPostQuotaService already reads users.is_featured — Plus now removes
+/// the post quota outright rather than just raising it; this screen is
+/// only the purchase flow.
 class CustomerFeaturedScreen extends StatefulWidget {
   CustomerFeaturedScreen({super.key, CustomerFeaturedRepository? repository})
     : repository = repository ?? CustomerFeaturedRepository();
@@ -49,8 +51,9 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
       final status = await widget.repository.status();
       if (mounted) setState(() => _status = status);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _loadError = 'Could not load Featured status.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -129,6 +132,8 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                                 ],
                               ),
                             ),
+                            const SizedBox(height: 24),
+                            const _CustomerBenefitsList(),
                           ],
                         )
                       : Column(
@@ -174,50 +179,7 @@ class _CustomerFeaturedScreenState extends State<CustomerFeaturedScreen> {
                               ),
                             ),
                             const SizedBox(height: 18),
-                            Text(
-                              'WHAT YOU GET',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textLabel,
-                                letterSpacing: 0.7,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const _BenefitCard(
-                              icon: Icons.all_inclusive,
-                              title: 'A higher daily posting quota',
-                              body:
-                                  'Standard accounts have a limited number of new shipments per day — Plus raises that cap.',
-                            ),
-                            const SizedBox(height: 10),
-                            const _BenefitCard(
-                              icon: Icons.trending_up,
-                              title: 'Priority visibility for your jobs',
-                              body:
-                                  'Your posted jobs are shown to transporters ahead of standard customers\' jobs, so you get bids sooner.',
-                            ),
-                            const SizedBox(height: 10),
-                            const _BenefitCard(
-                              icon: Icons.swap_horiz,
-                              title: 'One-tap return shipments',
-                              body:
-                                  'Once a shipment is completed, post the return leg in one tap — the route comes pre-filled, reversed.',
-                            ),
-                            const SizedBox(height: 10),
-                            const _BenefitCard(
-                              icon: Icons.place_outlined,
-                              title: 'Unlimited saved addresses',
-                              body:
-                                  'Standard accounts can save up to 3 addresses for quick re-use — Plus removes the limit.',
-                            ),
-                            const SizedBox(height: 10),
-                            const _BenefitCard(
-                              icon: Icons.support_agent,
-                              title: 'Priority support',
-                              body:
-                                  'Your Help & Support requests are flagged for faster handling by our team.',
-                            ),
+                            const _CustomerBenefitsList(),
                             const SizedBox(height: 24),
                             ElevatedButton(
                               onPressed: _openPurchaseForm,
@@ -336,6 +298,65 @@ class _PlusHero extends StatelessWidget {
   }
 }
 
+/// The benefit list (Phase 3a) — shown both to a prospective subscriber
+/// deciding whether to buy Plus, and to an existing subscriber revisiting
+/// this screen to see what they're paying for.
+class _CustomerBenefitsList extends StatelessWidget {
+  const _CustomerBenefitsList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'WHAT YOU GET',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textLabel,
+            letterSpacing: 0.7,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const _BenefitCard(
+          icon: Icons.all_inclusive,
+          title: 'Unlimited job posting',
+          body: 'No daily cap — post as many new shipments as you need.',
+        ),
+        const SizedBox(height: 10),
+        const _BenefitCard(
+          icon: Icons.trending_up,
+          title: 'Priority visibility for your jobs',
+          body:
+              'Your posted jobs are shown to transporters ahead of standard customers\' jobs, so you get bids sooner.',
+        ),
+        const SizedBox(height: 10),
+        const _BenefitCard(
+          icon: Icons.swap_horiz,
+          title: 'One-tap return shipments',
+          body:
+              'Once a shipment is completed, post the return leg in one tap — the route comes pre-filled, reversed.',
+        ),
+        const SizedBox(height: 10),
+        const _BenefitCard(
+          icon: Icons.place_outlined,
+          title: 'Unlimited saved addresses',
+          body:
+              'Standard accounts can save up to 3 addresses for quick re-use — Plus removes the limit.',
+        ),
+        const SizedBox(height: 10),
+        const _BenefitCard(
+          icon: Icons.support_agent,
+          title: 'Priority support',
+          body:
+              'Your Help & Support requests are flagged for faster handling by our team.',
+        ),
+      ],
+    );
+  }
+}
+
 class _BenefitCard extends StatelessWidget {
   const _BenefitCard({
     required this.icon,
@@ -422,8 +443,16 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
   }
 
   Future<void> _submit() async {
-    if (_phoneController.text.trim().isEmpty) {
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) {
       setState(() => _error = 'Enter your mobile money phone number.');
+      return;
+    }
+    if (!isValidTanzanianPhone(phone)) {
+      setState(
+        () => _error =
+            'Enter a valid 10-digit phone number starting with 0 (e.g. 0712345678).',
+      );
       return;
     }
 
@@ -491,6 +520,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
               labelText: 'Mobile money phone number',
             ),
             keyboardType: TextInputType.phone,
+            inputFormatters: tanzanianPhoneInputFormatters,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),

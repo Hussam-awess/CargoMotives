@@ -8,11 +8,9 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
- * Exercises BeemSmsDriver against faked HTTP responses — see this class's
- * own docblock for why the exact wire shape is a best-effort model rather
- * than verified against a live Beem account (no BEEM_* credentials exist
- * in this environment). What IS fully verified here: request shape
- * (auth, body, destination formatting) and response/error handling.
+ * Exercises BeemSmsDriver against faked HTTP responses shaped exactly like
+ * the real Beem API — confirmed correct by live-sending real SMS to three
+ * real numbers on 2026-09-18 (see BeemSmsDriver's own docblock).
  */
 class BeemSmsDriverTest extends TestCase
 {

@@ -72,6 +72,25 @@ class FeaturedTest extends TestCase
             ->assertJson(['preferred_routes' => [['origin' => 'Dar', 'destination' => 'Arusha']]]);
     }
 
+    /**
+     * home_region (return-load matching) lives on the same settings screen
+     * and the same save call as preferred routes.
+     */
+    public function test_a_featured_company_can_set_its_home_region(): void
+    {
+        $company = $this->approvedCompanyUser(['is_featured' => true]);
+
+        $this->actingAs($company)
+            ->postJson('/api/company/featured/preferred-routes', ['routes' => [], 'home_region' => 'Mwanza'])
+            ->assertOk()
+            ->assertJson(['home_region' => 'Mwanza']);
+
+        $this->actingAs($company)
+            ->getJson('/api/company/featured/status')
+            ->assertOk()
+            ->assertJson(['home_region' => 'Mwanza']);
+    }
+
     public function test_the_open_jobs_feed_filters_to_preferred_routes_when_requested(): void
     {
         $company = $this->approvedCompanyUser([
@@ -101,7 +120,7 @@ class FeaturedTest extends TestCase
         $this->assertTrue($ids->contains($job->id));
     }
 
-    public function test_the_fleet_map_returns_only_gps_connected_trucks_for_a_featured_company(): void
+    public function test_the_fleet_map_returns_only_gps_connected_trucks(): void
     {
         $company = $this->approvedCompanyUser(['is_featured' => true]);
         $companyId = $company->transporterCompany->id;
@@ -114,11 +133,17 @@ class FeaturedTest extends TestCase
         $this->assertEquals([$connected->id], $ids->all());
     }
 
-    public function test_the_fleet_map_is_forbidden_for_a_non_featured_company(): void
+    public function test_the_fleet_map_is_available_to_a_non_featured_company_too(): void
     {
         $company = $this->approvedCompanyUser(['is_featured' => false]);
+        $companyId = $company->transporterCompany->id;
+        $connected = Truck::factory()->approved()->create(['transporter_company_id' => $companyId, 'gps_status' => 'connected']);
 
-        $this->actingAs($company)->getJson('/api/company/fleet/map')->assertForbidden();
+        $response = $this->actingAs($company)->getJson('/api/company/fleet/map');
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id');
+        $this->assertEquals([$connected->id], $ids->all());
     }
 
     public function test_return_load_suggestions_finds_nearby_open_jobs(): void

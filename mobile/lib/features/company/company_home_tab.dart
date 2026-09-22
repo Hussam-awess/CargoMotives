@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
+import '../../shared/widgets/plus_badge.dart';
 import '../jobs/data/company_job_repository.dart';
 import '../jobs/data/job_repository.dart' show Job;
 import '../jobs/job_geo.dart';
 import '../jobs/job_status.dart';
 import '../notifications/data/notification_repository.dart';
 import '../notifications/notification_bell_button.dart';
+import '../support/support_thread_screen.dart';
 import 'data/driver_repository.dart';
+import 'data/featured_repository.dart';
 import 'data/truck_repository.dart';
+import 'featured/featured_screen.dart';
+import 'fleet/fleet_screen.dart';
 import 'jobs/company_job_detail_screen.dart';
 
 class _DashboardData {
@@ -19,6 +24,7 @@ class _DashboardData {
     required this.fleetSize,
     required this.activeDriverCount,
     required this.openLoads,
+    required this.isFeatured,
   });
 
   final List<Job> activeJobs;
@@ -26,6 +32,7 @@ class _DashboardData {
   final int fleetSize;
   final int activeDriverCount;
   final List<Job> openLoads;
+  final bool isFeatured;
 }
 
 /// Transporter Company's Home (mockup "Transporter home") — an Activity
@@ -42,6 +49,7 @@ class CompanyHomeTab extends StatefulWidget {
     TruckRepository? truckRepository,
     DriverRepository? driverRepository,
     NotificationRepository? notificationRepository,
+    CompanyFeaturedRepository? featuredRepository,
     this.onFindJobs,
     this.onManageFleet,
     this.onAddTruck,
@@ -49,7 +57,8 @@ class CompanyHomeTab extends StatefulWidget {
        truckRepository = truckRepository ?? TruckRepository(),
        driverRepository = driverRepository ?? DriverRepository(),
        notificationRepository =
-           notificationRepository ?? NotificationRepository();
+           notificationRepository ?? NotificationRepository(),
+       featuredRepository = featuredRepository ?? CompanyFeaturedRepository();
 
   /// The transporter_companies.company_name a company already gave during
   /// verification (CompanyHomeGate has it in hand — see CompanyHomeShell's
@@ -59,6 +68,7 @@ class CompanyHomeTab extends StatefulWidget {
   final TruckRepository truckRepository;
   final DriverRepository driverRepository;
   final NotificationRepository notificationRepository;
+  final CompanyFeaturedRepository featuredRepository;
 
   /// CompanyHomeShell owns cross-tab navigation (switching the bottom-nav
   /// IndexedStack) and the Jobs-board push — when unset (e.g. a standalone
@@ -87,6 +97,7 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
       widget.truckRepository.list(),
       widget.driverRepository.list(),
       widget.companyJobRepository.open(),
+      widget.featuredRepository.status(),
     ]);
 
     final activeJobs = results[0] as List<Job>;
@@ -94,6 +105,7 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
     final trucks = results[2] as List;
     final drivers = results[3] as List;
     final openLoads = results[4] as List<Job>;
+    final featuredStatus = results[5] as CompanyFeaturedStatus;
 
     return _DashboardData(
       activeJobs: activeJobs,
@@ -104,6 +116,7 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
           .where((d) => d.isActive)
           .length,
       openLoads: openLoads.take(3).toList(),
+      isFeatured: featuredStatus.isFeatured,
     );
   }
 
@@ -111,6 +124,24 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
     setState(() {
       _future = _load();
     });
+  }
+
+  void _openSupport() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => SupportThreadScreen()));
+  }
+
+  void _openFleet() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => FleetScreen()));
+  }
+
+  void _openFeatured() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => CompanyFeaturedScreen()))
+        .then((_) => refresh());
   }
 
   void _openJob(int jobId) {
@@ -158,8 +189,11 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
                 children: [
                   _Header(
                     companyLabel: widget.companyName,
+                    isFeatured: data.isFeatured,
                     notificationRepository: widget.notificationRepository,
                     onTapJob: _openJob,
+                    onOpenSupport: _openSupport,
+                    onOpenFleet: _openFleet,
                   ),
                   const SizedBox(height: 14),
                   Padding(
@@ -227,6 +261,13 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
                       onTap: _openJob,
                     ),
                   ),
+                  if (!data.isFeatured) ...[
+                    const SizedBox(height: 18),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _PlusPromoBanner(onTap: _openFeatured),
+                    ),
+                  ],
                 ],
               ),
             );
@@ -240,13 +281,19 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
 class _Header extends StatelessWidget {
   const _Header({
     required this.companyLabel,
+    required this.isFeatured,
     required this.notificationRepository,
     required this.onTapJob,
+    required this.onOpenSupport,
+    required this.onOpenFleet,
   });
 
   final String companyLabel;
+  final bool isFeatured;
   final NotificationRepository notificationRepository;
   final void Function(int jobId) onTapJob;
+  final VoidCallback onOpenSupport;
+  final VoidCallback onOpenFleet;
 
   @override
   Widget build(BuildContext context) {
@@ -286,15 +333,27 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  companyLabel,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Barlow Condensed',
-                    fontSize: 21,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        companyLabel,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Barlow Condensed',
+                          fontSize: 21,
+                          fontWeight: FontWeight.w600,
+                          color: isFeatured
+                              ? AppColors.accent
+                              : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    if (isFeatured) ...[
+                      const SizedBox(width: 6),
+                      const PlusBadge(compact: true),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 1),
                 Row(
@@ -326,6 +385,8 @@ class _Header extends StatelessWidget {
           NotificationBellButton(
             repository: notificationRepository,
             onTapJob: onTapJob,
+            onOpenSupport: onOpenSupport,
+            onOpenFleet: onOpenFleet,
           ),
         ],
       ),
@@ -744,6 +805,57 @@ class _LoadCard extends StatelessWidget {
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Non-Plus promo banner (Phase 3d) — only shown to a company that isn't
+/// subscribed yet, styled like _ActivityCard's rounded/brandChip
+/// convention so it reads as part of the dashboard, not an ad.
+class _PlusPromoBanner extends StatelessWidget {
+  const _PlusPromoBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          color: AppColors.brandChip,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.bolt, color: AppColors.accent, size: 26),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Go further with Cargo Motives Plus',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Unlimited bidding, priority placement, fleet map and more.',
+                    style: TextStyle(fontSize: 12, color: AppColors.lightBlue),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white),
           ],
         ),
       ),

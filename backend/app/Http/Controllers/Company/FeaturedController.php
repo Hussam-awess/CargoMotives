@@ -36,9 +36,10 @@ class FeaturedController extends Controller
         return response()->json([
             'is_featured' => (bool) $company->is_featured,
             'featured_until' => $company->featured_until?->toIso8601String(),
-            'price' => $this->settings->getFloat('company_featured_price', 50000),
+            'price' => $this->settings->getFloat('company_featured_price', 5000),
             'duration_days' => $this->settings->getInt('featured_duration_days', 30),
             'preferred_routes' => $company->preferred_routes ?? [],
+            'home_region' => $company->home_region,
         ]);
     }
 
@@ -51,7 +52,7 @@ class FeaturedController extends Controller
         $payment = $this->paymentInitiator->initiate(
             $request->user()->id,
             'featured_company',
-            $this->settings->getFloat('company_featured_price', 50000),
+            $this->settings->getFloat('company_featured_price', 5000),
             $request->validated('mobile_money_provider'),
             $request->validated('phone_number'),
         );
@@ -61,15 +62,21 @@ class FeaturedController extends Controller
 
     /**
      * Featured-only (AppFlow §2.7's route filter setting) — a non-Featured
-     * company gets a clear 403, not a silently-ignored write.
+     * company gets a clear 403, not a silently-ignored write. Also saves
+     * home_region alongside routes — both live on the same "route
+     * preferences" settings screen, and home_region only ever feeds
+     * CompanyJobController::returnLoadCandidates()'s ranking.
      */
     public function updatePreferredRoutes(UpdatePreferredRoutesRequest $request): JsonResponse
     {
         $company = $request->user()->transporterCompany;
         abort_unless($company->is_featured, 403, 'Preferred routes are a Featured-only setting.');
 
-        $company->update(['preferred_routes' => $request->validated('routes')]);
+        $company->update([
+            'preferred_routes' => $request->validated('routes'),
+            'home_region' => $request->validated('home_region'),
+        ]);
 
-        return response()->json(['preferred_routes' => $company->preferred_routes]);
+        return response()->json(['preferred_routes' => $company->preferred_routes, 'home_region' => $company->home_region]);
     }
 }

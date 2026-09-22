@@ -11,10 +11,10 @@ use RuntimeException;
  * Resolves the configured SMS driver (config('sms.default')), the same
  * "Manager" pattern Laravel itself uses for cache/queue/filesystem drivers.
  *
- * SMS_DRIVER stays "log" for local dev/CI (no per-message cost, no live
- * account needed) until BEEM_API_KEY/BEEM_SECRET_KEY are actually set —
- * see BeemSmsDriver's own docblock for what "real" means here (Beem Africa,
- * the README's chosen SMS gateway, for OTP + Driver Link delivery).
+ * SMS_DRIVER is "beem" in production now (live-verified 2026-09-18 — see
+ * BeemSmsDriver's own docblock) and stays "log" for local dev/CI (no
+ * per-message cost, no live account needed) unless BEEM_API_KEY/
+ * BEEM_SECRET_KEY/SMS_SENDER_ID are deliberately set there too.
  */
 class SmsManager extends Manager
 {

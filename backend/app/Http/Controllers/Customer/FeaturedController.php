@@ -32,7 +32,7 @@ class FeaturedController extends Controller
         return response()->json([
             'is_featured' => (bool) $user->is_featured,
             'featured_until' => $user->featured_until?->toIso8601String(),
-            'price' => $this->settings->getFloat('customer_featured_price', 20000),
+            'price' => $this->settings->getFloat('customer_featured_price', 5000),
             'duration_days' => $this->settings->getInt('featured_duration_days', 30),
         ]);
     }
@@ -42,7 +42,7 @@ class FeaturedController extends Controller
         $payment = $this->paymentInitiator->initiate(
             $request->user()->id,
             'featured_customer',
-            $this->settings->getFloat('customer_featured_price', 20000),
+            $this->settings->getFloat('customer_featured_price', 5000),
             $request->validated('mobile_money_provider'),
             $request->validated('phone_number'),
         );

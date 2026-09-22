@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\TanzanianMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +26,7 @@ class InitiateFeaturedPurchaseRequest extends FormRequest
     {
         return [
             'mobile_money_provider' => ['required', Rule::in(['mpesa', 'tigopesa', 'airtelmoney', 'other'])],
-            'phone_number' => ['required', 'string', 'max:20'],
+            'phone_number' => ['required', 'string', new TanzanianMobileNumber],
         ];
     }
 }

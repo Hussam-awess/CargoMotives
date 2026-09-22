@@ -77,7 +77,13 @@ return [
     ],
 
     'tracksolid_pro' => [
-        'base_url' => env('TRACKSOLID_BASE_URL', 'https://openapi.tracksolid.com'),
+        // The old default here (openapi.tracksolid.com) was an unverified
+        // guess — confirmed wrong against a real account (2026-09-17): an
+        // appKey only validates against the specific regional node it was
+        // issued on. This is the HK/SG node, the one that account's
+        // appKey actually worked against; TS/EU/US nodes all rejected it
+        // outright. See TracksolidGpsProvider's own docblock.
+        'base_url' => env('TRACKSOLID_BASE_URL', 'https://hk-open.tracksolidpro.com/route/rest'),
     ],
 
 ];

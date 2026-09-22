@@ -74,13 +74,35 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
     });
   }
 
+  /// Lets a company held in pending/flagged_duplicate correct and resubmit
+  /// without waiting on an Admin — the backend now allows this for any
+  /// non-approved status (CompanyVerificationController::submit()). Pushed
+  /// rather than swapped in like the null/rejected case: the waiting
+  /// screen stays underneath so cancelling (back button) needs no special
+  /// handling, and either way a refresh after popping picks up whatever
+  /// the status actually is now.
+  Future<void> _openEditSubmission(CompanyVerification verification) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CompanyVerificationScreen(
+          repository: widget.repository,
+          rejectedReason: verification.rejectedReason,
+          onSubmitted: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+    _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<CompanyVerification?>(
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         if (snapshot.hasError) {
@@ -93,7 +115,10 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
                   children: [
                     const Text('Could not load your verification status.'),
                     const SizedBox(height: 12),
-                    OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
+                    OutlinedButton(
+                      onPressed: _refresh,
+                      child: const Text('Try again'),
+                    ),
                   ],
                 ),
               ),
@@ -104,11 +129,22 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
         final verification = snapshot.data;
 
         if (verification == null || verification.isRejected) {
-          return CompanyVerificationScreen(repository: widget.repository, rejectedReason: verification?.rejectedReason);
+          return CompanyVerificationScreen(
+            repository: widget.repository,
+            rejectedReason: verification?.rejectedReason,
+            // Re-fetch rather than navigate: this gate is already the
+            // '/company' route, so it has to re-read the status itself to
+            // swap the form out for the pending-review screen.
+            onSubmitted: _refresh,
+          );
         }
 
         if (verification.isUnderReview) {
-          return _PendingReviewScreen(verification: verification, onRefresh: _refresh);
+          return _PendingReviewScreen(
+            verification: verification,
+            onRefresh: _refresh,
+            onEdit: () => _openEditSubmission(verification),
+          );
         }
 
         return CompanyHomeShell(
@@ -127,35 +163,95 @@ class _CompanyHomeGateState extends State<CompanyHomeGate> {
 }
 
 /// "Pending Verification (browse-only)" per AppFlow §1 — a company can see
-/// this screen but nothing else is unlocked until Admin approves. Refresh
-/// is manual (a "Check again" button), not polling: Admin review is a
-/// deliberately unhurried, manual process, not something the TRD's
-/// WebSocket scoping covers.
+/// this screen but nothing else is unlocked until it clears review. Refresh
+/// is manual (a "Check again" button), not polling, since a submission held
+/// for an Admin (rather than a fixable auto-check note) is a deliberately
+/// unhurried, manual process, not something the TRD's WebSocket scoping
+/// covers.
 class _PendingReviewScreen extends StatelessWidget {
-  const _PendingReviewScreen({required this.verification, required this.onRefresh});
+  const _PendingReviewScreen({
+    required this.verification,
+    required this.onRefresh,
+    required this.onEdit,
+  });
 
   final CompanyVerification verification;
   final VoidCallback onRefresh;
 
+  /// Opens the verification form again so the company can correct whatever
+  /// CompanyAutoVerifier flagged and resubmit — always offered here rather
+  /// than only when autoCheckNotes is non-empty, since a submission held
+  /// specifically for Admin's own duplicate review (flagged_duplicate) may
+  /// still need a genuine correction (a mistyped registration number) that
+  /// only the company itself can make.
+  final VoidCallback onEdit;
+
   @override
   Widget build(BuildContext context) {
+    final hasNotes = verification.autoCheckNotes.isNotEmpty;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Verification pending'), automaticallyImplyLeading: false),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text('Verification pending'),
+        automaticallyImplyLeading: false,
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.hourglass_top, size: 48, color: AppColors.statusIdle),
+            const SizedBox(height: 40),
+            const Icon(
+              Icons.hourglass_top,
+              size: 48,
+              color: AppColors.statusIdle,
+            ),
             const SizedBox(height: 16),
-            Text('${verification.companyName} is under review', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            const Text(
-              'Your verification is under review. You\'ll get access to your dashboard as soon as it\'s approved.',
+            Text(
+              '${verification.companyName} is under review',
+              style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 8),
+            Text(
+              hasNotes
+                  ? 'A few things need fixing before this can be approved.'
+                  : 'Your verification is under review. You\'ll get access to your dashboard as soon as it\'s approved.',
+              textAlign: TextAlign.center,
+            ),
+            if (hasNotes) ...[
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.statusError.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.statusError.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final note in verification.autoCheckNotes)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text('•  $note'),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
-            OutlinedButton(onPressed: onRefresh, child: const Text('Check again')),
+            ElevatedButton(
+              onPressed: onEdit,
+              child: const Text('Edit and resubmit'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: onRefresh,
+              child: const Text('Check again'),
+            ),
           ],
         ),
       ),

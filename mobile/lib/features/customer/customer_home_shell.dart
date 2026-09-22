@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../jobs/data/job_repository.dart';
 import '../jobs/messages_inbox_screen.dart';
+import '../profiles/transporter_profile_screen.dart';
 import 'customer_jobs_tab.dart';
 import 'customer_profile_tab.dart';
 import 'shipments/customer_shipments_screen.dart';
@@ -54,6 +55,19 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
       MessagesInboxScreen(
         fetchJobs: _repository.list,
         counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter',
+        counterpartySubtitle: (job) => job.assignedDriverName != null
+            ? 'Driver: ${job.assignedDriverName}'
+            : null,
+        onOpenCounterpartyProfile: (context, job) =>
+            job.assignedCompanyId != null
+            ? () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TransporterProfileScreen(
+                    companyId: job.assignedCompanyId!,
+                  ),
+                ),
+              )
+            : null,
       ),
       CustomerProfileTab(),
     ];
@@ -68,10 +82,22 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
           selectedIndex: _index,
           onDestinationSelected: (index) => setState(() => _index = index),
           destinations: [
-            NavigationDestination(icon: const Icon(Icons.home_outlined), label: l10n.navHome),
-            NavigationDestination(icon: const Icon(Icons.local_shipping_outlined), label: l10n.navShipments),
-            NavigationDestination(icon: const Icon(Icons.chat_bubble_outline), label: l10n.navMessages),
-            NavigationDestination(icon: const Icon(Icons.person_outline), label: l10n.navProfile),
+            NavigationDestination(
+              icon: const Icon(Icons.home_outlined),
+              label: l10n.navHome,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.local_shipping_outlined),
+              label: l10n.navShipments,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: l10n.navMessages,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.person_outline),
+              label: l10n.navProfile,
+            ),
           ],
         ),
       ),

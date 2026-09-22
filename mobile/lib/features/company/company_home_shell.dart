@@ -7,6 +7,7 @@ import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
 import '../jobs/data/company_job_repository.dart';
 import '../jobs/messages_inbox_screen.dart';
+import '../profiles/customer_profile_screen.dart';
 import 'company_home_tab.dart';
 import 'company_profile_tab.dart';
 import 'data/company_repository.dart';
@@ -81,14 +82,21 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
   }
 
   Future<void> _openAddTruck() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddTruckScreen(repository: widget.truckRepository)));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddTruckScreen(repository: widget.truckRepository),
+      ),
+    );
     _homeTabKey.currentState?.refresh();
   }
 
   Future<void> _openFleet() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => FleetScreen(truckRepository: widget.truckRepository, driverRepository: widget.driverRepository),
+        builder: (_) => FleetScreen(
+          truckRepository: widget.truckRepository,
+          driverRepository: widget.driverRepository,
+        ),
       ),
     );
     _homeTabKey.currentState?.refresh();
@@ -104,15 +112,28 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
         companyJobRepository: widget.companyJobRepository,
         truckRepository: widget.truckRepository,
         driverRepository: widget.driverRepository,
+        featuredRepository: widget.featuredRepository,
         onFindJobs: () => setState(() => _index = 1),
         onManageFleet: _openFleet,
         onAddTruck: _openAddTruck,
       ),
-      CompanyJobsScreen(repository: widget.companyJobRepository, featuredRepository: widget.featuredRepository),
+      CompanyJobsScreen(
+        repository: widget.companyJobRepository,
+        featuredRepository: widget.featuredRepository,
+      ),
       MessagesInboxScreen(
         fetchJobs: widget.companyJobRepository.active,
         enrichJob: widget.companyJobRepository.show,
-        counterpartyLabel: (job) => job.customerCompanyName ?? job.customerName ?? 'Customer',
+        counterpartyLabel: (job) =>
+            job.customerCompanyName ?? job.customerName ?? 'Customer',
+        onOpenCounterpartyProfile: (context, job) => job.customerId != null
+            ? () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      CustomerProfileScreen(customerId: job.customerId!),
+                ),
+              )
+            : null,
       ),
       CompanyProfileTab(
         companyRepository: widget.companyRepository,
@@ -131,10 +152,22 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
           selectedIndex: _index,
           onDestinationSelected: (index) => setState(() => _index = index),
           destinations: [
-            NavigationDestination(icon: const Icon(Icons.dashboard_outlined), label: l10n.navDashboard),
-            NavigationDestination(icon: const Icon(Icons.work_outline), label: l10n.navFindJobs),
-            NavigationDestination(icon: const Icon(Icons.chat_bubble_outline), label: l10n.navMessages),
-            NavigationDestination(icon: const Icon(Icons.person_outline), label: l10n.navProfile),
+            NavigationDestination(
+              icon: const Icon(Icons.dashboard_outlined),
+              label: l10n.navDashboard,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.work_outline),
+              label: l10n.navFindJobs,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: l10n.navMessages,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.person_outline),
+              label: l10n.navProfile,
+            ),
           ],
         ),
       ),
