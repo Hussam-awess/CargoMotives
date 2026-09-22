@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Auth;
 
-use App\Rules\TanzanianMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
-class RequestPasswordResetRequest extends FormRequest
+class ChangePasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -18,7 +18,8 @@ class RequestPasswordResetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone_number' => ['required', 'string', new TanzanianMobileNumber],
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'confirmed', Password::min(8)],
         ];
     }
 }

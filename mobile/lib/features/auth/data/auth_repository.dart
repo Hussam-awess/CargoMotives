@@ -22,7 +22,13 @@ class UserProfile {
     this.email,
     this.avatarUrl,
     this.companyLogoUrl,
-    this.notificationPreferences = const {'bids': true, 'shipment_updates': true, 'messages': true, 'new_job_matches': true},
+    this.notificationPreferences = const {
+      'bids': true,
+      'shipment_updates': true,
+      'messages': true,
+      'new_job_matches': true,
+    },
+    this.preferredCurrency = 'TZS',
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -35,8 +41,15 @@ class UserProfile {
       avatarUrl: json['avatar_url'] as String?,
       companyLogoUrl: json['company_logo_url'] as String?,
       notificationPreferences:
-          (json['notification_preferences'] as Map<String, dynamic>?)?.cast<String, bool>() ??
-          const {'bids': true, 'shipment_updates': true, 'messages': true, 'new_job_matches': true},
+          (json['notification_preferences'] as Map<String, dynamic>?)
+              ?.cast<String, bool>() ??
+          const {
+            'bids': true,
+            'shipment_updates': true,
+            'messages': true,
+            'new_job_matches': true,
+          },
+      preferredCurrency: json['preferred_currency'] as String? ?? 'TZS',
     );
   }
 
@@ -59,6 +72,12 @@ class UserProfile {
   /// resolved with every key present (UserResource fills in the default of
   /// `true` server-side), never a partial map.
   final Map<String, bool> notificationPreferences;
+
+  /// A denomination choice for this user's own future job postings —
+  /// 'TZS' or 'USD'. Not a currency-conversion setting: there is no
+  /// exchange-rate system behind this, see the backend migration's own
+  /// docblock.
+  final String preferredCurrency;
 }
 
 /// Wraps Transporter Company's phone+OTP endpoints (see backend
@@ -101,17 +120,31 @@ class AuthRepository {
     );
   }
 
-  Future<OtpVerifyResult> verifyOtp({required String phoneNumber, required AccountRole role, required String code}) async {
+  Future<OtpVerifyResult> verifyOtp({
+    required String phoneNumber,
+    required AccountRole role,
+    required String code,
+  }) async {
     final body = await _client.post(
       '/auth/otp/verify',
-      data: {'phone_number': phoneNumber, 'account_type': _accountTypeValue(role), 'code': code},
+      data: {
+        'phone_number': phoneNumber,
+        'account_type': _accountTypeValue(role),
+        'code': code,
+      },
     );
 
     return OtpVerifyResult(token: body['token'] as String);
   }
 
-  Future<String> login({required String phoneNumber, required String password}) async {
-    final body = await _client.post('/auth/company/login', data: {'phone_number': phoneNumber, 'password': password});
+  Future<String> login({
+    required String phoneNumber,
+    required String password,
+  }) async {
+    final body = await _client.post(
+      '/auth/company/login',
+      data: {'phone_number': phoneNumber, 'password': password},
+    );
 
     return body['token'] as String;
   }
@@ -120,13 +153,25 @@ class AuthRepository {
   /// is a generic "if that number has an account…" message either way, so
   /// there's nothing role-specific for the caller to branch on.
   Future<void> requestPasswordReset({required String phoneNumber}) {
-    return _client.post('/auth/company/password/forgot', data: {'phone_number': phoneNumber});
+    return _client.post(
+      '/auth/company/password/forgot',
+      data: {'phone_number': phoneNumber},
+    );
   }
 
-  Future<void> confirmPasswordReset({required String phoneNumber, required String code, required String password}) {
+  Future<void> confirmPasswordReset({
+    required String phoneNumber,
+    required String code,
+    required String password,
+  }) {
     return _client.post(
       '/auth/company/password/reset',
-      data: {'phone_number': phoneNumber, 'code': code, 'password': password, 'password_confirmation': password},
+      data: {
+        'phone_number': phoneNumber,
+        'code': code,
+        'password': password,
+        'password_confirmation': password,
+      },
     );
   }
 
@@ -136,7 +181,20 @@ class AuthRepository {
   /// before/without a network round-trip), this just keeps the backend
   /// record consistent with it for whichever account is signed in.
   Future<void> updateLanguagePreference(String languageCode) {
-    return _client.post('/auth/profile/language', data: {'language_preference': languageCode});
+    return _client.post(
+      '/auth/profile/language',
+      data: {'language_preference': languageCode},
+    );
+  }
+
+  /// Changeable any time from Settings (either account_type) — a
+  /// denomination choice only, see UserProfile.preferredCurrency.
+  Future<UserProfile> updatePreferredCurrency(String currency) async {
+    final body = await _client.post(
+      '/auth/profile/currency',
+      data: {'preferred_currency': currency},
+    );
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   Future<UserProfile> me() async {
@@ -147,30 +205,60 @@ class AuthRepository {
   /// Applies immediately — full_name isn't a login credential, unlike
   /// email/phone below.
   Future<UserProfile> updateFullName(String fullName) async {
-    final body = await _client.post('/auth/profile/name', data: {'full_name': fullName});
+    final body = await _client.post(
+      '/auth/profile/name',
+      data: {'full_name': fullName},
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   /// Sends a confirmation code to [newEmail] — the email doesn't change
   /// until [confirmEmailChange] verifies it (Phase 10.16: email is the
-  /// Customer's login credential).
-  Future<void> requestEmailChange(String newEmail) {
-    return _client.post('/auth/profile/email/request-change', data: {'new_email': newEmail});
+  /// Customer's login credential). [currentPassword] proves the caller
+  /// still controls the account before it can start hijacking its own
+  /// login credential — a signed-in session alone isn't strong enough
+  /// proof for a change this sensitive.
+  Future<void> requestEmailChange(
+    String newEmail, {
+    required String currentPassword,
+  }) {
+    return _client.post(
+      '/auth/profile/email/request-change',
+      data: {'new_email': newEmail, 'current_password': currentPassword},
+    );
   }
 
-  Future<UserProfile> confirmEmailChange({required String newEmail, required String code}) async {
-    final body = await _client.post('/auth/profile/email/confirm-change', data: {'new_email': newEmail, 'code': code});
+  Future<UserProfile> confirmEmailChange({
+    required String newEmail,
+    required String code,
+  }) async {
+    final body = await _client.post(
+      '/auth/profile/email/confirm-change',
+      data: {'new_email': newEmail, 'code': code},
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   /// Same shape as requestEmailChange/confirmEmailChange, for phone — the
   /// Transporter Company's login credential.
-  Future<void> requestPhoneChange(String newPhone) {
-    return _client.post('/auth/profile/phone/request-change', data: {'new_phone': newPhone});
+  Future<void> requestPhoneChange(
+    String newPhone, {
+    required String currentPassword,
+  }) {
+    return _client.post(
+      '/auth/profile/phone/request-change',
+      data: {'new_phone': newPhone, 'current_password': currentPassword},
+    );
   }
 
-  Future<UserProfile> confirmPhoneChange({required String newPhone, required String code}) async {
-    final body = await _client.post('/auth/profile/phone/confirm-change', data: {'new_phone': newPhone, 'code': code});
+  Future<UserProfile> confirmPhoneChange({
+    required String newPhone,
+    required String code,
+  }) async {
+    final body = await _client.post(
+      '/auth/profile/phone/confirm-change',
+      data: {'new_phone': newPhone, 'code': code},
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
@@ -178,14 +266,20 @@ class AuthRepository {
   /// caller's login credential (a Customer's own phone, not Transporter
   /// Company's). The backend rejects the other case.
   Future<UserProfile> updatePhone(String phoneNumber) async {
-    final body = await _client.post('/auth/profile/phone', data: {'phone_number': phoneNumber});
+    final body = await _client.post(
+      '/auth/profile/phone',
+      data: {'phone_number': phoneNumber},
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   /// Same as [updatePhone], for email — only valid for Transporter Company
   /// (Customer's email is its login credential).
   Future<UserProfile> updateEmail(String email) async {
-    final body = await _client.post('/auth/profile/email', data: {'email': email});
+    final body = await _client.post(
+      '/auth/profile/email',
+      data: {'email': email},
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
 
@@ -199,8 +293,14 @@ class AuthRepository {
   /// A Customer's optional business identity (company_name + logo) — the
   /// same fields collected at registration, now editable afterward.
   /// Customer-only; the backend rejects every other account_type.
-  Future<UserProfile> updateBusinessIdentity({String? companyName, PlatformFile? logo}) async {
-    final formData = FormData.fromMap({'company_name': companyName ?? '', if (logo != null) 'logo': await _toMultipart(logo)});
+  Future<UserProfile> updateBusinessIdentity({
+    String? companyName,
+    PlatformFile? logo,
+  }) async {
+    final formData = FormData.fromMap({
+      'company_name': companyName ?? '',
+      if (logo != null) 'logo': await _toMultipart(logo),
+    });
     final body = await _client.postForm('/auth/profile/business', formData);
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
   }
@@ -208,9 +308,32 @@ class AuthRepository {
   /// Merges into the existing map server-side (ProfileController::
   /// updateNotificationPreferences) — safe to call with just the one
   /// category a Settings toggle just changed.
-  Future<UserProfile> updateNotificationPreferences(Map<String, bool> preferences) async {
-    final body = await _client.post('/auth/profile/notification-preferences', data: preferences);
+  Future<UserProfile> updateNotificationPreferences(
+    Map<String, bool> preferences,
+  ) async {
+    final body = await _client.post(
+      '/auth/profile/notification-preferences',
+      data: preferences,
+    );
     return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Real, authenticated "change password" — distinct from
+  /// requestPasswordReset/confirmPasswordReset above, which are for when
+  /// the caller does NOT know the current password. Here they must prove
+  /// they do.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String password,
+  }) {
+    return _client.post(
+      '/auth/profile/password',
+      data: {
+        'current_password': currentPassword,
+        'password': password,
+        'password_confirmation': password,
+      },
+    );
   }
 
   Future<void> logout() => _client.post('/auth/logout');

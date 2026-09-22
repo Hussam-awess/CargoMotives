@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\TanzanianMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CompanyLoginRequest extends FormRequest
@@ -17,7 +18,7 @@ class CompanyLoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone_number' => ['required', 'string', 'max:20'],
+            'phone_number' => ['required', 'string', new TanzanianMobileNumber],
             'password' => ['required', 'string'],
         ];
     }

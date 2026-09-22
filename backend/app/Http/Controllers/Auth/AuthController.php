@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Concerns\HandlesLoginLockout;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\CompanyLoginRequest;
 use App\Http\Requests\Auth\ConfirmPasswordResetRequest;
@@ -10,6 +11,7 @@ use App\Http\Requests\Auth\RequestPasswordResetRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Auth\LoginThrottle;
 use App\Services\Auth\OtpCooldownException;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\PhoneNumberNormalizer;
@@ -34,9 +36,11 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthController extends Controller
 {
+    use HandlesLoginLockout;
+
     private const PENDING_REGISTRATION_PREFIX = 'transporter_registration:';
 
-    public function __construct(private readonly OtpService $otp) {}
+    public function __construct(private readonly OtpService $otp, private readonly LoginThrottle $loginThrottle) {}
 
     public function requestOtp(RequestOtpRequest $request): JsonResponse
     {
@@ -139,16 +143,25 @@ class AuthController extends Controller
     public function login(CompanyLoginRequest $request): JsonResponse
     {
         $phone = $this->normalizedPhoneOrFail($request->string('phone_number'));
+        $throttleKey = "company:{$phone}";
+
+        if ($this->loginThrottle->locked($throttleKey)) {
+            return $this->lockoutResponse($throttleKey);
+        }
 
         $user = User::where('account_type', 'transporter_company')
             ->where('phone_number', $phone)
             ->first();
 
         if (! $user || ! Hash::check($request->string('password'), $user->password_hash ?? '')) {
+            $this->loginThrottle->recordFailure($throttleKey);
+
             // Same message either way — don't reveal whether the number
             // belongs to an account (same reasoning as CustomerAuthController).
             throw ValidationException::withMessages(['phone_number' => ['Invalid credentials.']]);
         }
+
+        $this->loginThrottle->clear($throttleKey);
 
         return response()->json([
             'token' => $user->createToken('mobile-app')->plainTextToken,

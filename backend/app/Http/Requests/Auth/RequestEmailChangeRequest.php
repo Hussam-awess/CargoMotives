@@ -19,6 +19,10 @@ class RequestEmailChangeRequest extends FormRequest
     {
         return [
             'new_email' => ['required', 'email', Rule::unique('users', 'email')->ignore($this->user()->id)],
+            // Proves the caller still controls the account before it can
+            // start hijacking its own login credential — see
+            // ProfileController::requestEmailChange().
+            'current_password' => ['required', 'string'],
         ];
     }
 }

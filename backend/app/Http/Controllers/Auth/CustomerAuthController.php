@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Concerns\HandlesLoginLockout;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ConfirmCustomerPasswordResetRequest;
 use App\Http\Requests\Auth\CustomerLoginRequest;
@@ -11,6 +12,7 @@ use App\Http\Requests\Auth\VerifyCustomerRegistrationRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\EmailOtpService;
+use App\Services\Auth\LoginThrottle;
 use App\Services\Auth\OtpCooldownException;
 use App\Services\Auth\PhoneNumberNormalizer;
 use App\Services\Documents\DocumentStorage;
@@ -40,11 +42,14 @@ use Illuminate\Validation\ValidationException;
  */
 class CustomerAuthController extends Controller
 {
+    use HandlesLoginLockout;
+
     private const PENDING_REGISTRATION_PREFIX = 'customer_registration:';
 
     public function __construct(
         private readonly EmailOtpService $otp,
         private readonly DocumentStorage $documents,
+        private readonly LoginThrottle $loginThrottle,
     ) {}
 
     public function register(RegisterCustomerRequest $request): JsonResponse
@@ -78,6 +83,7 @@ class CustomerAuthController extends Controller
             'password_hash' => Hash::make($request->string('password')->toString()),
             'company_name' => $request->string('company_name')->toString() ?: null,
             'company_logo_url' => $logoKey,
+            'preferred_currency' => $request->string('preferred_currency')->toString() ?: 'TZS',
         ];
 
         $ttl = now()->addSeconds(config('otp.ttl_seconds'));
@@ -122,6 +128,7 @@ class CustomerAuthController extends Controller
             'phone_number' => $pending['phone_number'],
             'company_name' => $pending['company_name'],
             'company_logo_url' => $pending['company_logo_url'],
+            'preferred_currency' => $pending['preferred_currency'] ?? 'TZS',
             'email_verified_at' => now(),
         ]);
         // password_hash is deliberately excluded from #[Fillable] (see
@@ -139,15 +146,26 @@ class CustomerAuthController extends Controller
 
     public function login(CustomerLoginRequest $request): JsonResponse
     {
+        $email = $request->string('email')->toString();
+        $throttleKey = "customer:{$email}";
+
+        if ($this->loginThrottle->locked($throttleKey)) {
+            return $this->lockoutResponse($throttleKey);
+        }
+
         $user = User::where('account_type', 'customer')
-            ->where('email', $request->string('email'))
+            ->where('email', $email)
             ->first();
 
         if (! $user || ! Hash::check($request->string('password'), $user->password_hash ?? '')) {
+            $this->loginThrottle->recordFailure($throttleKey);
+
             // Same message either way — don't reveal whether the email
             // belongs to an account (same reasoning as AdminAuthController).
             throw ValidationException::withMessages(['email' => ['Invalid credentials.']]);
         }
+
+        $this->loginThrottle->clear($throttleKey);
 
         return response()->json([
             'token' => $user->createToken('mobile-app')->plainTextToken,

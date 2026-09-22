@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests\Auth;
 
-use App\Rules\TanzanianMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
 
-class RequestPasswordResetRequest extends FormRequest
+class UpdatePreferredCurrencyRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -18,7 +17,7 @@ class RequestPasswordResetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone_number' => ['required', 'string', new TanzanianMobileNumber],
+            'preferred_currency' => ['required', 'in:TZS,USD'],
         ];
     }
 }

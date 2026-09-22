@@ -16,20 +16,10 @@ Widget _appUnder({required FakeAuthRepository repository}) {
     routes: [
       GoRoute(
         path: '/phone-entry',
-        builder: (context, state) => PhoneEntryScreen(
-          role: AccountRole.transporterCompany,
-          authRepository: repository,
-        ),
+        builder: (context, state) => PhoneEntryScreen(role: AccountRole.transporterCompany, authRepository: repository),
       ),
-      GoRoute(
-        path: '/otp',
-        builder: (context, state) =>
-            Text('OTP_SCREEN:${(state.extra! as OtpScreenArgs).phoneNumber}'),
-      ),
-      GoRoute(
-        path: '/company-login',
-        builder: (context, state) => const Text('COMPANY_LOGIN_SCREEN'),
-      ),
+      GoRoute(path: '/otp', builder: (context, state) => Text('OTP_SCREEN:${(state.extra! as OtpScreenArgs).phoneNumber}')),
+      GoRoute(path: '/company-login', builder: (context, state) => const Text('COMPANY_LOGIN_SCREEN')),
     ],
   );
 
@@ -57,54 +47,41 @@ Future<void> _fillForm(WidgetTester tester, {String phone = '0712345678'}) async
 }
 
 void main() {
-  testWidgets(
-    'shows a validation error and does not call the repository when phone is empty',
-    (tester) async {
-      var requestCalled = false;
-      final repository = FakeAuthRepository(
-        onRequestOtp: (phone, role, fullName, email, password) async {
-          requestCalled = true;
-        },
-      );
-
-      await tester.pumpWidget(_appUnder(repository: repository));
-      await tester.tap(find.text('SEND VERIFICATION CODE'));
-      await tester.pump();
-
-      expect(find.text('Enter your phone number.'), findsOneWidget);
-      expect(requestCalled, isFalse);
-    },
-  );
-
-  testWidgets(
-    'shows a validation error when the Terms checkbox is not accepted',
-    (tester) async {
-      var requestCalled = false;
-      final repository = FakeAuthRepository(
-        onRequestOtp: (phone, role, fullName, email, password) async {
-          requestCalled = true;
-        },
-      );
-
-      await tester.pumpWidget(_appUnder(repository: repository));
-      await _fillForm(tester);
-      await tester.tap(find.text('SEND VERIFICATION CODE'));
-      await tester.pump();
-
-      expect(
-        find.text('Please accept the Terms and Conditions to continue.'),
-        findsOneWidget,
-      );
-      expect(requestCalled, isFalse);
-    },
-  );
-
-  testWidgets('requests an OTP and navigates to the OTP screen on success', (
-    tester,
-  ) async {
+  testWidgets('shows a validation error and does not call the repository when phone is empty', (tester) async {
+    var requestCalled = false;
     final repository = FakeAuthRepository(
-      onRequestOtp: (phone, role, fullName, email, password) async {},
+      onRequestOtp: (phone, role, fullName, email, password) async {
+        requestCalled = true;
+      },
     );
+
+    await tester.pumpWidget(_appUnder(repository: repository));
+    await tester.tap(find.text('SEND VERIFICATION CODE'));
+    await tester.pump();
+
+    expect(find.text('Enter your phone number.'), findsOneWidget);
+    expect(requestCalled, isFalse);
+  });
+
+  testWidgets('shows a validation error when the Terms checkbox is not accepted', (tester) async {
+    var requestCalled = false;
+    final repository = FakeAuthRepository(
+      onRequestOtp: (phone, role, fullName, email, password) async {
+        requestCalled = true;
+      },
+    );
+
+    await tester.pumpWidget(_appUnder(repository: repository));
+    await _fillForm(tester);
+    await tester.tap(find.text('SEND VERIFICATION CODE'));
+    await tester.pump();
+
+    expect(find.text('Please accept the Terms and Conditions to continue.'), findsOneWidget);
+    expect(requestCalled, isFalse);
+  });
+
+  testWidgets('requests an OTP and navigates to the OTP screen on success', (tester) async {
+    final repository = FakeAuthRepository(onRequestOtp: (phone, role, fullName, email, password) async {});
 
     await tester.pumpWidget(_appUnder(repository: repository));
     await _fillForm(tester);
@@ -115,9 +92,7 @@ void main() {
     expect(find.text('OTP_SCREEN:0712345678'), findsOneWidget);
   });
 
-  testWidgets('full name, email and password are sent along with the request', (
-    tester,
-  ) async {
+  testWidgets('full name, email and password are sent along with the request', (tester) async {
     String? capturedFullName;
     String? capturedEmail;
     String? capturedPassword;
@@ -140,9 +115,7 @@ void main() {
     expect(capturedPassword, 'password123');
   });
 
-  testWidgets('shows the server error message when the request fails', (
-    tester,
-  ) async {
+  testWidgets('shows the server error message when the request fails', (tester) async {
     final repository = FakeAuthRepository(
       onRequestOtp: (phone, role, fullName, email, password) async {
         throw ApiException(
@@ -156,7 +129,11 @@ void main() {
     );
 
     await tester.pumpWidget(_appUnder(repository: repository));
-    await _fillForm(tester, phone: 'not-a-phone');
+    // A validly-shaped number the server still rejects for its own reasons
+    // (e.g. already registered) — client-side format validation now
+    // catches a malformed one before it ever reaches the repository, so
+    // this exercises the server-error-surfacing path instead.
+    await _fillForm(tester);
     await tester.tap(find.byType(Checkbox));
     await tester.tap(find.text('SEND VERIFICATION CODE'));
     await tester.pumpAndSettle();
@@ -166,9 +143,7 @@ void main() {
     expect(find.text('Create your account'), findsOneWidget);
   });
 
-  testWidgets('the login link navigates to the Transporter Company login screen', (
-    tester,
-  ) async {
+  testWidgets('the login link navigates to the Transporter Company login screen', (tester) async {
     final repository = FakeAuthRepository();
 
     await tester.pumpWidget(_appUnder(repository: repository));

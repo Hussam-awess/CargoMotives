@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\TanzanianMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RequestPhoneChangeRequest extends FormRequest
@@ -17,12 +18,15 @@ class RequestPhoneChangeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Shape only — normalization + the real (post-normalization)
-            // uniqueness check happens in the controller, same reasoning as
-            // CustomerAuthController::register(): a raw unique:users rule
-            // here can't catch two differently-formatted phone numbers that
-            // normalize to the same value.
-            'new_phone' => ['required', 'string'],
+            // Uniqueness (post-normalization, which is a no-op now that
+            // TanzanianMobileNumber already pins the input shape) still
+            // happens in the controller, same reasoning as
+            // CustomerAuthController::register().
+            'new_phone' => ['required', 'string', new TanzanianMobileNumber],
+            // Proves the caller still controls the account before it can
+            // start hijacking its own login credential — see
+            // ProfileController::requestPhoneChange().
+            'current_password' => ['required', 'string'],
         ];
     }
 }

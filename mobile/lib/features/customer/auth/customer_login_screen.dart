@@ -5,6 +5,7 @@ import '../../../core/auth/session_store.dart';
 import '../../../core/localization/language_menu_button.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../../shared/widgets/password_field.dart';
 import 'customer_forgot_password_screen.dart';
 import 'data/customer_auth_repository.dart';
 
@@ -12,9 +13,12 @@ import 'data/customer_auth_repository.dart';
 /// from CustomerRegisterScreen/CustomerOtpScreen is a one-time signup
 /// verification step, never asked again here.
 class CustomerLoginScreen extends StatefulWidget {
-  CustomerLoginScreen({super.key, CustomerAuthRepository? repository, SessionStore? sessionStore})
-    : repository = repository ?? CustomerAuthRepository(),
-      sessionStore = sessionStore ?? SessionStore();
+  CustomerLoginScreen({
+    super.key,
+    CustomerAuthRepository? repository,
+    SessionStore? sessionStore,
+  }) : repository = repository ?? CustomerAuthRepository(),
+       sessionStore = sessionStore ?? SessionStore();
 
   final CustomerAuthRepository repository;
   final SessionStore sessionStore;
@@ -57,7 +61,10 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
     });
 
     try {
-      final token = await widget.repository.login(email: email, password: password);
+      final token = await widget.repository.login(
+        email: email,
+        password: password,
+      );
       await widget.sessionStore.save(token: token, role: AccountRole.customer);
       if (!mounted) return;
       context.go('/customer');
@@ -73,7 +80,10 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.customerLoginTitle), actions: const [LanguageMenuButton()]),
+      appBar: AppBar(
+        title: Text(l10n.customerLoginTitle),
+        actions: const [LanguageMenuButton()],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -86,27 +96,40 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
               decoration: InputDecoration(hintText: l10n.emailHint),
             ),
             const SizedBox(height: 12),
-            TextField(
+            PasswordField(
               controller: _passwordController,
-              obscureText: true,
-              decoration: InputDecoration(hintText: l10n.passwordHint),
+              hintText: l10n.passwordHint,
               onSubmitted: (_) => _submit(),
             ),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => CustomerForgotPasswordScreen(repository: widget.repository))),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CustomerForgotPasswordScreen(
+                      repository: widget.repository,
+                    ),
+                  ),
+                ),
                 child: Text(l10n.forgotPasswordLabel),
               ),
             ),
-            if (_errorText != null) ...[const SizedBox(height: 8), Text(_errorText!, style: const TextStyle(color: Colors.red))],
+            if (_errorText != null) ...[
+              const SizedBox(height: 8),
+              Text(_errorText!, style: const TextStyle(color: Colors.red)),
+            ],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _isSubmitting ? null : _submit,
               child: _isSubmitting
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : Text(l10n.logIn),
             ),
             const SizedBox(height: 12),

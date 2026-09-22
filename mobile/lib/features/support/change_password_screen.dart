@@ -1,12 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// "Change password" (mockup) — this app has no real change-password
-/// endpoint yet (auth is bcrypt password + OTP/email-code only, no
-/// account-settings write path exists). The form and its validation are
-/// real; submitting shows a clear, honest message instead of pretending
-/// to have saved anything to a backend that doesn't have this field yet.
+import '../../core/network/api_exception.dart';
+import '../auth/data/auth_repository.dart';
+
+/// Real, authenticated "change password" (ProfileController::changePassword)
+/// — shared by both Customer and Transporter Company Settings screens, same
+/// as every other cross-role `/auth/profile/*` endpoint (see
+/// EditProfileScreen). Distinct from the forgot-password flow reachable
+/// from the login screens: this one requires the CURRENT password, since a
+/// signed-in session alone isn't strong enough proof for a change this
+/// sensitive.
 class ChangePasswordScreen extends StatefulWidget {
-  const ChangePasswordScreen({super.key});
+  ChangePasswordScreen({
+    super.key,
+    AuthRepository? authRepository,
+    this.onForgotPassword,
+  }) : authRepository = authRepository ?? AuthRepository();
+
+  final AuthRepository authRepository;
+
+  /// Opens the caller's role-appropriate forgot-password screen (this
+  /// screen has no repository type in common between Customer and
+  /// Company, so it can't construct either itself) — null hides the link
+  /// entirely rather than rendering one that does nothing.
+  final VoidCallback? onForgotPassword;
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -18,6 +35,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _newController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _isSubmitting = false;
+  String? _serverError;
 
   @override
   void dispose() {
@@ -27,7 +45,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     super.dispose();
   }
 
-  String? _required(String? value) => (value == null || value.trim().isEmpty) ? 'Required' : null;
+  String? _required(String? value) =>
+      (value == null || value.trim().isEmpty) ? 'Required' : null;
 
   String? _validateNew(String? value) {
     if (_required(value) != null) return 'Required';
@@ -44,19 +63,32 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isSubmitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
+    setState(() {
+      _isSubmitting = true;
+      _serverError = null;
+    });
 
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Not available yet'),
-        content: const Text('Changing your password from the app isn\'t supported yet. Contact support to reset it in the meantime.'),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
-      ),
-    );
+    try {
+      await widget.authRepository.changePassword(
+        currentPassword: _currentController.text,
+        password: _newController.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Password changed.')));
+      Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(
+        () => _serverError =
+            e.firstErrorFor('current_password') ??
+            e.firstErrorFor('password') ??
+            e.message,
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -70,9 +102,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_serverError != null) ...[
+                Text(
+                  _serverError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                const SizedBox(height: 12),
+              ],
               TextFormField(
                 controller: _currentController,
-                decoration: const InputDecoration(labelText: 'Current password'),
+                decoration: const InputDecoration(
+                  labelText: 'Current password',
+                ),
                 obscureText: true,
                 validator: _required,
               ),
@@ -86,7 +127,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _confirmController,
-                decoration: const InputDecoration(labelText: 'Confirm new password'),
+                decoration: const InputDecoration(
+                  labelText: 'Confirm new password',
+                ),
                 obscureText: true,
                 validator: _validateConfirm,
               ),
@@ -94,9 +137,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Text('Save password'),
               ),
+              if (widget.onForgotPassword != null) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton(
+                    onPressed: widget.onForgotPassword,
+                    child: const Text('or forgot password?'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -5,6 +5,7 @@ import '../../core/auth/session_store.dart';
 import '../../core/localization/language_menu_button.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/validation/phone_input.dart';
 import '../../core/widgets/terms_agreement_checkbox.dart';
 import '../../l10n/generated/app_localizations.dart';
 import 'data/auth_repository.dart';
@@ -55,6 +56,10 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
 
     if (phone.isEmpty) {
       setState(() => _errorText = l10n.enterYourPhoneNumber);
+      return;
+    }
+    if (!isValidTanzanianPhone(phone)) {
+      setState(() => _errorText = l10n.invalidPhoneNumberFormat);
       return;
     }
     if (fullName.isEmpty) {
@@ -134,6 +139,7 @@ class _PhoneEntryScreenState extends State<PhoneEntryScreen> {
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               autofocus: true,
+              inputFormatters: tanzanianPhoneInputFormatters,
               decoration: InputDecoration(hintText: l10n.phoneNumberHint, helperText: l10n.phoneNumberHelperText, errorMaxLines: 2),
             ),
             const SizedBox(height: 12),

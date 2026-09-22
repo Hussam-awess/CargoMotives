@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\TanzanianMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
@@ -18,7 +19,7 @@ class ConfirmPasswordResetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone_number' => ['required', 'string', 'max:20'],
+            'phone_number' => ['required', 'string', new TanzanianMobileNumber],
             'code' => ['required', 'string', 'digits:'.config('otp.code_length')],
             'password' => ['required', 'confirmed', Password::min(8)],
         ];

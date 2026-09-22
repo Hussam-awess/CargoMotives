@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\TanzanianMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
 
 class VerifyOtpRequest extends FormRequest
@@ -17,7 +18,7 @@ class VerifyOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone_number' => ['required', 'string', 'max:20'],
+            'phone_number' => ['required', 'string', new TanzanianMobileNumber],
             // Customer moved to email+password (CustomerAuthController,
             // Phase 11) — phone+SMS-OTP is Transporter Company only now.
             'account_type' => ['required', 'in:transporter_company'],

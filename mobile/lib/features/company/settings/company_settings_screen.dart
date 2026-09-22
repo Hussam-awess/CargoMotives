@@ -11,12 +11,15 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../core/theme/theme_scope.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/edit_profile_screen.dart';
+import '../auth/company_forgot_password_screen.dart';
 import '../../support/change_password_screen.dart';
 import '../../support/how_it_works_screen.dart';
 import '../../support/settings_widgets.dart';
 import '../data/featured_repository.dart';
 import '../featured/featured_screen.dart';
 import '../fleet/fleet_screen.dart';
+import '../fleet/gps_connection_guide_screen.dart';
+import '../followed_customers_screen.dart';
 import 'company_details_screen.dart';
 
 /// "Settings" (mockup, Transporter) — mirrors CustomerSettingsScreen's
@@ -53,6 +56,7 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
   bool _shareGpsWithCustomers = true;
   bool _newMatchingLoads = true;
   bool _bidAcceptedOrDeclined = true;
+  bool _newMessages = true;
   bool _payoutReleased = true;
   bool _driverOffRoute = false;
   bool _twoFactor = false;
@@ -127,6 +131,7 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
             profile.notificationPreferences['new_job_matches'] ?? true;
         _bidAcceptedOrDeclined =
             profile.notificationPreferences['bids'] ?? true;
+        _newMessages = profile.notificationPreferences['messages'] ?? true;
         _driverOffRoute =
             profile.notificationPreferences['shipment_updates'] ?? false;
       });
@@ -152,6 +157,7 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
         setState(() {
           if (category == 'new_job_matches') _newMatchingLoads = previous;
           if (category == 'bids') _bidAcceptedOrDeclined = previous;
+          if (category == 'messages') _newMessages = previous;
           if (category == 'shipment_updates') _driverOffRoute = previous;
         });
       }
@@ -235,6 +241,26 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
   }
 
   Future<void> _logout() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.logoutConfirmTitle),
+        content: Text(l10n.logoutConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.logOutLabel),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     try {
       await widget.authRepository.logout();
     } finally {
@@ -325,6 +351,16 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
                 ),
               ),
               SettingsToggleRow(
+                title: l10n.newMessagesTitle,
+                subtitle: l10n.newMessagesSubtitle,
+                value: _newMessages,
+                onChanged: (v) => _setNotificationCategory(
+                  'messages',
+                  v,
+                  () => _newMessages = v,
+                ),
+              ),
+              SettingsToggleRow(
                 title: l10n.payoutReleasedTitle,
                 value: _payoutReleased,
                 onChanged: (v) => _setToggle(
@@ -405,6 +441,27 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const HowItWorksScreen()),
                 ),
+              ),
+              SettingsNavRow(
+                title: l10n.howToConnectGps,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const GpsConnectionGuideScreen(),
+                  ),
+                ),
+                isLast: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SettingsSectionLabel(l10n.followingSectionLabel),
+          SettingsCard(
+            children: [
+              SettingsNavRow(
+                title: l10n.followedCustomersLabel,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => FollowedCustomersScreen()),
+                ),
                 isLast: true,
               ),
             ],
@@ -424,7 +481,13 @@ class _CompanySettingsScreenState extends State<CompanySettingsScreen> {
                 title: l10n.changePasswordLabel,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen(),
+                    builder: (_) => ChangePasswordScreen(
+                      onForgotPassword: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CompanyForgotPasswordScreen(),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

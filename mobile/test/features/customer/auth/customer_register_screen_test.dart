@@ -16,7 +16,8 @@ Widget _appUnder({required FakeCustomerAuthRepository repository}) {
     routes: [
       GoRoute(
         path: '/customer-register',
-        builder: (context, state) => CustomerRegisterScreen(repository: repository),
+        builder: (context, state) =>
+            CustomerRegisterScreen(repository: repository),
       ),
       GoRoute(
         path: '/customer-otp',
@@ -47,33 +48,42 @@ Future<void> _fillValidForm(WidgetTester tester) async {
   await tester.enterText(fields.at(2), '0712345678');
   await tester.enterText(fields.at(4), 'password123');
   await tester.enterText(fields.at(5), 'password123');
+  await tester.ensureVisible(find.byType(Checkbox));
   await tester.tap(find.byType(Checkbox));
 }
 
 void main() {
-  testWidgets('shows a validation error when full name is empty', (tester) async {
+  testWidgets('shows a validation error when full name is empty', (
+    tester,
+  ) async {
     final repository = FakeCustomerAuthRepository();
     await tester.pumpWidget(_appUnder(repository: repository));
 
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pump();
 
     expect(find.text('Enter your name.'), findsOneWidget);
   });
 
-  testWidgets('shows a validation error when passwords do not match', (tester) async {
+  testWidgets('shows a validation error when passwords do not match', (
+    tester,
+  ) async {
     final repository = FakeCustomerAuthRepository();
     await tester.pumpWidget(_appUnder(repository: repository));
 
     await _fillValidForm(tester);
     await tester.enterText(find.byType(TextField).at(5), 'different');
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pump();
 
     expect(find.text("Passwords don't match."), findsOneWidget);
   });
 
-  testWidgets('shows a validation error when Terms are not accepted', (tester) async {
+  testWidgets('shows a validation error when Terms are not accepted', (
+    tester,
+  ) async {
     var registerCalled = false;
     final repository = FakeCustomerAuthRepository(
       onRegister: (registration) async => registerCalled = true,
@@ -87,6 +97,7 @@ void main() {
     await tester.enterText(fields.at(4), 'password123');
     await tester.enterText(fields.at(5), 'password123');
     // Deliberately not tapping the Terms checkbox.
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pump();
 
@@ -97,7 +108,9 @@ void main() {
     expect(registerCalled, isFalse);
   });
 
-  testWidgets('registers and navigates to the email-OTP screen on success', (tester) async {
+  testWidgets('registers and navigates to the email-OTP screen on success', (
+    tester,
+  ) async {
     CustomerRegistration? captured;
     final repository = FakeCustomerAuthRepository(
       onRegister: (registration) async => captured = registration,
@@ -105,13 +118,33 @@ void main() {
 
     await tester.pumpWidget(_appUnder(repository: repository));
     await _fillValidForm(tester);
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pumpAndSettle();
 
     expect(captured?.email, 'amina@example.com');
     expect(captured?.fullName, 'Amina Hassan');
     expect(captured?.phoneNumber, '0712345678');
+    expect(captured?.preferredCurrency, 'TZS');
     expect(find.text('OTP_SCREEN:amina@example.com'), findsOneWidget);
+  });
+
+  testWidgets('submits the chosen currency preference', (tester) async {
+    CustomerRegistration? captured;
+    final repository = FakeCustomerAuthRepository(
+      onRegister: (registration) async => captured = registration,
+    );
+
+    await tester.pumpWidget(_appUnder(repository: repository));
+    await _fillValidForm(tester);
+
+    await tester.ensureVisible(find.text('USD'));
+    await tester.tap(find.text('USD'));
+    await tester.ensureVisible(find.text('Create account'));
+    await tester.tap(find.text('Create account'));
+    await tester.pumpAndSettle();
+
+    expect(captured?.preferredCurrency, 'USD');
   });
 
   testWidgets('shows the server error message on failure', (tester) async {
@@ -127,13 +160,16 @@ void main() {
 
     await tester.pumpWidget(_appUnder(repository: repository));
     await _fillValidForm(tester);
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pumpAndSettle();
 
     expect(find.text('This email is already registered.'), findsOneWidget);
   });
 
-  testWidgets('the login link navigates to the Customer login screen', (tester) async {
+  testWidgets('the login link navigates to the Customer login screen', (
+    tester,
+  ) async {
     final repository = FakeCustomerAuthRepository();
     await tester.pumpWidget(_appUnder(repository: repository));
 

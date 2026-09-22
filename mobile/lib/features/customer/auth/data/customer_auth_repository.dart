@@ -16,6 +16,7 @@ class CustomerRegistration {
     required this.passwordConfirmation,
     this.companyName,
     this.logo,
+    this.preferredCurrency = 'TZS',
   });
 
   final String fullName;
@@ -25,6 +26,11 @@ class CustomerRegistration {
   final String passwordConfirmation;
   final String? companyName;
   final PlatformFile? logo;
+
+  /// A denomination choice for this customer's own future job postings —
+  /// see users.preferred_currency's backend migration docblock. No
+  /// conversion system exists behind this.
+  final String preferredCurrency;
 }
 
 /// Customer signup + login (Phase 11 product decision): email + password,
@@ -44,23 +50,39 @@ class CustomerAuthRepository {
       'phone_number': registration.phoneNumber,
       'password': registration.password,
       'password_confirmation': registration.passwordConfirmation,
-      if (registration.companyName != null && registration.companyName!.isNotEmpty) 'company_name': registration.companyName,
-      if (registration.logo != null) 'logo': await _toMultipart(registration.logo!),
+      if (registration.companyName != null &&
+          registration.companyName!.isNotEmpty)
+        'company_name': registration.companyName,
+      if (registration.logo != null)
+        'logo': await _toMultipart(registration.logo!),
+      'preferred_currency': registration.preferredCurrency,
     });
 
     await _client.postForm('/auth/customer/register', formData);
   }
 
   /// Returns the new session's bearer token.
-  Future<String> verifyRegistration({required String email, required String code}) async {
-    final body = await _client.post('/auth/customer/register/verify', data: {'email': email, 'code': code});
+  Future<String> verifyRegistration({
+    required String email,
+    required String code,
+  }) async {
+    final body = await _client.post(
+      '/auth/customer/register/verify',
+      data: {'email': email, 'code': code},
+    );
 
     return body['token'] as String;
   }
 
   /// Returns the session's bearer token.
-  Future<String> login({required String email, required String password}) async {
-    final body = await _client.post('/auth/customer/login', data: {'email': email, 'password': password});
+  Future<String> login({
+    required String email,
+    required String password,
+  }) async {
+    final body = await _client.post(
+      '/auth/customer/login',
+      data: {'email': email, 'password': password},
+    );
 
     return body['token'] as String;
   }
@@ -69,13 +91,25 @@ class CustomerAuthRepository {
   /// a generic "if that email has an account…" message either way, so
   /// there's nothing to branch on.
   Future<void> requestPasswordReset({required String email}) {
-    return _client.post('/auth/customer/password/forgot', data: {'email': email});
+    return _client.post(
+      '/auth/customer/password/forgot',
+      data: {'email': email},
+    );
   }
 
-  Future<void> confirmPasswordReset({required String email, required String code, required String password}) {
+  Future<void> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String password,
+  }) {
     return _client.post(
       '/auth/customer/password/reset',
-      data: {'email': email, 'code': code, 'password': password, 'password_confirmation': password},
+      data: {
+        'email': email,
+        'code': code,
+        'password': password,
+        'password_confirmation': password,
+      },
     );
   }
 

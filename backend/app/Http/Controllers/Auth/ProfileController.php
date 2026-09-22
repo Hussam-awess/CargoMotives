@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\ConfirmEmailChangeRequest;
 use App\Http\Requests\Auth\ConfirmPhoneChangeRequest;
 use App\Http\Requests\Auth\RequestEmailChangeRequest;
@@ -14,6 +15,7 @@ use App\Http\Requests\Auth\UpdateFullNameRequest;
 use App\Http\Requests\Auth\UpdateLanguagePreferenceRequest;
 use App\Http\Requests\Auth\UpdateNotificationPreferencesRequest;
 use App\Http\Requests\Auth\UpdatePhoneRequest;
+use App\Http\Requests\Auth\UpdatePreferredCurrencyRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\EmailOtpService;
@@ -22,7 +24,9 @@ use App\Services\Auth\OtpService;
 use App\Services\Auth\PhoneNumberNormalizer;
 use App\Services\Documents\DocumentStorage;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * Cross-role account-preference updates. Customer profile completion
@@ -57,6 +61,19 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $user->update($request->only('language_preference'));
+
+        return new UserResource($user);
+    }
+
+    /**
+     * A denomination choice for a customer's own future job postings — not
+     * a currency-conversion setting, see UpdatePreferredCurrencyRequest's
+     * migration docblock. Changeable any time, same as language.
+     */
+    public function updatePreferredCurrency(UpdatePreferredCurrencyRequest $request): UserResource
+    {
+        $user = $request->user();
+        $user->update($request->only('preferred_currency'));
 
         return new UserResource($user);
     }
@@ -140,6 +157,33 @@ class ProfileController extends Controller
     }
 
     /**
+     * Real, authenticated "change password" — distinct from the
+     * forgot-password flow (AuthController/CustomerAuthController), which
+     * exists precisely for when the caller does NOT know the current
+     * password. Here they must prove they do. Every *other* session is
+     * revoked (same reasoning as a password reset), but the one making
+     * this request is deliberately left alone — they just proved they're
+     * the account owner, so there's no reason to also log them out.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $this->verifyCurrentPassword($user, $request->string('current_password')->toString());
+
+        $user->password_hash = Hash::make($request->string('password')->toString());
+        $user->save();
+
+        // currentAccessToken() is Sanctum's real PersonalAccessToken for an
+        // actual bearer-token request; ->id is guarded since it comes back
+        // as a plain TransientToken (no ->id) under actingAs() in tests.
+        $currentToken = $request->user()->currentAccessToken();
+        $currentTokenId = $currentToken instanceof PersonalAccessToken ? $currentToken->id : null;
+        $user->tokens()->when($currentTokenId, fn ($query) => $query->where('id', '!=', $currentTokenId))->delete();
+
+        return response()->json(['message' => 'Password changed.']);
+    }
+
+    /**
      * A Customer's optional business identity (company_name + logo) — the
      * same fields RegisterCustomerRequest collects at signup, now editable
      * afterward. Rejects every other account_type: a TransporterCompany's
@@ -169,6 +213,8 @@ class ProfileController extends Controller
 
     public function requestEmailChange(RequestEmailChangeRequest $request): JsonResponse
     {
+        $this->verifyCurrentPassword($request->user(), $request->string('current_password')->toString());
+
         try {
             $this->emailOtp->issue($request->validated('new_email'));
         } catch (OtpCooldownException $e) {
@@ -203,6 +249,8 @@ class ProfileController extends Controller
 
     public function requestPhoneChange(RequestPhoneChangeRequest $request): JsonResponse
     {
+        $this->verifyCurrentPassword($request->user(), $request->string('current_password')->toString());
+
         try {
             $normalized = PhoneNumberNormalizer::normalize($request->validated('new_phone'));
         } catch (\InvalidArgumentException $e) {
@@ -265,6 +313,20 @@ class ProfileController extends Controller
             throw ValidationException::withMessages([
                 $field => ['This is your login credential — use the confirm-change flow instead.'],
             ]);
+        }
+    }
+
+    /**
+     * Gate for every high-risk profile action that changes a login
+     * credential (email/phone request-change, password change): a signed-in
+     * session alone isn't enough proof for these, since a session can be
+     * hijacked (a shared/unlocked device, a leaked token) without the
+     * attacker ever learning the password.
+     */
+    private function verifyCurrentPassword(User $user, string $currentPassword): void
+    {
+        if (! Hash::check($currentPassword, $user->password_hash ?? '')) {
+            throw ValidationException::withMessages(['current_password' => ['That password is incorrect.']]);
         }
     }
 

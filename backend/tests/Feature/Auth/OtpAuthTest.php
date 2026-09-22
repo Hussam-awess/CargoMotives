@@ -101,25 +101,20 @@ class OtpAuthTest extends TestCase
         $this->assertTrue(Hash::check('password123', $pending['password_hash']));
     }
 
-    public function test_different_phone_number_formats_resolve_to_the_same_account(): void
+    /**
+     * PhoneNumberNormalizer itself still accepts +255/255-prefixed and
+     * bare-national shapes (PhoneNumberNormalizerTest covers that) — but as
+     * of the phone-input hardening, the API boundary now only accepts one
+     * shape (10 digits starting with "0"), so a 255-prefixed submission is
+     * rejected here rather than silently normalized.
+     */
+    public function test_a_non_zero_prefixed_phone_number_is_rejected_at_the_api_boundary(): void
     {
         $this->fakeSms();
-        User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
 
         $this->postJson('/api/auth/otp/request', $this->requestPayload([
             'phone_number' => '255712345678',
-            'email' => 'juma2@example.com',
-        ]))->assertOk();
-
-        $code = Cache::get('otp:+255712345678:code')['code'];
-
-        $this->postJson('/api/auth/otp/verify', [
-            'phone_number' => '255712345678',
-            'account_type' => 'transporter_company',
-            'code' => $code,
-        ])->assertOk();
-
-        $this->assertSame(1, User::where('phone_number', '+255712345678')->count());
+        ]))->assertUnprocessable()->assertJsonValidationErrors('phone_number');
     }
 
     public function test_an_email_already_used_by_another_account_is_rejected_at_request_time(): void
@@ -246,6 +241,58 @@ class OtpAuthTest extends TestCase
             'phone_number' => '0712345678',
             'password' => 'wrong-password',
         ])->assertUnprocessable()->assertJsonValidationErrors('phone_number');
+    }
+
+    public function test_repeated_failed_logins_across_different_ips_still_lock_the_account(): void
+    {
+        $company = User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
+        $company->password_hash = Hash::make('correct-password');
+        $company->save();
+
+        // A different IP on every attempt so the per-route `throttle:*`
+        // limiter (keyed on phone+IP, AppServiceProvider) never itself
+        // trips — isolating that this lockout is LoginThrottle's own
+        // identifier-only tracking, not the pre-existing rate limiter.
+        for ($i = 0; $i < 5; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => "10.0.0.{$i}"])
+                ->postJson('/api/auth/company/login', [
+                    'phone_number' => '0712345678',
+                    'password' => 'wrong-password',
+                ])->assertUnprocessable();
+        }
+
+        // A brand-new IP would sail past the per-IP+phone rate limiter, but
+        // LoginThrottle keys on the phone number alone and still blocks it
+        // — even with the real password.
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.99'])
+            ->postJson('/api/auth/company/login', [
+                'phone_number' => '0712345678',
+                'password' => 'correct-password',
+            ])->assertStatus(429);
+    }
+
+    public function test_a_successful_login_clears_prior_failed_attempts(): void
+    {
+        $company = User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
+        $company->password_hash = Hash::make('correct-password');
+        $company->save();
+
+        $this->postJson('/api/auth/company/login', [
+            'phone_number' => '0712345678',
+            'password' => 'wrong-password',
+        ])->assertUnprocessable();
+
+        $this->postJson('/api/auth/company/login', [
+            'phone_number' => '0712345678',
+            'password' => 'correct-password',
+        ])->assertOk();
+
+        // Confirms the earlier failure isn't still silently counted toward
+        // a future lockout window.
+        $this->postJson('/api/auth/company/login', [
+            'phone_number' => '0712345678',
+            'password' => 'wrong-password',
+        ])->assertUnprocessable()->assertJsonMissing(['seconds_remaining']);
     }
 
     public function test_login_with_an_unknown_phone_number_is_rejected(): void

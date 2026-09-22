@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/localization/language_menu_button.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/validation/phone_input.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/data/auth_repository.dart';
 
@@ -71,6 +72,10 @@ class _CompanyForgotPasswordScreenState extends State<CompanyForgotPasswordScree
 
     if (phone.isEmpty) {
       setState(() => _errorText = l10n.enterYourPhoneNumber);
+      return;
+    }
+    if (!isValidTanzanianPhone(phone)) {
+      setState(() => _errorText = l10n.invalidPhoneNumberFormat);
       return;
     }
 
@@ -187,6 +192,7 @@ class _RequestCodeStep extends StatelessWidget {
           controller: phoneController,
           autofocus: true,
           keyboardType: TextInputType.phone,
+          inputFormatters: tanzanianPhoneInputFormatters,
           decoration: InputDecoration(hintText: l10n.phoneNumberHint),
           onSubmitted: (_) => onSubmit(),
         ),

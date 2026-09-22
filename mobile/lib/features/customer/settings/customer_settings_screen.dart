@@ -11,6 +11,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../core/theme/theme_scope.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/edit_profile_screen.dart';
+import '../auth/customer_forgot_password_screen.dart';
 import '../../support/change_password_screen.dart';
 import '../../support/how_it_works_screen.dart';
 import '../../support/settings_widgets.dart';
@@ -20,10 +21,14 @@ import '../../support/settings_widgets.dart';
 /// server-rendered pages), Log out. Dark mode is real (ThemeScope/
 /// ThemeController — see core/theme), not a preview: the toggle here drives
 /// the whole app's theme. Locally-stateful only, no backend field yet:
-/// notification-category toggles. Currency/distance units are shown, not editable
-/// — this app only ever uses TZS and kilometres, so there's nothing to
-/// choose. Change password and Delete account have no backend endpoint
-/// yet; both say so honestly instead of pretending to save anything.
+/// notification-category toggles. Distance units stay shown, not editable
+/// — this app only ever uses kilometres. Currency IS now editable
+/// (TZS/USD, a denomination choice for this customer's own future job
+/// postings — see users.preferred_currency's migration docblock; no
+/// conversion system exists behind it). Change password is real
+/// (POST /auth/profile/password, shared with the Company side via
+/// ChangePasswordScreen). Delete account has no backend endpoint yet and
+/// says so honestly instead of pretending to save anything.
 class CustomerSettingsScreen extends StatefulWidget {
   CustomerSettingsScreen({
     super.key,
@@ -47,6 +52,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
 
   bool _shipmentUpdates = true;
   bool _newOffers = true;
+  bool _newMessages = true;
   bool _smsAlerts = false;
   bool _promotions = false;
   bool _twoFactor = false;
@@ -103,6 +109,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
         _shipmentUpdates =
             profile.notificationPreferences['shipment_updates'] ?? true;
         _newOffers = profile.notificationPreferences['bids'] ?? true;
+        _newMessages = profile.notificationPreferences['messages'] ?? true;
       });
     } catch (_) {
       // Non-critical — the phone/email row just stays blank.
@@ -128,7 +135,46 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
         setState(() {
           if (category == 'shipment_updates') _shipmentUpdates = previous;
           if (category == 'bids') _newOffers = previous;
+          if (category == 'messages') _newMessages = previous;
         });
+      }
+    }
+  }
+
+  Future<void> _openCurrencyPicker() async {
+    final current = _profile?.preferredCurrency ?? 'TZS';
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Currency'),
+        children: [
+          for (final currency in const ['TZS', 'USD'])
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(currency),
+              child: Row(
+                children: [
+                  if (currency == current)
+                    const Icon(Icons.check, size: 18)
+                  else
+                    const SizedBox(width: 18),
+                  const SizedBox(width: 8),
+                  Text(currency),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || selected == current) return;
+
+    try {
+      final profile = await _authRepository.updatePreferredCurrency(selected);
+      if (mounted) setState(() => _profile = profile);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update currency.')),
+        );
       }
     }
   }
@@ -211,6 +257,26 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
   }
 
   Future<void> _logout() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.logoutConfirmTitle),
+        content: Text(l10n.logoutConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.logOutLabel),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     try {
       await _authRepository.logout();
     } finally {
@@ -246,6 +312,16 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                 value: _newOffers,
                 onChanged: (v) =>
                     _setNotificationCategory('bids', v, () => _newOffers = v),
+              ),
+              SettingsToggleRow(
+                title: l10n.newMessagesTitle,
+                subtitle: l10n.newMessagesSubtitle,
+                value: _newMessages,
+                onChanged: (v) => _setNotificationCategory(
+                  'messages',
+                  v,
+                  () => _newMessages = v,
+                ),
               ),
               SettingsToggleRow(
                 title: l10n.smsAlertsTitle,
@@ -302,7 +378,11 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
           SettingsSectionLabel(l10n.preferencesSectionLabel),
           SettingsCard(
             children: [
-              SettingsNavRow(title: l10n.currencyLabel, value: 'TZS'),
+              SettingsNavRow(
+                title: l10n.currencyLabel,
+                value: _profile?.preferredCurrency ?? 'TZS',
+                onTap: _openCurrencyPicker,
+              ),
               SettingsNavRow(
                 title: l10n.distanceUnitsLabel,
                 value: l10n.kilometresValue,
@@ -336,7 +416,13 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                 title: l10n.changePasswordLabel,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen(),
+                    builder: (_) => ChangePasswordScreen(
+                      onForgotPassword: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CustomerForgotPasswordScreen(),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

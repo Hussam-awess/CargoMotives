@@ -3,13 +3,17 @@ import 'package:cargo_motives/core/localization/locale_scope.dart';
 import 'package:cargo_motives/core/theme/theme_controller.dart';
 import 'package:cargo_motives/core/theme/theme_scope.dart';
 import 'package:cargo_motives/features/auth/data/auth_repository.dart';
+import 'package:cargo_motives/features/customer/auth/customer_forgot_password_screen.dart';
 import 'package:cargo_motives/features/customer/settings/customer_settings_screen.dart';
+import 'package:cargo_motives/features/support/change_password_screen.dart';
 import 'package:cargo_motives/features/support/settings_widgets.dart';
 import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../support/fake_auth_repository.dart';
+import '../../../support/fake_session_store.dart';
 
 Widget _appUnder(Widget home) {
   return LocaleScope(
@@ -20,6 +24,33 @@ Widget _appUnder(Widget home) {
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: home,
+      ),
+    ),
+  );
+}
+
+/// A GoRouter-backed variant — only the logout tests below need real
+/// navigation (`_logout()` calls `context.go('/welcome')` on success),
+/// every other test in this file uses the plain [_appUnder] above.
+Widget _appUnderWithRouter(Widget settingsScreen) {
+  final router = GoRouter(
+    initialLocation: '/settings',
+    routes: [
+      GoRoute(path: '/settings', builder: (context, state) => settingsScreen),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const Text('WELCOME_SCREEN'),
+      ),
+    ],
+  );
+  return LocaleScope(
+    controller: LocaleController(const Locale('en')),
+    child: ThemeScope(
+      controller: ThemeController(false),
+      child: MaterialApp.router(
+        routerConfig: router,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
       ),
     ),
   );
@@ -206,6 +237,218 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(saved, {'shipment_updates': false});
+    },
+  );
+
+  testWidgets(
+    'shows the customers preferred currency and lets them change it',
+    (tester) async {
+      String? saved;
+      await tester.pumpWidget(
+        _appUnder(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+                preferredCurrency: 'TZS',
+              ),
+              onUpdatePreferredCurrency: (currency) async {
+                saved = currency;
+                return UserProfile(
+                  fullName: 'Amina Hassan',
+                  companyName: null,
+                  isFeatured: false,
+                  preferredCurrency: currency,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final row = find.widgetWithText(SettingsNavRow, 'Currency');
+      await tester.scrollUntilVisible(
+        row,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('TZS'), findsOneWidget);
+
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('USD'));
+      await tester.pumpAndSettle();
+
+      expect(saved, 'USD');
+      expect(find.text('USD'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'toggling new messages saves the messages category to the server',
+    (tester) async {
+      Map<String, bool>? saved;
+
+      await tester.pumpWidget(
+        _appUnder(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+              ),
+              onUpdateNotificationPreferences: (preferences) async {
+                saved = preferences;
+                return const UserProfile(
+                  fullName: 'Amina Hassan',
+                  companyName: null,
+                  isFeatured: false,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final row = find.widgetWithText(SettingsToggleRow, 'New messages');
+      await tester.scrollUntilVisible(
+        row,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
+      await tester.pumpAndSettle();
+
+      expect(saved, {'messages': false});
+    },
+  );
+
+  testWidgets(
+    'Change password shows a forgot-password link that opens the Customer forgot-password screen',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final row = find.widgetWithText(SettingsNavRow, 'Change password');
+      await tester.scrollUntilVisible(
+        row,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ChangePasswordScreen), findsOneWidget);
+
+      await tester.tap(find.text('or forgot password?'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CustomerForgotPasswordScreen), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'logging out asks for confirmation and cancelling keeps the user on Settings',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final logoutButton = find.text('Log out');
+      await tester.scrollUntilVisible(
+        logoutButton,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(logoutButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Log out?'), findsOneWidget);
+      expect(find.text('Are you sure you want to logout?'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CustomerSettingsScreen), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'confirming the logout dialog actually logs out and navigates to Welcome',
+    (tester) async {
+      var loggedOut = false;
+
+      await tester.pumpWidget(
+        _appUnderWithRouter(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+              ),
+              onLogout: () async => loggedOut = true,
+            ),
+            sessionStore: FakeSessionStore(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final logoutButton = find.text('Log out');
+      await tester.scrollUntilVisible(
+        logoutButton,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(logoutButton);
+      await tester.pumpAndSettle();
+
+      // Two "Log out" texts now exist: the dialog's confirm button and the
+      // (still-visible-underneath) Settings screen's own button — the
+      // confirm action is the last one in the tree.
+      await tester.tap(find.text('Log out').last);
+      await tester.pumpAndSettle();
+
+      expect(loggedOut, isTrue);
+      expect(find.text('WELCOME_SCREEN'), findsOneWidget);
     },
   );
 }

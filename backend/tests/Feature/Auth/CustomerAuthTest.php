@@ -68,6 +68,34 @@ class CustomerAuthTest extends TestCase
         $this->assertSame('+255712345678', $user->phone_number);
         $this->assertNotNull($user->email_verified_at);
         $this->assertTrue(Hash::check('password123', $user->password_hash));
+    }
+
+    /**
+     * A denomination choice for the new customer's own future job
+     * postings — settable at signup, defaulting to 'TZS' when omitted
+     * (every account created before this field existed behaves the same).
+     */
+    public function test_a_customer_can_choose_a_preferred_currency_at_signup(): void
+    {
+        Mail::fake();
+        $this->postJson('/api/auth/customer/register', $this->registerPayload(['preferred_currency' => 'USD']))->assertOk();
+        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+
+        $response = $this->postJson('/api/auth/customer/register/verify', ['email' => 'amina@example.com', 'code' => $code]);
+
+        $response->assertCreated()->assertJsonPath('user.preferred_currency', 'USD');
+        $this->assertSame('USD', User::where('email', 'amina@example.com')->first()->preferred_currency);
+    }
+
+    public function test_omitting_preferred_currency_at_signup_defaults_to_tzs(): void
+    {
+        Mail::fake();
+        $this->postJson('/api/auth/customer/register', $this->registerPayload())->assertOk();
+        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+
+        $response = $this->postJson('/api/auth/customer/register/verify', ['email' => 'amina@example.com', 'code' => $code]);
+
+        $response->assertCreated()->assertJsonPath('user.preferred_currency', 'TZS');
         // The pending cache entry is consumed, not left behind.
         $this->assertNull(Cache::get('customer_registration:amina@example.com'));
     }
@@ -130,6 +158,30 @@ class CustomerAuthTest extends TestCase
 
         $this->postJson('/api/auth/customer/login', ['email' => 'amina@example.com', 'password' => 'wrong-password'])
             ->assertUnprocessable()->assertJsonValidationErrors('email');
+    }
+
+    public function test_repeated_failed_logins_across_different_ips_still_lock_the_account(): void
+    {
+        Mail::fake();
+        $this->postJson('/api/auth/customer/register', $this->registerPayload())->assertOk();
+        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $this->postJson('/api/auth/customer/register/verify', ['email' => 'amina@example.com', 'code' => $code])->assertCreated();
+
+        // A different IP on every attempt so the per-route `throttle:*`
+        // limiter (keyed on email+IP) never itself trips — isolating that
+        // this lockout is LoginThrottle's own identifier-only tracking.
+        for ($i = 0; $i < 5; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => "10.0.0.{$i}"])
+                ->postJson('/api/auth/customer/login', ['email' => 'amina@example.com', 'password' => 'wrong-password'])
+                ->assertUnprocessable();
+        }
+
+        // A brand-new IP would sail past the per-IP+email rate limiter, but
+        // LoginThrottle keys on the email alone and still blocks it — even
+        // with the real password.
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.99'])
+            ->postJson('/api/auth/customer/login', ['email' => 'amina@example.com', 'password' => 'password123'])
+            ->assertStatus(429);
     }
 
     public function test_login_with_an_unknown_email_fails_the_same_way_as_a_wrong_password(): void

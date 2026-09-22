@@ -34,6 +34,9 @@ class UserResource extends JsonResource
                 ? app(DocumentStorage::class)->signedUrl($this->company_logo_url)
                 : null,
             'language_preference' => $this->language_preference,
+            // A denomination choice only — no conversion/exchange-rate
+            // system exists here, see the migration's own docblock.
+            'preferred_currency' => $this->preferred_currency,
             'is_featured' => $this->is_featured,
             // Resolved with defaults filled in (absent = on — see
             // User::wantsNotificationCategory) so the client never has to
