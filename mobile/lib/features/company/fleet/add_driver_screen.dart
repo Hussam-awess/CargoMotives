@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/validation/phone_input.dart';
 import '../data/driver_repository.dart';
 
 /// "Add a driver with name + phone (+ optional license photo)" — AppFlow
@@ -10,8 +11,7 @@ import '../data/driver_repository.dart';
 /// carries far less than a truck or company (no verification workflow at
 /// all — see the drivers migration's note on why).
 class AddDriverScreen extends StatefulWidget {
-  AddDriverScreen({super.key, DriverRepository? repository, this.editDriver})
-    : repository = repository ?? DriverRepository();
+  AddDriverScreen({super.key, DriverRepository? repository, this.editDriver}) : repository = repository ?? DriverRepository();
 
   final DriverRepository repository;
   final Driver? editDriver;
@@ -36,7 +36,7 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
     final driver = widget.editDriver;
     if (driver != null) {
       _fullName.text = driver.fullName;
-      _phoneNumber.text = driver.phoneNumber;
+      _phoneNumber.text = toLocalPhoneDisplay(driver.phoneNumber);
       _licenseNumber.text = driver.licenseNumber ?? '';
     }
   }
@@ -72,9 +72,7 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
         driverId: widget.editDriver?.id,
         fullName: _fullName.text.trim(),
         phoneNumber: _phoneNumber.text.trim(),
-        licenseNumber: _licenseNumber.text.trim().isEmpty
-            ? null
-            : _licenseNumber.text.trim(),
+        licenseNumber: _licenseNumber.text.trim().isEmpty ? null : _licenseNumber.text.trim(),
         licensePhoto: _licensePhoto,
       );
       if (!mounted) return;
@@ -86,15 +84,21 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
     }
   }
 
-  String? _required(String? value) =>
-      (value == null || value.trim().isEmpty) ? 'Required' : null;
+  String? _required(String? value) => (value == null || value.trim().isEmpty) ? 'Required' : null;
+
+  String? _validatePhone(String? value) {
+    final required = _required(value);
+    if (required != null) return required;
+    if (!isValidTanzanianPhone(value!.trim())) {
+      return 'Enter a valid 10-digit phone number starting with 0 (e.g. 0712345678).';
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.editDriver == null ? 'Add driver' : 'Edit driver'),
-      ),
+      appBar: AppBar(title: Text(widget.editDriver == null ? 'Add driver' : 'Edit driver')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -112,14 +116,13 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
                 controller: _phoneNumber,
                 decoration: const InputDecoration(labelText: 'Phone number'),
                 keyboardType: TextInputType.phone,
-                validator: _required,
+                inputFormatters: tanzanianPhoneInputFormatters,
+                validator: _validatePhone,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _licenseNumber,
-                decoration: const InputDecoration(
-                  labelText: 'License number (optional)',
-                ),
+                decoration: const InputDecoration(labelText: 'License number (optional)'),
               ),
               const SizedBox(height: 12),
               InkWell(
@@ -133,38 +136,19 @@ class _AddDriverScreenState extends State<AddDriverScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        _licensePhoto != null
-                            ? Icons.check_circle
-                            : Icons.attach_file,
-                      ),
+                      Icon(_licensePhoto != null ? Icons.check_circle : Icons.attach_file),
                       const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _licensePhoto?.name ?? 'License photo (optional)',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                      Expanded(child: Text(_licensePhoto?.name ?? 'License photo (optional)', overflow: TextOverflow.ellipsis)),
                     ],
                   ),
                 ),
               ),
-              if (_errorText != null) ...[
-                const SizedBox(height: 16),
-                Text(_errorText!, style: const TextStyle(color: Colors.red)),
-              ],
+              if (_errorText != null) ...[const SizedBox(height: 16), Text(_errorText!, style: const TextStyle(color: Colors.red))],
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('Save driver'),
               ),
             ],

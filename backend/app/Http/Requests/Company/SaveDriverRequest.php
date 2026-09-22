@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Company;
 
+use App\Rules\TanzanianMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -23,7 +24,7 @@ class SaveDriverRequest extends FormRequest
     {
         return [
             'full_name' => ['required', 'string', 'max:255'],
-            'phone_number' => ['required', 'string', 'max:20'],
+            'phone_number' => ['required', 'string', new TanzanianMobileNumber],
             'license_number' => ['nullable', 'string', 'max:100'],
             'license_photo' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ];

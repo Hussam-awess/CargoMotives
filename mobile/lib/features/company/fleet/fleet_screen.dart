@@ -34,16 +34,84 @@ class FleetScreen extends StatefulWidget {
 
 class _FleetScreenState extends State<FleetScreen> {
   final _trucksTabKey = GlobalKey<TruckListTabState>();
+  GpsConnectionSummary? _activeConnection;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGpsConnectionStatus();
+  }
+
+  Future<void> _loadGpsConnectionStatus() async {
+    try {
+      final connections = await widget.gpsRepository.list();
+      final connected = connections.where((c) => c.status == 'connected');
+      if (!mounted) return;
+      setState(() {
+        _activeConnection = connected.isEmpty ? null : connected.first;
+      });
+    } catch (_) {
+      // Non-critical — the app-bar action just falls back to "Connect GPS".
+    }
+  }
 
   Future<void> _openConnectGps() async {
     final connected = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => ConnectGpsScreen(gpsRepository: widget.gpsRepository, truckRepository: widget.truckRepository)),
+      MaterialPageRoute(
+        builder: (_) => ConnectGpsScreen(
+          gpsRepository: widget.gpsRepository,
+          truckRepository: widget.truckRepository,
+        ),
+      ),
     );
-    if (connected == true) _trucksTabKey.currentState?.refresh();
+    if (connected == true) {
+      _trucksTabKey.currentState?.refresh();
+      _loadGpsConnectionStatus();
+    }
+  }
+
+  Future<void> _disconnectGps() async {
+    final connection = _activeConnection;
+    if (connection == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Disconnect GPS?'),
+        content: const Text(
+          'Your fleet will stop showing live positions until you connect again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Disconnect'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await widget.gpsRepository.disconnect(connection.id);
+      _trucksTabKey.currentState?.refresh();
+      _loadGpsConnectionStatus();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not disconnect GPS. Try again.')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isConnected = _activeConnection != null;
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -51,11 +119,22 @@ class _FleetScreenState extends State<FleetScreen> {
           title: const Text('Fleet'),
           actions: [
             IconButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FleetMapScreen(repository: widget.truckRepository))),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      FleetMapScreen(repository: widget.truckRepository),
+                ),
+              ),
               icon: const Icon(Icons.map_outlined),
               tooltip: 'Fleet map',
             ),
-            IconButton(onPressed: _openConnectGps, icon: const Icon(Icons.satellite_alt_outlined), tooltip: 'Connect GPS'),
+            IconButton(
+              onPressed: isConnected ? _disconnectGps : _openConnectGps,
+              icon: Icon(
+                isConnected ? Icons.link_off : Icons.satellite_alt_outlined,
+              ),
+              tooltip: isConnected ? 'Disconnect GPS' : 'Connect GPS',
+            ),
           ],
           bottom: const TabBar(
             tabs: [
@@ -66,7 +145,10 @@ class _FleetScreenState extends State<FleetScreen> {
         ),
         body: TabBarView(
           children: [
-            TruckListTab(key: _trucksTabKey, repository: widget.truckRepository),
+            TruckListTab(
+              key: _trucksTabKey,
+              repository: widget.truckRepository,
+            ),
             DriverListTab(repository: widget.driverRepository),
           ],
         ),

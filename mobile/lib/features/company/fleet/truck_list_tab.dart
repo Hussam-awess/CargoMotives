@@ -3,12 +3,18 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/truck_repository.dart';
 import 'add_truck_screen.dart';
+import 'connect_gps_screen.dart' show GpsProviderOption;
 
 /// Fleet Tab's truck list (UI/UX Brief §5.4): photo thumbnail, registration
-/// number, verification status, GPS status — a rejected truck is tappable
-/// to fix and resubmit.
+/// number, availability, GPS status. Any truck is tappable to open its
+/// details — trucks no longer go through an Admin review, so there's no
+/// pending/rejected state to gate that on, though AddTruckScreen itself
+/// locks most fields once a truck has real details on file (see its own
+/// docblock). Deleting requires the truck to be both idle and
+/// GPS-disconnected — a connected truck offers "Disconnect GPS" instead.
 class TruckListTab extends StatefulWidget {
-  TruckListTab({super.key, TruckRepository? repository}) : repository = repository ?? TruckRepository();
+  TruckListTab({super.key, TruckRepository? repository})
+    : repository = repository ?? TruckRepository();
 
   final TruckRepository repository;
 
@@ -40,10 +46,11 @@ class TruckListTabState extends State<TruckListTab> {
     await future;
   }
 
-  Future<void> _openAddTruck({Truck? resubmit}) async {
+  Future<void> _openAddTruck({Truck? edit}) async {
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => AddTruckScreen(repository: widget.repository, resubmitTruck: resubmit),
+        builder: (_) =>
+            AddTruckScreen(repository: widget.repository, editTruck: edit),
       ),
     );
     if (added == true) await _refresh();
@@ -54,10 +61,18 @@ class TruckListTabState extends State<TruckListTab> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove this truck?'),
-        content: Text('${truck.registrationNumber} will be removed from your fleet. This cannot be undone.'),
+        content: Text(
+          '${truck.registrationNumber} will be removed from your fleet. This cannot be undone.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Remove')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Remove'),
+          ),
         ],
       ),
     );
@@ -68,7 +83,52 @@ class TruckListTabState extends State<TruckListTab> {
       await _refresh();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not remove that truck. Try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not remove that truck. Try again.'),
+          ),
+        );
+      }
+    }
+  }
+
+  /// The only way to unblock removing a GPS-connected truck (see
+  /// TruckController::destroy()'s own guard) — a per-truck disconnect,
+  /// distinct from FleetScreen's whole-connection Connect/Disconnect GPS
+  /// toggle, which would affect every truck on that provider account.
+  Future<void> _disconnectGps(Truck truck) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Disconnect from GPS?'),
+        content: Text(
+          '${truck.registrationNumber} will stop reporting its live position. '
+          'You can reconnect it later, or remove the truck now that it\'s disconnected.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Disconnect'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await widget.repository.disconnectGps(truck.id);
+      await _refresh();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not disconnect that truck. Try again.'),
+          ),
+        );
       }
     }
   }
@@ -89,7 +149,10 @@ class TruckListTabState extends State<TruckListTab> {
                 children: [
                   const Text('Could not load your trucks.'),
                   const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _refresh, child: const Text('Try again')),
+                  OutlinedButton(
+                    onPressed: _refresh,
+                    child: const Text('Try again'),
+                  ),
                 ],
               ),
             );
@@ -103,16 +166,27 @@ class TruckListTabState extends State<TruckListTab> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   SizedBox(height: 80),
-                  Icon(Icons.local_shipping_outlined, size: 48, color: AppColors.textTertiary),
+                  Icon(
+                    Icons.local_shipping_outlined,
+                    size: 48,
+                    color: AppColors.textTertiary,
+                  ),
                   SizedBox(height: 16),
-                  Text('No trucks yet. Tap + to register your first one.', textAlign: TextAlign.center),
+                  Text(
+                    'No trucks yet. Tap + to register your first one.',
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             );
           }
 
-          final onJobCount = trucks.where((t) => t.currentStatus == 'on_job').length;
-          final pendingCount = trucks.where((t) => t.verificationStatus == 'pending').length;
+          final onJobCount = trucks
+              .where((t) => t.currentStatus == 'on_job')
+              .length;
+          final gpsConnectedCount = trucks
+              .where((t) => t.gpsStatus == 'connected')
+              .length;
 
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -122,31 +196,50 @@ class TruckListTabState extends State<TruckListTab> {
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return _FleetStatsBar(total: trucks.length, onJob: onJobCount, pendingVerification: pendingCount);
+                  return _FleetStatsBar(
+                    total: trucks.length,
+                    onJob: onJobCount,
+                    gpsConnected: gpsConnectedCount,
+                  );
                 }
                 final truck = trucks[index - 1];
 
                 return _TruckCard(
                   truck: truck,
-                  onTap: truck.isRejected ? () => _openAddTruck(resubmit: truck) : null,
-                  onDelete: truck.isIdle ? () => _deleteTruck(truck) : null,
+                  onTap: () => _openAddTruck(edit: truck),
+                  onDelete: (truck.isIdle && !truck.isGpsConnected)
+                      ? () => _deleteTruck(truck)
+                      : null,
+                  onAddDetails: truck.isGpsImported
+                      ? () => _openAddTruck(edit: truck)
+                      : null,
+                  onDisconnectGps: truck.isGpsConnected
+                      ? () => _disconnectGps(truck)
+                      : null,
                 );
               },
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(onPressed: () => _openAddTruck(), child: const Icon(Icons.add)),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openAddTruck(),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
 
 class _FleetStatsBar extends StatelessWidget {
-  const _FleetStatsBar({required this.total, required this.onJob, required this.pendingVerification});
+  const _FleetStatsBar({
+    required this.total,
+    required this.onJob,
+    required this.gpsConnected,
+  });
 
   final int total;
   final int onJob;
-  final int pendingVerification;
+  final int gpsConnected;
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +259,7 @@ class _FleetStatsBar extends StatelessWidget {
           ),
           Container(width: 1, height: 40, color: AppColors.border),
           Expanded(
-            child: _Stat(value: pendingVerification, label: 'Pending'),
+            child: _Stat(value: gpsConnected, label: 'GPS on'),
           ),
         ],
       ),
@@ -188,9 +281,17 @@ class _Stat extends StatelessWidget {
         children: [
           Text(
             '$value',
-            style: TextStyle(fontFamily: 'Barlow Condensed', fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primary),
+            style: TextStyle(
+              fontFamily: 'Barlow Condensed',
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            ),
           ),
-          Text(label, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+          ),
         ],
       ),
     );
@@ -198,106 +299,194 @@ class _Stat extends StatelessWidget {
 }
 
 class _TruckCard extends StatelessWidget {
-  const _TruckCard({required this.truck, this.onTap, this.onDelete});
+  const _TruckCard({
+    required this.truck,
+    this.onTap,
+    this.onDelete,
+    this.onAddDetails,
+    this.onDisconnectGps,
+  });
 
   final Truck truck;
   final VoidCallback? onTap;
 
-  /// Null when the truck is on a job — a company may only remove an idle
-  /// truck, never one currently out on work.
+  /// Null when the truck is on a job, or still linked to a live GPS
+  /// device — a company may only remove an idle, GPS-disconnected truck.
   final VoidCallback? onDelete;
+
+  /// Set only for a GPS-imported truck (Truck.isGpsImported) — opens the
+  /// same edit form tapping the card does, surfaced as its own button
+  /// because a bare GPS import has no real make/model/capacity/photos/
+  /// documents yet and the prompt to supply them needs to be obvious.
+  final VoidCallback? onAddDetails;
+
+  /// Set only while the truck is GPS-connected (Truck.isGpsConnected) —
+  /// the only way to unblock deleting it, since a GPS-connected truck
+  /// can't be removed directly.
+  final VoidCallback? onDisconnectGps;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: truck.photoUrls.isEmpty
-                  ? Container(
-                      width: 48,
-                      height: 48,
-                      color: AppColors.border,
-                      child: Icon(Icons.local_shipping_outlined, color: AppColors.textTertiary),
-                    )
-                  : Image.network(
-                      truck.photoUrls.first,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        width: 48,
-                        height: 48,
-                        color: AppColors.border,
-                        child: Icon(Icons.broken_image_outlined, color: AppColors.textTertiary),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.all(13),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(truck.makeModel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 7),
-                      Text(
-                        truck.registrationNumber,
-                        style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: truck.photoUrls.isEmpty
+                        ? Container(
+                            width: 48,
+                            height: 48,
+                            color: AppColors.border,
+                            child: Icon(
+                              Icons.local_shipping_outlined,
+                              color: AppColors.textTertiary,
+                            ),
+                          )
+                        : Image.network(
+                            truck.photoUrls.first,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => Container(
+                              width: 48,
+                              height: 48,
+                              color: AppColors.border,
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ),
                   ),
-                  Text(
-                    '${truck.vehicleType} · ${truck.capacityTons.toStringAsFixed(0)} t',
-                    style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _Chip(
-                          color: switch (truck.verificationStatus) {
-                            'approved' => AppColors.statusLive,
-                            'rejected' => AppColors.statusError,
-                            _ => AppColors.statusPending,
-                          },
-                          label: switch (truck.verificationStatus) {
-                            'approved' => truck.currentStatus == 'on_job' ? 'On a job' : 'Available',
-                            'rejected' => 'Rejected — tap to fix',
-                            _ => 'Pending verification',
-                          },
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                truck.makeModel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            Text(
+                              truck.registrationNumber,
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
-                        _Chip(
-                          color: truck.gpsStatus == 'connected' ? AppColors.statusLive : AppColors.statusIdle,
-                          label: truck.gpsStatus == 'connected' ? 'GPS on' : 'GPS off',
-                          filled: false,
+                        Text(
+                          '${truck.vehicleType} · ${truck.capacityTons.toStringAsFixed(0)} t',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _Chip(
+                                color: AppColors.statusLive,
+                                label: truck.currentStatus == 'on_job'
+                                    ? 'On a job'
+                                    : 'Available',
+                              ),
+                              _Chip(
+                                color: truck.gpsStatus == 'connected'
+                                    ? AppColors.statusLive
+                                    : AppColors.statusIdle,
+                                label: truck.gpsStatus == 'connected'
+                                    ? 'GPS on'
+                                    : 'GPS off',
+                                filled: false,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (truck.isGpsImported)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              'Imported from ${GpsProviderOption.labelFor(truck.gpsProvider ?? '')}',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontStyle: FontStyle.italic,
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: onDelete != null
+                          ? AppColors.statusError
+                          : AppColors.textTertiary,
+                    ),
+                    tooltip: onDelete != null
+                        ? 'Remove truck'
+                        : !truck.isIdle
+                        ? 'Only an idle truck (not on a job) can be removed'
+                        : 'Disconnect this truck from GPS before removing it',
+                    onPressed: onDelete,
                   ),
                 ],
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.delete_outline, color: onDelete != null ? AppColors.statusError : AppColors.textTertiary),
-              tooltip: onDelete != null ? 'Remove truck' : 'Only an idle truck (not on a job) can be removed',
-              onPressed: onDelete,
+          ),
+          if (onAddDetails != null || onDisconnectGps != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 0, 13, 13),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (onAddDetails != null)
+                    OutlinedButton.icon(
+                      onPressed: onAddDetails,
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: const Text('Add details'),
+                    ),
+                  if (onDisconnectGps != null)
+                    OutlinedButton.icon(
+                      onPressed: onDisconnectGps,
+                      icon: const Icon(Icons.link_off, size: 16),
+                      label: const Text('Disconnect GPS'),
+                    ),
+                ],
+              ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -329,7 +518,11 @@ class _Chip extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: filled ? color : AppColors.textLabel),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: filled ? color : AppColors.textLabel,
+            ),
           ),
         ],
       ),
