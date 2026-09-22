@@ -42,13 +42,14 @@ class Edit extends Component
      *
      * @var array<string, string>
      */
+    // Cargo Motives Plus has no bid/post quota at all (BidQuotaService/
+    // JobPostQuotaService bypass the limit outright for a Plus company or
+    // customer) — there's nothing left here for an admin to tune on that
+    // side, only the standard tier's numbers.
     private const LABELS = [
         'standard_bid_quota' => 'Standard bid quota',
         'standard_bid_window_hours' => 'Standard bid window (hours)',
-        'featured_bid_quota' => 'Featured bid quota',
-        'featured_bid_window_hours' => 'Featured bid window (hours)',
         'standard_customer_post_quota' => 'Standard customer post quota',
-        'featured_customer_post_quota' => 'Featured customer post quota',
         'company_featured_price' => 'Company Featured price (TZS)',
         'customer_featured_price' => 'Customer Featured price (TZS)',
         'featured_duration_days' => 'Featured duration (days)',

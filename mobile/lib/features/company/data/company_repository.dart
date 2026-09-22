@@ -10,6 +10,7 @@ class CompanyVerification {
     required this.status,
     required this.rejectedReason,
     required this.companyName,
+    this.autoCheckNotes = const [],
     this.registrationNumber,
     this.tin,
     this.physicalAddress,
@@ -24,6 +25,8 @@ class CompanyVerification {
       status: json['verification_status'] as String,
       rejectedReason: json['verification_rejected_reason'] as String?,
       companyName: json['company_name'] as String,
+      autoCheckNotes:
+          (json['auto_check_notes'] as List?)?.cast<String>() ?? const [],
       registrationNumber: json['registration_number'] as String?,
       tin: json['tin'] as String?,
       physicalAddress: json['physical_address'] as String?,
@@ -37,6 +40,11 @@ class CompanyVerification {
   final String status; // pending | approved | rejected | flagged_duplicate
   final String? rejectedReason;
   final String companyName;
+
+  /// Why the automated review held this instead of approving it outright
+  /// (CompanyAutoVerifier, backend) — e.g. "TIN is not 9 digits." Empty
+  /// once approved, and while nothing has ever failed a check.
+  final List<String> autoCheckNotes;
 
   /// The company's own submitted details (Backend Schema §2.2) — present
   /// on every real GetStatus response (CompanyResource already returns

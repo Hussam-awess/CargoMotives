@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{{ $title ?? 'Cargo Motives Admin' }}</title>
+        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
         @vite(['resources/css/app.css'])
         @livewireStyles
     </head>
@@ -20,15 +21,15 @@
         @auth('web')
             <div class="min-h-screen flex">
                 <aside class="w-56 shrink-0 bg-slate-900 text-slate-200 flex flex-col">
-                    <div class="px-4 py-4 text-base font-semibold text-white border-b border-slate-800">
-                        Cargo Motives Admin
+                    <div class="px-4 py-4 flex items-center gap-2 text-base font-semibold text-white border-b border-slate-800">
+                        <x-brand-mark size="28" :background="false" />
+                        <span>Cargo Motives Admin</span>
                     </div>
                     <nav class="flex-1 py-3 text-sm">
                         @php
                             $navItems = [
                                 ['admin.dashboard', 'Stats'],
                                 ['admin.companies.index', 'Companies'],
-                                ['admin.trucks.index', 'Trucks'],
                                 ['admin.search.index', 'Search'],
                                 ['admin.jobs.index', 'Jobs'],
                                 ['admin.disputes.index', 'Disputes'],

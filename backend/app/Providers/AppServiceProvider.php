@@ -5,19 +5,21 @@ namespace App\Providers;
 use App\Models\Bid;
 use App\Models\Dispute;
 use App\Models\Job;
+use App\Models\JobAward;
+use App\Models\JobReview;
 use App\Models\Message;
 use App\Models\Payment;
 use App\Models\SupportMessage;
 use App\Models\TransporterCompany;
-use App\Models\Truck;
 use App\Observers\BidObserver;
 use App\Observers\DisputeObserver;
+use App\Observers\JobAwardObserver;
 use App\Observers\JobObserver;
+use App\Observers\JobReviewObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentObserver;
 use App\Observers\SupportMessageObserver;
 use App\Observers\TransporterCompanyObserver;
-use App\Observers\TruckObserver;
 use App\Services\Gps\GpsProviderManager;
 use App\Services\Gps\Traccar\TraccarGpsProvider;
 use App\Services\Gps\Tracksolid\TracksolidGpsProvider;
@@ -130,13 +132,20 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('profile-phone-change-request', fn (Request $request) => Limit::perMinute(3)->by($request->user()->id));
         RateLimiter::for('profile-phone-change-confirm', fn (Request $request) => Limit::perMinute(10)->by($request->user()->id));
 
+        // Authenticated "change password" (ProfileController::changePassword)
+        // — requires the current password already, so a tighter cap than the
+        // request-change endpoints isn't needed, but it's still a guess
+        // surface on that current password.
+        RateLimiter::for('profile-password-change', fn (Request $request) => Limit::perMinute(5)->by($request->user()->id));
+
         // Phase 9's activity_logs (Backend Schema §2.16) is populated
         // entirely through observers rather than threading a logging call
         // into every controller across Phases 1-8 — see
         // App\Services\ActivityLog\ActivityLogger's docblock for why.
         Job::observe(JobObserver::class);
+        JobAward::observe(JobAwardObserver::class);
+        JobReview::observe(JobReviewObserver::class);
         TransporterCompany::observe(TransporterCompanyObserver::class);
-        Truck::observe(TruckObserver::class);
         Bid::observe(BidObserver::class);
         Payment::observe(PaymentObserver::class);
         Dispute::observe(DisputeObserver::class);

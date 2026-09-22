@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Cargo Motives')</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <style>
         /* Plain CSS, no build step — same reasoning as the Driver Link
            pages (resources/views/driver-link): a public legal page has no
@@ -18,7 +19,7 @@
             line-height: 1.6;
         }
         .page { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
-        .brand { font-size: 14px; font-weight: 700; color: #0B4F6C; letter-spacing: 0.04em; margin-bottom: 24px; }
+        .brand { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #16294B; letter-spacing: 0.04em; margin-bottom: 24px; }
         h1 { font-size: 26px; margin: 0 0 4px; color: #0B4F6C; }
         .updated { color: #6B7280; font-size: 13px; margin-bottom: 32px; }
         h2 { font-size: 18px; margin: 32px 0 8px; color: #08384D; }
@@ -30,7 +31,7 @@
 </head>
 <body>
     <div class="page">
-        <div class="brand">CARGO MOTIVES</div>
+        <div class="brand"><x-brand-mark size="28" /><span>CARGO MOTIVES</span></div>
         @yield('content')
         <footer>&copy; {{ date('Y') }} Cargo Motives. Dar es Salaam, Tanzania.</footer>
     </div>

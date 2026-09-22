@@ -20,7 +20,7 @@ class SettingsTest extends TestCase
         $this->seed(PlatformSettingsSeeder::class);
 
         Livewire::actingAs($admin)->test(Edit::class)
-            ->assertSet('values.standard_bid_quota', '5');
+            ->assertSet('values.standard_bid_quota', '10');
     }
 
     public function test_saving_updates_the_database_and_records_the_admin(): void

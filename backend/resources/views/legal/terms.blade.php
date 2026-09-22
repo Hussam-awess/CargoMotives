@@ -21,14 +21,17 @@
         duplicated or inaccurate.</p>
 
     <h2>3. Bidding and job posting limits</h2>
-    <p>To keep the marketplace fair and responsive, Customers and Companies are subject to daily posting and
-        bidding limits, which may be higher for a Featured account. We may adjust these limits from time to time.</p>
+    <p>To keep the marketplace fair and responsive, a standard Customer or Transporter Company account is subject
+        to a daily limit on job postings or bids. A Cargo Motives Plus account has no such limit. We may adjust the
+        standard limit from time to time.</p>
 
     <h2>4. Payment</h2>
     <p>Cargo Motives does not collect, hold, or take any share of the payment for a job — the Customer and the
-        Transporter Company settle payment between themselves, directly, outside the app. Cargo Motives Plus is a
+        Transporter Company settle payment between themselves, directly, outside the app, in whichever currency
+        (Tanzanian Shilling or US Dollar) the Customer chose when posting the job. Cargo Motives Plus is a
         separate, optional subscription (for either a Customer or a Transporter Company) purchased directly from
-        us for a fixed period via mobile money.</p>
+        us for a fixed period via mobile money, always in Tanzanian Shillings regardless of a Customer's own
+        chosen job-posting currency.</p>
 
     <h2>5. Conduct</h2>
     <p>You agree not to: submit false or fraudulent verification information; use the platform for any cargo

@@ -42,9 +42,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/companies', Admin\Companies\Index::class)->name('companies.index');
         Route::get('/companies/{company}', Admin\Companies\Show::class)->name('companies.show');
 
-        Route::get('/trucks', Admin\Trucks\Index::class)->name('trucks.index');
-        Route::get('/trucks/{truck}', Admin\Trucks\Show::class)->name('trucks.show');
-
         Route::get('/search', Admin\Search\Index::class)->name('search.index');
 
         Route::get('/jobs', Admin\Jobs\Index::class)->name('jobs.index');

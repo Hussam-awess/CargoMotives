@@ -43,6 +43,9 @@
   "enterYourPhoneNumber": "Enter your phone number.",
   "@enterYourPhoneNumber": {"description": "Validation error when the phone field is submitted empty."},
 
+  "invalidPhoneNumberFormat": "Enter a valid 10-digit phone number starting with 0 (e.g. 0712345678).",
+  "@invalidPhoneNumberFormat": {"description": "Validation error when the phone field doesn't match the required 0XXXXXXXXX shape."},
+
   "sendCode": "Send code",
   "@sendCode": {"description": "Phone Entry screen submit button."},
 
@@ -283,6 +286,9 @@
   "howCargoMotivesWorks": "How Cargo Motives works",
   "@howCargoMotivesWorks": {"description": "Settings nav row, both Customer and Company."},
 
+  "howToConnectGps": "How to connect your GPS provider",
+  "@howToConnectGps": {"description": "Company Settings nav row, opens the GPS connection step-by-step guide."},
+
   "preferencesSectionLabel": "Preferences",
   "@preferencesSectionLabel": {"description": "Customer Settings section heading."},
 
@@ -297,6 +303,12 @@
 
   "accountSectionLabel": "Account",
   "@accountSectionLabel": {"description": "Settings section heading, both Customer and Company."},
+
+  "followingSectionLabel": "Following",
+  "@followingSectionLabel": {"description": "Company Settings section heading — the Follow-system section."},
+
+  "followedCustomersLabel": "Followed customers",
+  "@followedCustomersLabel": {"description": "Company Settings nav row — opens the list of customers this company follows."},
 
   "registeredPhoneLabel": "Registered phone",
   "@registeredPhoneLabel": {"description": "Settings nav row title, both Customer and Company."},
@@ -327,6 +339,12 @@
 
   "logOutLabel": "Log out",
   "@logOutLabel": {"description": "Settings button, both Customer and Company."},
+
+  "logoutConfirmTitle": "Log out?",
+  "@logoutConfirmTitle": {"description": "Title of the confirmation dialog shown before logging out, both Customer and Company Settings."},
+
+  "logoutConfirmMessage": "Are you sure you want to logout?",
+  "@logoutConfirmMessage": {"description": "Body of the confirmation dialog shown before logging out, both Customer and Company Settings."},
 
   "deleteAccountLabel": "Delete account",
   "@deleteAccountLabel": {"description": "Customer Settings button, also the not-available dialog title."},
@@ -359,6 +377,12 @@
 
   "newOffersSubtitle": "When transporters bid on your cargo",
   "@newOffersSubtitle": {"description": "Customer Settings notification toggle subtitle."},
+
+  "newMessagesTitle": "New messages",
+  "@newMessagesTitle": {"description": "Settings notification toggle title, shared by Customer and Company Settings — gates the backend's 'messages' notification category (new_message/support_message)."},
+
+  "newMessagesSubtitle": "When someone sends you a message about a job",
+  "@newMessagesSubtitle": {"description": "Settings notification toggle subtitle, shared by Customer and Company Settings."},
 
   "smsAlertsTitle": "SMS alerts",
   "@smsAlertsTitle": {"description": "Customer Settings notification toggle title."},

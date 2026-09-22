@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>@yield('title', 'Cargo Motives — Delivery')</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <style>
         /* Deliberately plain CSS, no build step (TRD: "lightweight
            server-rendered mobile web page") — this page has to render
@@ -19,7 +20,7 @@
             line-height: 1.5;
         }
         .page { max-width: 480px; margin: 0 auto; padding: 20px 16px 48px; }
-        .brand { font-size: 14px; font-weight: 600; color: #0F5C4A; letter-spacing: 0.02em; margin-bottom: 16px; }
+        .brand { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #16294B; letter-spacing: 0.04em; margin-bottom: 16px; }
         .card { background: #fff; border-radius: 14px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         h1 { font-size: 20px; margin: 0 0 12px; }
         .status-badge { display: inline-block; background: #EAF3F0; color: #0F5C4A; font-weight: 600; font-size: 13px; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
@@ -44,7 +45,7 @@
 </head>
 <body>
     <div class="page">
-        <div class="brand">CARGO MOTIVES</div>
+        <div class="brand"><x-brand-mark size="26" /><span>CARGO MOTIVES</span></div>
         @if (session('success'))
             <div class="success">{{ session('success') }}</div>
         @endif

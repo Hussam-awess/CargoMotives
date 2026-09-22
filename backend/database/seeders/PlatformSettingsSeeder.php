@@ -20,14 +20,14 @@ class PlatformSettingsSeeder extends Seeder
     public function run(): void
     {
         $defaults = [
-            'standard_bid_quota' => '5',
+            // Cargo Motives Plus has no bid/post quota at all — see
+            // BidQuotaService/JobPostQuotaService's own UNLIMITED bypass —
+            // so only the standard-tier settings remain configurable here.
+            'standard_bid_quota' => '10',
             'standard_bid_window_hours' => '24',
-            'featured_bid_quota' => '10',
-            'featured_bid_window_hours' => '15',
-            'standard_customer_post_quota' => '5',
-            'featured_customer_post_quota' => '10',
-            'company_featured_price' => '50000',
-            'customer_featured_price' => '20000',
+            'standard_customer_post_quota' => '10',
+            'company_featured_price' => '5000',
+            'customer_featured_price' => '5000',
             'featured_duration_days' => '30',
         ];
 

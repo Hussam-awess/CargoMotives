@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\CheckGpsSignalLoss;
+use App\Console\Commands\NotifyBiddingClosed;
 use App\Console\Commands\NudgeInactiveUsers;
 use App\Http\Middleware\EnsureAccountType;
 use App\Http\Middleware\EnsureCompanyApproved;
@@ -43,6 +44,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // of the poll above so a slow/failing poll cycle never delays
         // detecting signal loss.
         $schedule->command(CheckGpsSignalLoss::class)->everyMinute();
+
+        // Bidding Deadline epic: catches a job's deadline passing on its
+        // own, same cadence as the GPS signal-loss sweep above for the
+        // same reason — a customer shouldn't wait long to find out.
+        $schedule->command(NotifyBiddingClosed::class)->everyMinute();
 
         // Re-engagement nudge (on top of AppFlow §6, not part of it) —
         // once a day is plenty, this only cares about day-granularity

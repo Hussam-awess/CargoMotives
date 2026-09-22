@@ -13,7 +13,7 @@
     <h2>Information we collect</h2>
     <ul>
         <li><strong>Account information:</strong> phone number, full name, email address (optional), and your
-            chosen language.</li>
+            chosen language and currency.</li>
         <li><strong>Company verification information</strong> (transporter companies only): business name,
             registration number, TIN, business license, physical address, and one representative's full name,
             position, national ID number, ID document, and selfie photo.</li>

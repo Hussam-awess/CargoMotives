@@ -42,6 +42,20 @@
         </div>
     @endif
 
+    {{-- Why the automated checks didn't clear this one. Clean submissions
+         are approved outright and never reach this queue, so anything an
+         Admin is looking at is here for one of these stated reasons. --}}
+    @if (!empty($company->auto_check_notes) && in_array($company->verification_status, ['pending', 'flagged_duplicate'], true))
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <h2 class="text-sm font-semibold text-amber-900 mb-2">Held for review because</h2>
+            <ul class="list-disc list-inside text-sm text-amber-800 space-y-1">
+                @foreach ($company->auto_check_notes as $note)
+                    <li>{{ $note }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @if ($conflict)
         <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
             <h2 class="text-sm font-semibold text-amber-900 mb-2">Possible duplicate of an existing company</h2>

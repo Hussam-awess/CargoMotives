@@ -40,13 +40,17 @@
         @endif
     </div>
 
-    @if ($nextStatus)
+    @if ($nextStatus && $mayControlStatus)
         <div class="card">
             <form method="POST" action="{{ route('driver-link.status', $token) }}">
                 @csrf
                 <input type="hidden" name="status" value="{{ $nextStatus }}">
                 <button type="submit" class="secondary">{{ $nextStatusLabels[$nextStatus] }}</button>
             </form>
+        </div>
+    @elseif (! $mayControlStatus)
+        <div class="card">
+            <p>This job has several trucks assigned. Only the lead truck's driver can update its status or submit proof of delivery — your pickup/drop-off details above are for your own trip.</p>
         </div>
     @endif
 

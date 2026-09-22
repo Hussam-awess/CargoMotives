@@ -29,25 +29,48 @@ class TransporterCompanyObserver
         private readonly NotificationService $notifications,
     ) {}
 
+    /**
+     * A first-time submission that CompanyAutoVerifier clears is *created*
+     * already approved rather than transitioning into it, so without this
+     * the company would be verified with no audit entry and no notification
+     * — the one case where an approval has no Admin behind it is exactly
+     * the one most worth logging.
+     */
+    public function created(TransporterCompany $company): void
+    {
+        $this->recordVerificationOutcome($company);
+    }
+
     public function updated(TransporterCompany $company): void
     {
-        if ($company->wasChanged('verification_status') && $action = self::VERIFICATION_ACTIONS[$company->verification_status] ?? null) {
-            $this->activityLogger->record($action, $company, $this->currentActorId());
-
-            // AppFlow §6: "Company/truck verification approved/rejected" ->
-            // Company, Push. A flagged_duplicate transition isn't itself a
-            // decision (Admin hasn't ruled yet), so it's excluded here even
-            // though it IS a logged action above.
-            if (in_array($company->verification_status, ['approved', 'rejected'], true)) {
-                $this->notifications->send(
-                    $company->owner,
-                    $action,
-                    $company->verification_status === 'approved' ? 'Company verified' : 'Company verification rejected',
-                    $company->verification_status === 'approved'
-                        ? "{$company->company_name} has been verified. You can now register trucks and bid on jobs."
-                        : "{$company->company_name}'s verification was rejected: {$company->verification_rejected_reason}",
-                );
-            }
+        if ($company->wasChanged('verification_status')) {
+            $this->recordVerificationOutcome($company);
         }
+    }
+
+    private function recordVerificationOutcome(TransporterCompany $company): void
+    {
+        if (! $action = self::VERIFICATION_ACTIONS[$company->verification_status] ?? null) {
+            return;
+        }
+
+        $this->activityLogger->record($action, $company, $this->currentActorId());
+
+        // AppFlow §6: "Company/truck verification approved/rejected" ->
+        // Company, Push. A flagged_duplicate transition isn't itself a
+        // decision (Admin hasn't ruled yet), so it's excluded here even
+        // though it IS a logged action above.
+        if (! in_array($company->verification_status, ['approved', 'rejected'], true)) {
+            return;
+        }
+
+        $this->notifications->send(
+            $company->owner,
+            $action,
+            $company->verification_status === 'approved' ? 'Company verified' : 'Company verification rejected',
+            $company->verification_status === 'approved'
+                ? "{$company->company_name} has been verified. You can now register trucks and bid on jobs."
+                : "{$company->company_name}'s verification was rejected: {$company->verification_rejected_reason}",
+        );
     }
 }

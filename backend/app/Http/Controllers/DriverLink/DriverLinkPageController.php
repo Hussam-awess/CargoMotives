@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DriverLink\SubmitProofOfDeliveryRequest;
 use App\Http\Requests\DriverLink\UpdateJobStatusRequest;
 use App\Models\DriverLink;
+use App\Models\Job;
+use App\Models\JobAward;
+use App\Models\JobTruckAssignment;
 use App\Models\ProofOfDelivery;
 use App\Services\Documents\DocumentStorage;
 use Illuminate\Contracts\View\View;
@@ -50,13 +53,22 @@ class DriverLinkPageController extends Controller
         }
 
         $job = $link->job;
-        $nextStatus = $this->nextDriverSettableStatus($job->status);
+        $award = $this->resolveAward($link);
+        $statusForDriver = $award?->status ?? $job->status;
+        $nextStatus = $this->nextDriverSettableStatus($statusForDriver);
+        $mayControlStatus = $this->mayControlStatus($job, $link);
 
         return view('driver-link.show', [
             'job' => $job,
             'token' => $token,
             'nextStatus' => $nextStatus,
-            'canSubmitProofOfDelivery' => in_array($job->status, ['assigned', ...self::DRIVER_SETTABLE_STATUSES], true),
+            'canSubmitProofOfDelivery' => $mayControlStatus && in_array($statusForDriver, ['assigned', ...self::DRIVER_SETTABLE_STATUSES], true),
+            // Bulk Cargo epic: a non-lead roster member on a multi-truck
+            // job can view their assignment (pickup/dropoff, their own
+            // link) but never advance the job's (or, Multi-Company Split
+            // Awards epic, their award's own) shared status — see
+            // mayControlStatus().
+            'mayControlStatus' => $mayControlStatus,
         ]);
     }
 
@@ -64,15 +76,22 @@ class DriverLinkPageController extends Controller
     {
         $link = $this->resolveActiveOrAbort($token);
         $job = $link->job;
+        $award = $this->resolveAward($link);
 
+        abort_unless($this->mayControlStatus($job, $link), 403, 'Only the lead truck can update this job\'s status.');
+
+        $statusForDriver = $award?->status ?? $job->status;
         $order = array_flip(['open', 'assigned', ...self::DRIVER_SETTABLE_STATUSES, 'delivered', 'completed', 'cancelled']);
         $requested = $request->validated('status');
 
-        if (($order[$requested] ?? -1) <= ($order[$job->status] ?? PHP_INT_MAX)) {
+        if (($order[$requested] ?? -1) <= ($order[$statusForDriver] ?? PHP_INT_MAX)) {
             return back()->withErrors(['status' => 'This job has already moved past that point.']);
         }
 
-        $job->update(['status' => $requested]);
+        // Multi-Company Split Awards epic: an award reaching 'delivered'
+        // never touches jobs.status — the job only ever reflects 'assigned'
+        // or 'completed' once EVERY award is done (JobAwardController).
+        ($award ?? $job)->update(['status' => $requested]);
 
         return back()->with('success', 'Status updated.');
     }
@@ -81,8 +100,12 @@ class DriverLinkPageController extends Controller
     {
         $link = $this->resolveActiveOrAbort($token);
         $job = $link->job;
+        $award = $this->resolveAward($link);
 
-        if ($job->status === 'delivered' || $job->status === 'completed') {
+        abort_unless($this->mayControlStatus($job, $link), 403, 'Only the lead truck can submit proof of delivery.');
+
+        $statusForDriver = $award?->status ?? $job->status;
+        if ($statusForDriver === 'delivered' || $statusForDriver === 'completed') {
             return back()->withErrors(['photos' => 'Proof of delivery was already submitted for this job.']);
         }
 
@@ -90,9 +113,10 @@ class DriverLinkPageController extends Controller
             ->map(fn ($photo) => $this->documents->store($photo, "proof-of-delivery/{$job->id}"))
             ->all();
 
-        DB::transaction(function () use ($request, $job, $link, $photoKeys) {
+        DB::transaction(function () use ($request, $job, $award, $link, $photoKeys) {
             ProofOfDelivery::create([
                 'job_id' => $job->id,
+                'job_award_id' => $award?->id,
                 'driver_id' => $link->driver_id,
                 'driver_link_id' => $link->id,
                 'photo_urls' => $photoKeys,
@@ -100,7 +124,7 @@ class DriverLinkPageController extends Controller
                 'notes' => $request->validated('notes'),
             ]);
 
-            $job->update(['status' => 'delivered']);
+            ($award ?? $job)->update(['status' => 'delivered']);
             $link->update(['status' => 'used', 'used_at' => now()]);
 
             // "Fans out instantly to the Customer, the Company, and Admin's
@@ -117,6 +141,39 @@ class DriverLinkPageController extends Controller
         });
 
         return redirect()->route('driver-link.show', $token);
+    }
+
+    /**
+     * Multi-Company Split Awards epic: resolves which award (if any) this
+     * driver link's roster row belongs to — null for an ordinary job and
+     * for a bulk job fully covered by a single company (both keep reading/
+     * writing job.status directly, exactly as before this epic).
+     */
+    private function resolveAward(DriverLink $link): ?JobAward
+    {
+        $assignment = JobTruckAssignment::where('driver_link_id', $link->id)->first();
+
+        return $assignment?->job_award_id !== null ? $assignment->jobAward : null;
+    }
+
+    /**
+     * Bulk Cargo epic: an ordinary job (trucks_needed <= 1) structurally
+     * only ever has one active DriverLink, so it can always control its
+     * own status — no lookup needed, matching pre-epic behavior exactly.
+     * A multi-truck job's roster members can each view their own link, but
+     * only the lead (JobTruckAssignment.is_lead) may advance the shared
+     * status/PoD — of the job (Bulk Cargo epic) or of their own award
+     * (Multi-Company Split Awards epic); either way this is the same
+     * is_lead flag on the link's own roster row, so no change is needed
+     * here to support awards.
+     */
+    private function mayControlStatus(Job $job, DriverLink $link): bool
+    {
+        if ($job->trucks_needed <= 1) {
+            return true;
+        }
+
+        return JobTruckAssignment::where('driver_link_id', $link->id)->value('is_lead') === true;
     }
 
     private function resolveActiveOrAbort(string $token): DriverLink

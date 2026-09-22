@@ -13,7 +13,7 @@ class HowItWorksScreen extends StatelessWidget {
     (
       title: 'Post your cargo',
       body:
-          'Say where the load moves, what it is, when it must be collected, and set your budget. Posting is free.',
+          'Say where the load moves, what it is, when it must be collected, and set your budget in TZS or USD. Posting is free.',
     ),
     (
       title: 'Compare offers',
@@ -35,6 +35,8 @@ class HowItWorksScreen extends StatelessWidget {
   static const _goodToKnow = [
     'Every transporter is checked by our team — licence, TIN and insurance — before they can bid.',
     'Transporters only see your district until you accept an offer, never your exact address.',
+    'Standard accounts have a daily limit on job posts or bids — Cargo Motives Plus removes it entirely, and shows a Plus badge on your profile and bids.',
+    'A truck and driver can be assigned or changed right up until the job starts — once it is underway, that assignment is locked in.',
     'You can reopen this guide any time from Settings.',
   ];
 
