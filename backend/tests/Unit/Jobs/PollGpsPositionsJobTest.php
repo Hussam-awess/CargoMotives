@@ -96,6 +96,37 @@ class PollGpsPositionsJobTest extends TestCase
         Bus::assertDispatched(NormalizeGpsPositionJob::class, fn (NormalizeGpsPositionJob $job) => $job->truckId === $goodTruck->id);
     }
 
+    /**
+     * A real failure mode this app hit live: Tracksolid rate-limited a
+     * poll ("Illegal access, request frequency is too high"), which marks
+     * the connection 'error' — and with the old status = 'connected'-only
+     * query, that connection would then be silently skipped forever, with
+     * no automatic recovery once the provider's limiter cleared.
+     */
+    public function test_an_errored_connection_is_retried_on_the_next_cycle_instead_of_staying_dark_forever(): void
+    {
+        Bus::fake();
+
+        $connection = GpsConnection::factory()->create(['provider' => 'wialon', 'status' => 'error']);
+        $truck = Truck::factory()->approved()->create(['gps_connection_id' => $connection->id, 'gps_unit_id' => 'unit-1']);
+
+        $this->app->instance(WialonGpsProvider::class, new class implements GpsProvider
+        {
+            public function listUnits(string $accessToken): array
+            {
+                return [new GpsUnit('unit-1', 'T 123 ABC', -6.8, 39.2, null, CarbonImmutable::now())];
+            }
+        });
+
+        (new PollGpsPositionsJob)->handle($this->app->make(GpsProviderManager::class));
+
+        Bus::assertDispatched(NormalizeGpsPositionJob::class, fn (NormalizeGpsPositionJob $job) => $job->truckId === $truck->id);
+        // The successful retry is also the recovery signal — the mobile
+        // app's own "is GPS connected" check filters strictly on this
+        // status, so it must flip back, not just quietly start working.
+        $this->assertSame('connected', $connection->fresh()->status);
+    }
+
     public function test_disconnected_connections_are_never_polled(): void
     {
         Bus::fake();

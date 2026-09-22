@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Job;
+use App\Models\JobAward;
 use Illuminate\Console\Command;
 
 /**
@@ -59,8 +60,27 @@ class CheckGpsSignalLoss extends Command
             $job->update(['gps_signal_status' => 'lost']);
         }
 
-        if ($jobs->isNotEmpty()) {
-            $this->info("Marked {$jobs->count()} job(s) as GPS signal lost.");
+        // Multi-Company Split Awards epic: the same two "gone quiet" cases
+        // above, but scoped to one company's own award — a job with 2+
+        // awards has no single assignedTruck for the job-level sweep above
+        // to ever match.
+        $awards = JobAward::where('gps_tracking_active', true)
+            ->where('gps_signal_status', 'ok')
+            ->where(function ($query) use ($cutoff) {
+                $query->whereHas('leadTruckAssignment.truck', fn ($q) => $q->where('last_known_at', '<', $cutoff))
+                    ->orWhere(function ($query) use ($cutoff) {
+                        $query->whereHas('leadTruckAssignment.truck', fn ($q) => $q->whereNull('last_known_at'))
+                            ->where('gps_tracking_started_at', '<', $cutoff);
+                    });
+            })
+            ->get();
+
+        foreach ($awards as $award) {
+            $award->update(['gps_signal_status' => 'lost']);
+        }
+
+        if ($jobs->isNotEmpty() || $awards->isNotEmpty()) {
+            $this->info("Marked {$jobs->count()} job(s) and {$awards->count()} award(s) as GPS signal lost.");
         }
 
         return self::SUCCESS;

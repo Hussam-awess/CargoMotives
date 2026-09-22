@@ -2,7 +2,11 @@
 
 namespace Tests\Feature\Console;
 
+use App\Models\Bid;
+use App\Models\Driver;
 use App\Models\Job;
+use App\Models\JobAward;
+use App\Models\JobTruckAssignment;
 use App\Models\Truck;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -106,5 +110,41 @@ class CheckGpsSignalLossTest extends TestCase
         // Just confirms this doesn't error against an already-lost job —
         // recovery is NormalizeGpsPositionJob's job, not this sweep's.
         $this->artisan('gps:check-signal-loss')->assertSuccessful();
+    }
+
+    /**
+     * Multi-Company Split Awards epic: a job with 2+ awards has no single
+     * assignedTruck for the job-level sweep above to ever match — this
+     * confirms the second, award-scoped sweep catches it independently.
+     */
+    public function test_flips_a_tier_3_awards_lead_truck_to_lost_once_it_has_gone_quiet(): void
+    {
+        config(['gps.signal_lost_after_minutes' => 10]);
+        $job = Job::factory()->create(['status' => 'open', 'trucks_needed' => 20]);
+        $bid = Bid::factory()->for($job)->create(['trucks_offered' => 8]);
+        $award = JobAward::create([
+            'job_id' => $job->id,
+            'bid_id' => $bid->id,
+            'transporter_company_id' => $bid->transporter_company_id,
+            'trucks_offered' => 8,
+            'agreed_price' => $bid->price,
+            'gps_tracking_active' => true,
+            'gps_signal_status' => 'ok',
+        ]);
+        $truck = Truck::factory()->approved()->create(['last_known_at' => now()->subMinutes(15)]);
+        JobTruckAssignment::create([
+            'job_id' => $job->id,
+            'job_award_id' => $award->id,
+            'truck_id' => $truck->id,
+            'driver_id' => Driver::factory()->create()->id,
+            'is_lead' => true,
+            'assigned_at' => now(),
+        ]);
+
+        $this->artisan('gps:check-signal-loss')->assertSuccessful();
+
+        $this->assertSame('lost', $award->fresh()->gps_signal_status);
+        // The job itself is never touched by a Tier 3 award's own sweep.
+        $this->assertSame('not_applicable', $job->fresh()->gps_signal_status);
     }
 }

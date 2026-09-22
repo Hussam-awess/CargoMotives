@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * (see GeoPoint), set only via setAttribute() in [record()], the same
  * reason Job never mass-assigns pickup_location/dropoff_location either.
  */
-#[Fillable(['job_id', 'truck_id', 'recorded_at'])]
+#[Fillable(['job_id', 'job_award_id', 'truck_id', 'recorded_at'])]
 class JobLocationSnapshot extends Model
 {
     /** @use HasFactory<JobLocationSnapshotFactory> */
@@ -44,10 +44,11 @@ class JobLocationSnapshot extends Model
      * log has to reflect when the truck was actually at that point, not
      * whenever our queue happened to get around to processing it.
      */
-    public static function record(int $jobId, int $truckId, GeoPoint $point, ?CarbonInterface $recordedAt = null): self
+    public static function record(int $jobId, int $truckId, GeoPoint $point, ?CarbonInterface $recordedAt = null, ?int $jobAwardId = null): self
     {
         $snapshot = new self([
             'job_id' => $jobId,
+            'job_award_id' => $jobAwardId,
             'truck_id' => $truckId,
             'recorded_at' => $recordedAt ?? now(),
         ]);
@@ -60,6 +61,11 @@ class JobLocationSnapshot extends Model
     public function job(): BelongsTo
     {
         return $this->belongsTo(Job::class);
+    }
+
+    public function jobAward(): BelongsTo
+    {
+        return $this->belongsTo(JobAward::class);
     }
 
     public function truck(): BelongsTo

@@ -37,4 +37,25 @@ final readonly class GeoPoint
     {
         return DB::raw(sprintf('ST_SetSRID(ST_MakePoint(%F, %F), 4326)::geography', $this->lng, $this->lat));
     }
+
+    /**
+     * Great-circle (haversine) distance in km — ported from the mobile
+     * app's job_geo.dart kmBetween() so both sides of this app compute
+     * "how far apart" the same way. Straight-line, not road distance, same
+     * as every other distance figure already shown/used in this app (the
+     * job card's own pickup->dropoff estimate, CompanyJobController's 50km
+     * "nearby" return-load radius) — good enough for a geofence check,
+     * where a PostGIS round trip would just add a query for no real gain.
+     */
+    public function kmTo(self $other): float
+    {
+        $earthRadiusKm = 6371.0;
+        $dLat = deg2rad($other->lat - $this->lat);
+        $dLng = deg2rad($other->lng - $this->lng);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($this->lat)) * cos(deg2rad($other->lat)) * sin($dLng / 2) ** 2;
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadiusKm * $c;
+    }
 }

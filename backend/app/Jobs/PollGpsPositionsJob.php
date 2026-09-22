@@ -7,6 +7,7 @@ use App\Models\Truck;
 use App\Services\Gps\GpsProviderException;
 use App\Services\Gps\GpsProviderManager;
 use App\Services\Gps\GpsUnit;
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -28,11 +29,28 @@ use Illuminate\Support\Facades\Log;
  */
 class PollGpsPositionsJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, SerializesModels;
+    // Queueable specifically (not just Dispatchable/InteractsWithQueue,
+    // this app's usual job trait set) — Schedule::job() reads $job->queue
+    // directly (Illuminate\Console\Scheduling\Schedule::job()), which only
+    // Queueable declares. Without it, every scheduled run threw an
+    // uncaught "Undefined property: $queue" and aborted before ever
+    // fetching a single position — this is why GPS positions silently
+    // stopped updating: the fleet map has no live data to poll for if this
+    // job never runs.
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function handle(GpsProviderManager $providers): void
     {
-        GpsConnection::where('status', 'connected')->each(function (GpsConnection $connection) use ($providers) {
+        // Deliberately not just 'connected': a connection that failed on a
+        // prior cycle (bad token, or a provider transiently rate-limiting
+        // us — both real, observed failure modes) is marked 'error' below,
+        // but that must never be permanent. Retrying it every cycle costs
+        // nothing extra when it's still broken (same isolated try/catch as
+        // before) and lets it self-heal the moment the provider recovers,
+        // instead of silently staying dark until a human notices and
+        // manually reconnects. 'disconnected' is the one status that must
+        // stay untouched — that's the user's own explicit stop.
+        GpsConnection::where('status', '!=', 'disconnected')->each(function (GpsConnection $connection) use ($providers) {
             $this->pollConnection($connection, $providers);
         });
     }
@@ -68,9 +86,24 @@ class PollGpsPositionsJob implements ShouldQueue
                 continue;
             }
 
-            NormalizeGpsPositionJob::dispatch($truck->id, $unit->lat, $unit->lng, $unit->heading, $unit->recordedAt, $unit->speedKmh);
+            NormalizeGpsPositionJob::dispatch(
+                $truck->id,
+                $unit->lat,
+                $unit->lng,
+                $unit->heading,
+                $unit->recordedAt,
+                $unit->speedKmh,
+                $unit->driverName,
+            );
         }
 
-        $connection->update(['last_synced_at' => now()]);
+        // A successful poll is also the recovery signal: without writing
+        // 'connected' back here, a connection that errored once would keep
+        // being retried (see handle()'s docblock) and keep updating truck
+        // positions again server-side, but the app's own "is GPS connected"
+        // check (mobile fleet_screen.dart) filters strictly on
+        // status === 'connected' — it would stay stuck showing
+        // "Connect GPS" forever even after the provider recovered.
+        $connection->update(['status' => 'connected', 'last_synced_at' => now()]);
     }
 }
