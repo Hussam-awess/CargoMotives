@@ -8,26 +8,99 @@ import '../../../core/theme/app_theme.dart';
 const _savedAddressesKey = 'customer.saved_addresses';
 
 class SavedAddress {
-  const SavedAddress({required this.label, required this.address});
+  const SavedAddress({
+    required this.label,
+    required this.address,
+    this.lat,
+    this.lng,
+  });
 
   factory SavedAddress.fromJson(Map<String, dynamic> json) => SavedAddress(
     label: json['label'] as String,
     address: json['address'] as String,
+    lat: (json['lat'] as num?)?.toDouble(),
+    lng: (json['lng'] as num?)?.toDouble(),
   );
 
   final String label;
   final String address;
 
-  Map<String, dynamic> toJson() => {'label': label, 'address': address};
+  /// Set when this entry was saved from a map pin (Post a Job's route
+  /// picker) rather than typed by hand on this screen — lets a future
+  /// quick-fill jump straight to the point instead of re-geocoding the
+  /// address text. Null for addresses saved the old way.
+  final double? lat;
+  final double? lng;
+
+  Map<String, dynamic> toJson() => {
+    'label': label,
+    'address': address,
+    if (lat != null) 'lat': lat,
+    if (lng != null) 'lng': lng,
+  };
 }
 
-/// "Saved addresses" (mockup) — real on-device persistence via
-/// SharedPreferences (LocalPrefs), not synced to any backend: this app
-/// has no saved-address-book feature yet, so a customer's entries here
-/// live only on this device. Post a Job still takes a fresh address each
-/// time; wiring a saved address into that form as a quick-fill shortcut
-/// is a natural next step once this list has something in it worth
-/// reusing.
+/// Reads the current saved-address book — used by this screen itself and
+/// by anywhere else in the app that wants to offer them as quick-fill
+/// options (e.g. Post a Job's route picker map).
+Future<List<SavedAddress>> loadSavedAddresses({
+  LocalPrefs prefs = const LocalPrefs(),
+}) async {
+  final raw = await prefs.getStringList(_savedAddressesKey);
+  return raw
+      .map((s) => SavedAddress.fromJson(jsonDecode(s) as Map<String, dynamic>))
+      .toList();
+}
+
+/// Adds a new saved address from anywhere in the app, not just this
+/// screen's own FAB — enforces the same free-tier cap (with the same
+/// upsell message) and shows the same add dialog, optionally pre-filled
+/// with an address/coordinates already known to the caller (e.g. the pin
+/// a customer just placed on Post a Job's map). Returns whether an
+/// address was actually added.
+Future<bool> addSavedAddress({
+  required BuildContext context,
+  required bool isFeatured,
+  String? initialAddress,
+  double? lat,
+  double? lng,
+  LocalPrefs prefs = const LocalPrefs(),
+}) async {
+  final raw = await prefs.getStringList(_savedAddressesKey);
+  if (!isFeatured && raw.length >= _freeAddressCap) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Standard accounts can save up to 3 addresses. Get Cargo Motives Plus to save more.',
+          ),
+        ),
+      );
+    }
+    return false;
+  }
+
+  if (!context.mounted) return false;
+  final added = await showDialog<SavedAddress>(
+    context: context,
+    builder: (_) =>
+        AddSavedAddressDialog(initialAddress: initialAddress, lat: lat, lng: lng),
+  );
+  if (added == null) return false;
+
+  await prefs.setStringList(_savedAddressesKey, [
+    ...raw,
+    jsonEncode(added.toJson()),
+  ]);
+  return true;
+}
+
+/// "Saved addresses" — real on-device persistence via SharedPreferences
+/// (LocalPrefs), not synced to any backend: a customer's entries here
+/// live only on this device. Also offered as quick-fill chips on Post a
+/// Job's route map (see [loadSavedAddresses]/[addSavedAddress] above),
+/// which can add entries here too when a customer saves a pin they just
+/// dropped — this screen is just the one place to browse/delete them all.
 ///
 /// Customer Plus benefit (Phase 10.19): a standard customer is capped at
 /// [_freeAddressCap] entries; Plus removes the cap — a real, on-device
@@ -60,14 +133,10 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   }
 
   Future<void> _load() async {
-    final raw = await widget.prefs.getStringList(_savedAddressesKey);
+    final addresses = await loadSavedAddresses(prefs: widget.prefs);
     if (!mounted) return;
     setState(() {
-      _addresses = raw
-          .map(
-            (s) => SavedAddress.fromJson(jsonDecode(s) as Map<String, dynamic>),
-          )
-          .toList();
+      _addresses = addresses;
       _isLoading = false;
     });
   }
@@ -80,24 +149,12 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   }
 
   Future<void> _addAddress() async {
-    if (!widget.isFeatured && _addresses.length >= _freeAddressCap) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Standard accounts can save up to 3 addresses. Get Cargo Motives Plus to save more.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final added = await showDialog<SavedAddress>(
+    final added = await addSavedAddress(
       context: context,
-      builder: (_) => const _AddAddressDialog(),
+      isFeatured: widget.isFeatured,
+      prefs: widget.prefs,
     );
-    if (added == null) return;
-    setState(() => _addresses = [..._addresses, added]);
-    await _save();
+    if (added) await _load();
   }
 
   Future<void> _removeAddress(int index) async {
@@ -212,16 +269,27 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   }
 }
 
-class _AddAddressDialog extends StatefulWidget {
-  const _AddAddressDialog();
+class AddSavedAddressDialog extends StatefulWidget {
+  const AddSavedAddressDialog({
+    super.key,
+    this.initialAddress,
+    this.lat,
+    this.lng,
+  });
+
+  final String? initialAddress;
+  final double? lat;
+  final double? lng;
 
   @override
-  State<_AddAddressDialog> createState() => _AddAddressDialogState();
+  State<AddSavedAddressDialog> createState() => _AddSavedAddressDialogState();
 }
 
-class _AddAddressDialogState extends State<_AddAddressDialog> {
+class _AddSavedAddressDialogState extends State<AddSavedAddressDialog> {
   final _labelController = TextEditingController();
-  final _addressController = TextEditingController();
+  late final _addressController = TextEditingController(
+    text: widget.initialAddress ?? '',
+  );
 
   @override
   void dispose() {
@@ -259,12 +327,15 @@ class _AddAddressDialogState extends State<_AddAddressDialog> {
         TextButton(
           onPressed: () {
             if (_labelController.text.trim().isEmpty ||
-                _addressController.text.trim().isEmpty)
+                _addressController.text.trim().isEmpty) {
               return;
+            }
             Navigator.of(context).pop(
               SavedAddress(
                 label: _labelController.text.trim(),
                 address: _addressController.text.trim(),
+                lat: widget.lat,
+                lng: widget.lng,
               ),
             );
           },
