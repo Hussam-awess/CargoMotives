@@ -1,5 +1,5 @@
-<svg viewBox="22 32 200 184" xmlns="http://www.w3.org/2000/svg">
-  <!-- Single-colour alpha silhouette of Identity Sheet v3's mark — the
+<svg viewBox="22 31 211 186" xmlns="http://www.w3.org/2000/svg">
+  <!-- Single-colour alpha silhouette of Identity Sheet v4's mark — the
        source shape for the Android status-bar icon (res/drawable-*dpi/
        ic_stat_cargo_motives.png, rendered from this at each density).
        Android status-bar icons read only the alpha channel, and the C
@@ -13,13 +13,6 @@
            Z"
         fill="#FFFFFF"/>
 
-  <path d="M 109 167
-           L 109 97
-           L 126 97
-           L 160 163
-           L 193 53
-           L 218 53
-           L 218 167
-           Z"
-        fill="#FFFFFF"/>
+  <path d="M 98 172 L 150 95 L 183 158 L 218 58 L 218 172"
+        fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linejoin="round" stroke-linecap="square"/>
 </svg>

@@ -1,13 +1,17 @@
-<svg viewBox="22 32 200 184" xmlns="http://www.w3.org/2000/svg">
-  <!-- Identity Sheet v3 (final, matched to the client's own reference PDF
-       pixel-for-pixel) — a bold C holding an M in its counter: the M
+<svg viewBox="22 31 211 186" xmlns="http://www.w3.org/2000/svg">
+  <!-- Identity Sheet v4 — a bold C holding an M in its counter: the M
        begins small inside the C's opening and grows as it runs out
-       through the open side, finishing tall and heavy on the right. One
-       mark everywhere, no simplified small-size variant. Bone + orange
-       (the reference's "white" C is actually bone #F4EFE6, not pure
-       white), for use on the brand navy (splash, welcome badge, anywhere
-       the surface is already brandLogoNavy). See logo_mark.svg for the
-       navy + orange variant used on light surfaces. -->
+       through the open side, finishing tall and heavy on the right. Same
+       C ring as v3 (matched to the client's original reference PDF); the
+       M itself was redrawn per the client's updated reference image as a
+       single stroked zigzag path (a true consistent-width diagonal line,
+       not v3's filled block with vertical outer bars), giving a leaner,
+       more angular zigzag reading. One mark everywhere, no
+       simplified small-size variant. Bone + orange (the reference's
+       "white" C is actually bone #F4EFE6, not pure white), for use on the
+       brand navy (splash, welcome badge, app icon, anywhere the surface
+       is already brandLogoNavy). See logo_mark.svg for the navy + orange
+       variant used on light surfaces. -->
 
   <!-- C ring: centre (115,124), outer r=88, inner r=57, 38deg half-opening -->
   <path d="M 184.3 69.8
@@ -17,17 +21,12 @@
            Z"
         fill="#F4EFE6"/>
 
-  <!-- M nested in the C's opening: thin/short on the left, tall/heavy on
-       the right. The valley notch is cut almost all the way to the
-       baseline (163 of 167) so the two strokes read as a clear M rather
-       than a solid wedge with a shallow dimple on top. -->
-  <path d="M 109 167
-           L 109 97
-           L 126 97
-           L 160 163
-           L 193 53
-           L 218 53
-           L 218 167
-           Z"
-        fill="#E2621B"/>
+  <!-- M nested in the C's opening: a single stroked zigzag centerline
+       (bottom-left, left peak, valley near the ring's inner edge, right
+       peak, straight down to the baseline) — `stroke`, not `fill`, is
+       what gives both diagonals a true consistent width rather than a
+       filled wedge. The valley sits just inside the ring's inner radius,
+       the right peak breaks outside the ring entirely. -->
+  <path d="M 98 172 L 150 95 L 183 158 L 218 58 L 218 172"
+        fill="none" stroke="#E2621B" stroke-width="26" stroke-linejoin="round" stroke-linecap="square"/>
 </svg>
