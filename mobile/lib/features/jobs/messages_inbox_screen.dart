@@ -18,11 +18,22 @@ class _Conversation {
   const _Conversation({
     required this.job,
     required this.counterparty,
+    this.counterpartySubtitle,
+    required this.counterpartyIsFeatured,
     required this.lastMessage,
   });
 
   final Job job;
   final String counterparty;
+  final String? counterpartySubtitle;
+
+  /// Whether the *other* participant in this thread is on Plus (Phase
+  /// 3c) — derived from any message they've already sent (their
+  /// sender_is_featured), so this needs no extra fetch beyond the
+  /// per-job message list already loaded to find [lastMessage]. Stays
+  /// false for a thread with no messages yet — nobody's spoken, so
+  /// there's nothing to derive it from.
+  final bool counterpartyIsFeatured;
   final ChatMessage? lastMessage;
 }
 
@@ -36,7 +47,9 @@ class MessagesInboxScreen extends StatefulWidget {
     super.key,
     required this.fetchJobs,
     required this.counterpartyLabel,
+    this.counterpartySubtitle,
     this.enrichJob,
+    this.onOpenCounterpartyProfile,
     MessageRepository? messageRepository,
     SupportMessageRepository? supportMessageRepository,
   }) : messageRepository = messageRepository ?? MessageRepository(),
@@ -45,7 +58,21 @@ class MessagesInboxScreen extends StatefulWidget {
 
   final Future<List<Job>> Function() fetchJobs;
   final String Function(Job job) counterpartyLabel;
+
+  /// A smaller second line for a thread's header once opened — the
+  /// customer side uses this for the assigned driver's name, since
+  /// messaging itself is with the company (see MessagesScreen's own
+  /// docblock for why). Null (the company side's default) shows no
+  /// subtitle at all.
+  final String? Function(Job job)? counterpartySubtitle;
   final Future<Job> Function(int jobId)? enrichJob;
+
+  /// Opens the counterparty's public profile for a given job (Phase:
+  /// public profiles) — null when this role has no counterparty id to
+  /// resolve for that job, in which case the thread header falls back to a
+  /// plain "Messages" title.
+  final VoidCallback? Function(BuildContext context, Job job)?
+  onOpenCounterpartyProfile;
   final MessageRepository messageRepository;
   final SupportMessageRepository supportMessageRepository;
 
@@ -82,9 +109,14 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
               ? job
               : await widget.enrichJob!(job.id);
           final messages = await widget.messageRepository.forJob(job.id);
+          final fromCounterparty = messages.where((m) => !m.isMine);
           return _Conversation(
             job: enriched,
             counterparty: widget.counterpartyLabel(enriched),
+            counterpartySubtitle: widget.counterpartySubtitle?.call(enriched),
+            counterpartyIsFeatured: fromCounterparty.isEmpty
+                ? false
+                : fromCounterparty.last.senderIsFeatured,
             lastMessage: messages.isEmpty ? null : messages.last,
           );
         }),
@@ -110,7 +142,16 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen> {
   Future<void> _open(_Conversation conversation) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => MessagesScreen(jobId: conversation.job.id),
+        builder: (_) => MessagesScreen(
+          jobId: conversation.job.id,
+          counterpartyName: conversation.counterparty,
+          counterpartySubtitle: conversation.counterpartySubtitle,
+          onOpenCounterpartyProfile: widget.onOpenCounterpartyProfile?.call(
+            context,
+            conversation.job,
+          ),
+          repository: widget.messageRepository,
+        ),
       ),
     );
     if (mounted) _load();
@@ -245,7 +286,9 @@ class _ConversationTile extends StatelessWidget {
         conversation.counterparty,
         style: TextStyle(
           fontWeight: isUnread ? FontWeight.w700 : FontWeight.w500,
-          color: AppColors.textPrimary,
+          color: conversation.counterpartyIsFeatured
+              ? AppColors.accent
+              : AppColors.textPrimary,
         ),
       ),
       subtitle: Text(

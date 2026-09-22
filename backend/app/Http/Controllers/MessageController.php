@@ -25,7 +25,7 @@ class MessageController extends Controller
     {
         $this->authorizeParticipant($request, $job);
 
-        $messages = $job->messages()->orderBy('created_at')->get();
+        $messages = $job->messages()->with('sender.transporterCompany')->orderBy('created_at')->get();
 
         // Opening the thread is what marks the other party's messages
         // read — never the sender's own messages, and never a separate
@@ -54,7 +54,7 @@ class MessageController extends Controller
             'body' => $request->validated('body'),
         ]);
 
-        return new MessageResource($message);
+        return new MessageResource($message->load('sender.transporterCompany'));
     }
 
     private function authorizeParticipant(Request $request, Job $job): void

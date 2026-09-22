@@ -91,6 +91,51 @@ class MessageControllerTest extends TestCase
         $this->assertNull($fromCustomer->fresh()->read_at);
     }
 
+    public function test_a_message_from_a_plus_company_owner_is_flagged_featured(): void
+    {
+        $customer = User::factory()->create();
+        $companyOwner = User::factory()->transporterCompany()->create();
+        $company = TransporterCompany::factory()->approved()->for($companyOwner, 'owner')->create(['is_featured' => true]);
+        $job = Job::factory()->create(['customer_id' => $customer->id, 'assigned_company_id' => $company->id]);
+
+        $this->actingAs($companyOwner)
+            ->postJson("/api/jobs/{$job->id}/messages", ['body' => 'On our way.'])
+            ->assertCreated()
+            ->assertJsonPath('data.sender_is_featured', true);
+
+        $this->actingAs($customer)
+            ->getJson("/api/jobs/{$job->id}/messages")
+            ->assertOk()
+            ->assertJsonPath('data.0.sender_is_featured', true);
+    }
+
+    public function test_a_message_from_a_plus_customer_is_flagged_featured(): void
+    {
+        $customer = User::factory()->create(['is_featured' => true]);
+        [$job, , $companyOwner] = $this->assignedJobWithParticipants();
+        $job->update(['customer_id' => $customer->id]);
+
+        $this->actingAs($customer)
+            ->postJson("/api/jobs/{$job->id}/messages", ['body' => 'Please hurry.'])
+            ->assertCreated()
+            ->assertJsonPath('data.sender_is_featured', true);
+
+        $this->actingAs($companyOwner)
+            ->getJson("/api/jobs/{$job->id}/messages")
+            ->assertOk()
+            ->assertJsonPath('data.0.sender_is_featured', true);
+    }
+
+    public function test_a_message_from_a_non_plus_sender_is_not_flagged_featured(): void
+    {
+        [$job, $customer] = $this->assignedJobWithParticipants();
+
+        $this->actingAs($customer)
+            ->postJson("/api/jobs/{$job->id}/messages", ['body' => 'Hello.'])
+            ->assertCreated()
+            ->assertJsonPath('data.sender_is_featured', false);
+    }
+
     public function test_a_message_body_cannot_be_empty(): void
     {
         [$job, $customer] = $this->assignedJobWithParticipants();

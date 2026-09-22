@@ -1,3 +1,4 @@
+import 'package:cargo_motives/core/theme/app_theme.dart';
 import 'package:cargo_motives/features/jobs/data/job_repository.dart';
 import 'package:cargo_motives/features/jobs/data/message_repository.dart';
 import 'package:cargo_motives/features/jobs/messages_inbox_screen.dart';
@@ -7,7 +8,12 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/fake_message_repository.dart';
 import '../../support/fake_support_message_repository.dart';
 
-Job _job(int id, {required String status, String? assignedCompanyName}) => Job(
+Job _job(
+  int id, {
+  required String status,
+  String? assignedCompanyName,
+  int? assignedCompanyId,
+}) => Job(
   id: id,
   status: status,
   pickupAddress: 'Kariakoo, Dar es Salaam',
@@ -24,6 +30,7 @@ Job _job(int id, {required String status, String? assignedCompanyName}) => Job(
   customerNotes: null,
   agreedPrice: null,
   currency: 'TZS',
+  assignedCompanyId: assignedCompanyId,
   assignedCompanyName: assignedCompanyName,
   assignedTruckRegistration: null,
   assignedDriverName: null,
@@ -32,11 +39,48 @@ Job _job(int id, {required String status, String? assignedCompanyName}) => Job(
 );
 
 void main() {
-  testWidgets('shows a conversation per non-open, non-cancelled job with its latest message', (tester) async {
+  testWidgets(
+    'shows a conversation per non-open, non-cancelled job with its latest message',
+    (tester) async {
+      final jobs = [
+        _job(1, status: 'open', assignedCompanyName: null),
+        _job(2, status: 'assigned', assignedCompanyName: 'Kilimanjaro Haulers'),
+        _job(3, status: 'cancelled', assignedCompanyName: 'Serengeti Movers'),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MessagesInboxScreen(
+            fetchJobs: () async => jobs,
+            counterpartyLabel: (job) =>
+                job.assignedCompanyName ?? 'Transporter',
+            messageRepository: FakeMessageRepository(
+              onForJob: (jobId) async => jobId == 2
+                  ? [
+                      ChatMessage(
+                        id: 1,
+                        body: 'On our way',
+                        isMine: false,
+                        readAt: null,
+                        createdAt: DateTime(2026, 9, 10, 8),
+                      ),
+                    ]
+                  : [],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kilimanjaro Haulers'), findsOneWidget);
+      expect(find.text('On our way'), findsOneWidget);
+      expect(find.text('Serengeti Movers'), findsNothing);
+    },
+  );
+
+  testWidgets('tints a Plus counterparty\'s name gold', (tester) async {
     final jobs = [
-      _job(1, status: 'open', assignedCompanyName: null),
       _job(2, status: 'assigned', assignedCompanyName: 'Kilimanjaro Haulers'),
-      _job(3, status: 'cancelled', assignedCompanyName: 'Serengeti Movers'),
     ];
 
     await tester.pumpWidget(
@@ -45,21 +89,29 @@ void main() {
           fetchJobs: () async => jobs,
           counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter',
           messageRepository: FakeMessageRepository(
-            onForJob: (jobId) async => jobId == 2
-                ? [ChatMessage(id: 1, body: 'On our way', isMine: false, readAt: null, createdAt: DateTime(2026, 9, 10, 8))]
-                : [],
+            onForJob: (_) async => [
+              ChatMessage(
+                id: 1,
+                body: 'On our way',
+                isMine: false,
+                senderIsFeatured: true,
+                readAt: null,
+                createdAt: DateTime(2026, 9, 10, 8),
+              ),
+            ],
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Kilimanjaro Haulers'), findsOneWidget);
-    expect(find.text('On our way'), findsOneWidget);
-    expect(find.text('Serengeti Movers'), findsNothing);
+    final title = tester.widget<Text>(find.text('Kilimanjaro Haulers'));
+    expect(title.style?.color, AppColors.accent);
   });
 
-  testWidgets('shows an empty state when there are no eligible conversations', (tester) async {
+  testWidgets('shows an empty state when there are no eligible conversations', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: MessagesInboxScreen(
@@ -74,28 +126,39 @@ void main() {
     expect(find.text('No conversations yet.'), findsOneWidget);
   });
 
-  testWidgets('always shows the pinned Cargo Motives Support row, even before jobs load', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MessagesInboxScreen(fetchJobs: () async => [], counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter'),
-      ),
-    );
+  testWidgets(
+    'always shows the pinned Cargo Motives Support row, even before jobs load',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MessagesInboxScreen(
+            fetchJobs: () async => [],
+            counterpartyLabel: (job) =>
+                job.assignedCompanyName ?? 'Transporter',
+          ),
+        ),
+      );
 
-    // Before the async job fetch settles, the pinned Support row should
-    // already be visible — it doesn't depend on the conversation list.
-    expect(find.text('Cargo Motives Support'), findsOneWidget);
+      // Before the async job fetch settles, the pinned Support row should
+      // already be visible — it doesn't depend on the conversation list.
+      expect(find.text('Cargo Motives Support'), findsOneWidget);
 
-    await tester.pumpAndSettle();
-    expect(find.text('Cargo Motives Support'), findsOneWidget);
-  });
+      await tester.pumpAndSettle();
+      expect(find.text('Cargo Motives Support'), findsOneWidget);
+    },
+  );
 
-  testWidgets('tapping the Support row opens the Support thread', (tester) async {
+  testWidgets('tapping the Support row opens the Support thread', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: MessagesInboxScreen(
           fetchJobs: () async => [],
           counterpartyLabel: (job) => job.assignedCompanyName ?? 'Transporter',
-          supportMessageRepository: FakeSupportMessageRepository(onList: () async => []),
+          supportMessageRepository: FakeSupportMessageRepository(
+            onList: () async => [],
+          ),
         ),
       ),
     );
@@ -106,6 +169,48 @@ void main() {
 
     expect(find.text('No messages yet. Ask us anything.'), findsOneWidget);
   });
+
+  testWidgets(
+    'tapping a conversation opens a Messages thread with a tappable counterparty header',
+    (tester) async {
+      final jobs = [
+        _job(
+          2,
+          status: 'assigned',
+          assignedCompanyName: 'Kilimanjaro Haulers',
+          assignedCompanyId: 7,
+        ),
+      ];
+      int? openedCompanyId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MessagesInboxScreen(
+            fetchJobs: () async => jobs,
+            counterpartyLabel: (job) =>
+                job.assignedCompanyName ?? 'Transporter',
+            onOpenCounterpartyProfile: (context, job) =>
+                job.assignedCompanyId == null
+                ? null
+                : () => openedCompanyId = job.assignedCompanyId,
+            messageRepository: FakeMessageRepository(onForJob: (_) async => []),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Kilimanjaro Haulers'));
+      await tester.pumpAndSettle();
+
+      // Inside MessagesScreen now — its app bar title is the same tappable name.
+      expect(find.text('Kilimanjaro Haulers'), findsOneWidget);
+
+      await tester.tap(find.text('Kilimanjaro Haulers'));
+      await tester.pumpAndSettle();
+
+      expect(openedCompanyId, 7);
+    },
+  );
 
   testWidgets('a load failure shows a retry option', (tester) async {
     await tester.pumpWidget(

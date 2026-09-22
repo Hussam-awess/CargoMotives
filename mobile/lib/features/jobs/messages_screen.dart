@@ -13,10 +13,28 @@ class MessagesScreen extends StatefulWidget {
   MessagesScreen({
     super.key,
     required this.jobId,
+    this.counterpartyName,
+    this.counterpartySubtitle,
+    this.onOpenCounterpartyProfile,
     MessageRepository? repository,
   }) : repository = repository ?? MessageRepository();
 
   final int jobId;
+
+  /// Shown as a tappable app bar title when both this and
+  /// [onOpenCounterpartyProfile] are provided (Phase: public profiles) — the
+  /// other participant in this job's thread. Falls back to a plain
+  /// "Messages" title when the caller doesn't know who that is yet.
+  final String? counterpartyName;
+
+  /// A smaller second line under [counterpartyName] — the customer side
+  /// uses this for the assigned driver's name (messaging itself is with
+  /// the company, whose owner sends/reads these; the driver has no login
+  /// or access to this thread, but a customer still wants to know who's
+  /// actually handling their shipment). Never shown without
+  /// [counterpartyName] also being present.
+  final String? counterpartySubtitle;
+  final VoidCallback? onOpenCounterpartyProfile;
   final MessageRepository repository;
 
   @override
@@ -85,8 +103,46 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final counterpartyName = widget.counterpartyName;
+    final onOpenProfile = widget.onOpenCounterpartyProfile;
+    final subtitle = widget.counterpartySubtitle;
+
+    Widget buildTitle() {
+      if (subtitle == null || subtitle.isEmpty) {
+        return Text(counterpartyName!, overflow: TextOverflow.ellipsis);
+      }
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(counterpartyName!, overflow: TextOverflow.ellipsis),
+          Text(
+            subtitle,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+          ),
+        ],
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(
+        title: counterpartyName == null
+            ? const Text('Messages')
+            : onOpenProfile == null
+            ? buildTitle()
+            : InkWell(
+                onTap: onOpenProfile,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: buildTitle()),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, size: 18),
+                  ],
+                ),
+              ),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -204,7 +260,11 @@ class _MessageBubble extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: message.isMine ? AppColors.ctaBlue : AppColors.surface,
-          border: message.isMine ? null : Border.all(color: AppColors.border),
+          border: message.senderIsFeatured
+              ? Border.all(color: AppColors.accent, width: 1.4)
+              : message.isMine
+              ? null
+              : Border.all(color: AppColors.border),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(12),
             topRight: const Radius.circular(12),
