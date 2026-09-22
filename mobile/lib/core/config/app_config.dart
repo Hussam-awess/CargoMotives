@@ -36,7 +36,8 @@ abstract final class AppConfig {
     return 'localhost';
   }
 
-  static int get reverbPort => const int.fromEnvironment('REVERB_PORT', defaultValue: 8080);
+  static int get reverbPort =>
+      const int.fromEnvironment('REVERB_PORT', defaultValue: 8080);
 
   static bool get reverbUseTls => const bool.fromEnvironment('REVERB_USE_TLS');
 
@@ -45,4 +46,16 @@ abstract final class AppConfig {
 
     return override.isNotEmpty ? override : '1lvsdpetjyj7kgmqris1';
   }
+
+  /// A Mapbox access token (`--dart-define=MAPBOX_ACCESS_TOKEN=pk.xxx`) —
+  /// unlike reverbAppKey above, this has no hardcoded default: it's each
+  /// deployment's own paid-tier credential, not a safe-to-embed public
+  /// identifier. Empty (the default) means "not configured" — every
+  /// consumer (AppMap, GeocodingService, RoutingService) treats that as a
+  /// signal to fall back to the free OSM-ecosystem services this app used
+  /// before Mapbox, rather than failing outright. That keeps every existing
+  /// dev/CI environment working unchanged; Mapbox only takes over once a
+  /// real token is actually supplied.
+  static String get mapboxAccessToken =>
+      const String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 }

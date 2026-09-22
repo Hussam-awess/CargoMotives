@@ -1,6 +1,8 @@
 import 'package:cargo_motives/core/map/app_map.dart';
 import 'package:cargo_motives/core/map/geocoding_service.dart';
 import 'package:cargo_motives/core/map/routing_service.dart';
+import 'package:cargo_motives/features/customer/addresses/saved_addresses_screen.dart'
+    show SavedAddress;
 import 'package:cargo_motives/features/jobs/route_picker_map.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -181,6 +183,161 @@ void main() {
 
       expect(find.textContaining('km ·'), findsNothing);
       expect(find.byType(AppMap), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onModeChanged fires when the Pickup/Drop-off toggle changes',
+    (tester) async {
+      final modes = <MapPinMode>[];
+
+      await tester.pumpWidget(
+        _appUnder(
+          RoutePickerMap(
+            geocodingService: _FakeGeocodingService(),
+            routingService: _FakeRoutingService(),
+            onModeChanged: modes.add,
+            onPickupChanged: (_, _) {},
+            onDropoffChanged: (_, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Drop-off'));
+      await tester.pumpAndSettle();
+
+      expect(modes, [MapPinMode.dropoff]);
+    },
+  );
+
+  testWidgets(
+    'no saved-address chips are shown when there are none to offer',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          RoutePickerMap(
+            geocodingService: _FakeGeocodingService(),
+            routingService: _FakeRoutingService(),
+            onPickupChanged: (_, _) {},
+            onDropoffChanged: (_, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ActionChip), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'tapping a saved-address chip fills the active pin from its stored coordinates',
+    (tester) async {
+      LatLng? pickup;
+      String? pickupAddress;
+
+      await tester.pumpWidget(
+        _appUnder(
+          RoutePickerMap(
+            geocodingService: _FakeGeocodingService(),
+            routingService: _FakeRoutingService(),
+            savedAddresses: const [
+              SavedAddress(
+                label: 'Warehouse',
+                address: 'Kariakoo, Dar es Salaam',
+                lat: -6.8161,
+                lng: 39.2803,
+              ),
+            ],
+            onPickupChanged: (point, address) {
+              pickup = point;
+              pickupAddress = address;
+            },
+            onDropoffChanged: (_, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Warehouse'), findsOneWidget);
+      await tester.tap(find.text('Warehouse'));
+      await tester.pumpAndSettle();
+
+      expect(pickup, const LatLng(-6.8161, 39.2803));
+      expect(pickupAddress, 'Kariakoo, Dar es Salaam');
+    },
+  );
+
+  testWidgets(
+    'a saved address without stored coordinates falls back to geocoding its text',
+    (tester) async {
+      LatLng? pickup;
+      String? pickupAddress;
+
+      await tester.pumpWidget(
+        _appUnder(
+          RoutePickerMap(
+            geocodingService: _FakeGeocodingService(
+              searchResults: const [
+                PlaceResult(
+                  point: LatLng(-6.9, 39.3),
+                  displayName: 'Mbezi Beach, Dar es Salaam',
+                ),
+              ],
+            ),
+            routingService: _FakeRoutingService(),
+            savedAddresses: const [
+              SavedAddress(
+                label: 'Home',
+                address: 'Mbezi Beach, Dar es Salaam',
+              ),
+            ],
+            onPickupChanged: (point, address) {
+              pickup = point;
+              pickupAddress = address;
+            },
+            onDropoffChanged: (_, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Home'));
+      await tester.pumpAndSettle();
+
+      expect(pickup, const LatLng(-6.9, 39.3));
+      expect(pickupAddress, 'Mbezi Beach, Dar es Salaam');
+    },
+  );
+
+  testWidgets(
+    'a saved address that fails to geocode shows an error and leaves pins unset',
+    (tester) async {
+      var pickupCalled = false;
+
+      await tester.pumpWidget(
+        _appUnder(
+          RoutePickerMap(
+            geocodingService: _FakeGeocodingService(),
+            routingService: _FakeRoutingService(),
+            savedAddresses: const [
+              SavedAddress(label: 'Ghost', address: 'Nowhere at all'),
+            ],
+            onPickupChanged: (_, _) => pickupCalled = true,
+            onDropoffChanged: (_, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ghost'));
+      await tester.pumpAndSettle();
+
+      expect(pickupCalled, isFalse);
+      expect(
+        find.text('Could not locate "Ghost" on the map.'),
+        findsOneWidget,
+      );
     },
   );
 }

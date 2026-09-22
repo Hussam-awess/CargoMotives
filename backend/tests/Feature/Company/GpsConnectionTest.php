@@ -207,6 +207,90 @@ class GpsConnectionTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_importing_can_create_a_brand_new_truck_for_an_unmatched_unit(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $connection = GpsConnection::factory()->create(['transporter_company_id' => $company->transporterCompany->id]);
+
+        $response = $this->actingAs($company)->postJson("/api/company/gps-connections/{$connection->id}/import", [
+            'matches' => [['unit_id' => 'unit-9', 'create_new' => true, 'unit_name' => 'T456EFS.JOSEFAT MGOSI']],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.registration_number', 'T456EFS')
+            ->assertJsonPath('data.0.is_gps_imported', true)
+            ->assertJsonPath('data.0.verification_status', 'approved')
+            ->assertJsonPath('data.0.gps_status', 'connected');
+
+        $this->assertDatabaseHas('trucks', [
+            'transporter_company_id' => $company->transporterCompany->id,
+            'registration_number' => 'T456EFS',
+            'is_gps_imported' => true,
+            'gps_connection_id' => $connection->id,
+            'gps_unit_id' => 'unit-9',
+        ]);
+    }
+
+    public function test_creating_a_new_truck_from_import_requires_a_unit_name(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $connection = GpsConnection::factory()->create(['transporter_company_id' => $company->transporterCompany->id]);
+
+        $this->actingAs($company)
+            ->postJson("/api/company/gps-connections/{$connection->id}/import", [
+                'matches' => [['unit_id' => 'unit-9', 'create_new' => true]],
+            ])
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('trucks', 0);
+    }
+
+    public function test_a_match_entry_needs_either_truck_id_or_create_new(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $connection = GpsConnection::factory()->create(['transporter_company_id' => $company->transporterCompany->id]);
+
+        $this->actingAs($company)
+            ->postJson("/api/company/gps-connections/{$connection->id}/import", [
+                'matches' => [['unit_id' => 'unit-9']],
+            ])
+            ->assertUnprocessable();
+    }
+
+    public function test_disconnecting_marks_the_connection_and_its_trucks_offline(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $connection = GpsConnection::factory()->create(['transporter_company_id' => $company->transporterCompany->id]);
+        $truck = Truck::factory()->approved()->create([
+            'transporter_company_id' => $company->transporterCompany->id,
+            'gps_connection_id' => $connection->id,
+            'gps_unit_id' => 'unit-1',
+            'gps_status' => 'connected',
+        ]);
+
+        $this->actingAs($company)
+            ->deleteJson("/api/company/gps-connections/{$connection->id}")
+            ->assertOk();
+
+        $this->assertSame('disconnected', $connection->fresh()->status);
+        $this->assertSame('not_connected', $truck->fresh()->gps_status);
+        // The link itself survives — reconnecting the same provider can
+        // re-link without losing which unit this truck was on.
+        $this->assertSame($connection->id, $truck->fresh()->gps_connection_id);
+    }
+
+    public function test_cannot_disconnect_another_companys_connection(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $otherConnection = GpsConnection::factory()->create();
+
+        $this->actingAs($company)
+            ->deleteJson("/api/company/gps-connections/{$otherConnection->id}")
+            ->assertNotFound();
+
+        $this->assertSame('connected', $otherConnection->fresh()->status);
+    }
+
     public function test_lists_the_companys_own_connections(): void
     {
         $company = $this->approvedCompanyUser();

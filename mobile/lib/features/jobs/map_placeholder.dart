@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/app_theme.dart';
 
@@ -68,6 +69,92 @@ class PulsingMarker extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A fleet-map position marker — a colored truck glyph (Tracksolid Pro's
+/// own fleet map uses the same convention: the truck body itself carries
+/// the status color, with a plate/driver label floating above it, not a
+/// badge circle around a generic icon). Green (`AppColors.statusLive`)
+/// means the GPS is actively reporting right now; red
+/// (`AppColors.statusError`) means it's gone quiet — see FleetMapScreen's
+/// own call site for the exact threshold. The white outline around the
+/// truck body is drawn by layering a slightly-larger all-white copy of
+/// the same glyph behind the colored one — flutter_svg's colorFilter
+/// recolors an entire asset uniformly, so a single-file stroke would tint
+/// along with the fill instead of staying white.
+class TruckFleetMarker extends StatelessWidget {
+  const TruckFleetMarker({
+    super.key,
+    this.color = AppColors.statusLive,
+    this.label,
+  });
+
+  final Color color;
+
+  /// Plate number (+ GPS-reported driver name, when known) shown in a
+  /// small pill above the truck glyph, matching Tracksolid Pro's own map
+  /// labels. Null or empty hides the pill entirely.
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (label != null && label!.trim().isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: color, width: 1),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 3,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Text(
+              label!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ),
+        SizedBox(
+          width: 28,
+          height: 28,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SvgPicture.asset(
+                'assets/icons/truck_marker.svg',
+                width: 27,
+                height: 27,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+              SvgPicture.asset(
+                'assets/icons/truck_marker.svg',
+                width: 21,
+                height: 21,
+                colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

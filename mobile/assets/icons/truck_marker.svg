@@ -1,0 +1,15 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- A box-truck side silhouette (cargo box + cab + wheels), matching
+       the Tracksolid Pro fleet map's truck marker style closely enough
+       to read as "the same kind of icon" at the small size a map marker
+       renders at. Single-color on purpose — TruckFleetMarker tints it via
+       colorFilter (green/grey) instead of baking a color into the asset. -->
+  <rect x="8" y="28" width="52" height="34" rx="3" />
+  <path d="M60 40 H82 C85 40 87 42 87 45 V62 H60 Z" />
+  <rect x="66" y="45" width="14" height="10" rx="1.5" fill="#FFFFFF" fill-opacity="0.55" />
+  <rect x="4" y="60" width="87" height="6" rx="2" />
+  <circle cx="24" cy="68" r="9" />
+  <circle cx="24" cy="68" r="3.6" fill="#FFFFFF" fill-opacity="0.65" />
+  <circle cx="74" cy="68" r="9" />
+  <circle cx="74" cy="68" r="3.6" fill="#FFFFFF" fill-opacity="0.65" />
+</svg>

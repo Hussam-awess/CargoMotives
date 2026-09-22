@@ -97,6 +97,7 @@ flutter:
     - assets/fonts/
     - assets/brand/logo_mark.svg
     - assets/brand/logo_mark_reversed.svg
+    - assets/icons/truck_marker.svg
 
   # Design-import restyle: Barlow (body) + Barlow Condensed (headings),
   # bundled as local assets rather than the `google_fonts` package's

@@ -19,7 +19,16 @@ class ImportGpsUnitsRequest extends FormRequest
         return [
             'matches' => ['required', 'array', 'min:1'],
             'matches.*.unit_id' => ['required', 'string'],
-            'matches.*.truck_id' => ['required', 'integer'],
+            // Exactly one of truck_id (match to an existing truck) or
+            // create_new (add this unit as a brand-new truck) applies per
+            // entry — enforced in the controller rather than here, since
+            // Laravel's wildcard conditional rules (required_if/
+            // required_without against a sibling `matches.*.*` field) are
+            // easy to get subtly wrong; a plain per-item check next to the
+            // creation logic itself is clearer and just as safe.
+            'matches.*.truck_id' => ['nullable', 'integer'],
+            'matches.*.create_new' => ['sometimes', 'boolean'],
+            'matches.*.unit_name' => ['nullable', 'string'],
         ];
     }
 }

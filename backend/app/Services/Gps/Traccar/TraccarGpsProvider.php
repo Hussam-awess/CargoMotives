@@ -2,6 +2,7 @@
 
 namespace App\Services\Gps\Traccar;
 
+use App\Services\Gps\DeviceNameParser;
 use App\Services\Gps\GpsProvider;
 use App\Services\Gps\GpsProviderException;
 use App\Services\Gps\GpsUnit;
@@ -15,11 +16,14 @@ use Throwable;
  * concrete class" plan (see WialonGpsProvider's docblock) calls for.
  *
  * Unlike Wialon's single RPC endpoint, Traccar exposes plain resource
- * routes and accepts a user's own long-lived API token as a `token` query
- * parameter on any of them (Settings → the user's own page → "Token", a
- * real, documented Traccar feature) — so this still fits the one-pasted-
- * string `listUnits(string $accessToken)` contract every other provider
- * here uses, with no separate login/session step needed.
+ * routes and accepts a user's own long-lived API token as a standard
+ * `Authorization: Bearer` header on any of them (Settings → the user's
+ * own page → "Token", a real, documented Traccar feature) — so this still
+ * fits the one-pasted-string `listUnits(string $accessToken)` contract
+ * every other provider here uses, with no separate login/session step
+ * needed. Confirmed against a real, locally-run Traccar 6.15.3 server: a
+ * `?token=` query parameter (this class's original assumption) gets a
+ * flat 401 on this version — only the Bearer header works.
  *
  * Two calls are combined into one GpsUnit list: `/api/devices` (id, name)
  * and `/api/positions` (the latest position per device, keyed by
@@ -43,16 +47,23 @@ class TraccarGpsProvider implements GpsProvider
 
         return collect($devices)->map(function (array $device) use ($positionsByDeviceId) {
             $position = $positionsByDeviceId->get($device['id']);
+            $name = (string) ($device['name'] ?? $device['uniqueId'] ?? $device['id']);
 
             return new GpsUnit(
                 unitId: (string) $device['id'],
-                name: (string) ($device['name'] ?? $device['uniqueId'] ?? $device['id']),
+                name: $name,
                 lat: $position['latitude'] ?? null,
                 lng: $position['longitude'] ?? null,
                 heading: $position['course'] ?? null,
                 recordedAt: isset($position['fixTime']) ? CarbonImmutable::parse($position['fixTime']) : null,
                 // Traccar reports speed in knots, not km/h — 1 knot = 1.852 km/h.
                 speedKmh: isset($position['speed']) ? (float) $position['speed'] * 1.852 : null,
+                // /api/devices carries no driver field (Traccar models
+                // drivers as a separate resource this app doesn't read), so
+                // the device name is the only place a driver can appear —
+                // same "<PLATE> <driver name>" convention as everywhere
+                // else here (see DeviceNameParser).
+                driverName: DeviceNameParser::parse($name)['driverName'],
             );
         })->all();
     }
@@ -63,7 +74,7 @@ class TraccarGpsProvider implements GpsProvider
     private function get(string $path, string $accessToken): array
     {
         try {
-            $response = Http::timeout(10)->get("{$this->baseUrl}{$path}", ['token' => $accessToken]);
+            $response = Http::timeout(10)->withToken($accessToken)->get("{$this->baseUrl}{$path}");
         } catch (Throwable $e) {
             throw new GpsProviderException("Could not reach Traccar: {$e->getMessage()}", previous: $e);
         }

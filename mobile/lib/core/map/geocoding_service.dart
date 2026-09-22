@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
+import '../config/app_config.dart';
+
 class PlaceResult {
   const PlaceResult({required this.point, required this.displayName});
 
@@ -8,13 +10,16 @@ class PlaceResult {
   final String displayName;
 }
 
-/// Nominatim (OpenStreetMap's own free geocoder) — no API key, same
-/// no-billing constraint as AppMap's tile choice. Its usage policy caps
-/// public requests at ~1/second and requires a real User-Agent identifying
-/// the app (an anonymous/browser-default one gets silently blocked, not
-/// just rate-limited) — search is only ever triggered by an explicit user
-/// action (submitting the search field), never on every keystroke, so
-/// this app can't realistically exceed that on its own.
+/// Mapbox's Geocoding API once `AppConfig.mapboxAccessToken` is
+/// configured, falling back to Nominatim (OpenStreetMap's own free
+/// geocoder, no key needed) otherwise — see AppMap's docblock for why
+/// Mapbox is the preferred choice and why the fallback exists at all.
+/// Nominatim's usage policy caps public requests at ~1/second and requires
+/// a real User-Agent identifying the app (an anonymous/browser-default one
+/// gets silently blocked, not just rate-limited); search is only ever
+/// triggered by an explicit user action (submitting the search field),
+/// never on every keystroke, so this app can't realistically exceed that
+/// on its own even while running on the fallback path.
 ///
 /// Best-effort like every other external integration in this app (SMS,
 /// push, Selcom): a failed or empty lookup returns an empty list/null
@@ -39,7 +44,33 @@ class GeocodingService {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
 
+    final token = AppConfig.mapboxAccessToken;
     try {
+      if (token.isNotEmpty) {
+        final response = await _dio.get(
+          'https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(trimmed)}.json',
+          // country=tz: this app only ever operates in Tanzania (see
+          // phone_input.dart's Tanzania-only validation) — without it,
+          // Mapbox's global index matches generic English place-name
+          // fragments worldwide (e.g. "Mbezi Beach" returning "Beachwood
+          // Canyon, Los Angeles") instead of the local place meant.
+          queryParameters: {'access_token': token, 'limit': 5, 'country': 'tz'},
+        );
+
+        final features = response.data['features'] as List;
+        return features
+            .map(
+              (f) => PlaceResult(
+                point: LatLng(
+                  (f['center'] as List)[1] as double,
+                  (f['center'] as List)[0] as double,
+                ),
+                displayName: f['place_name'] as String,
+              ),
+            )
+            .toList();
+      }
+
       final response = await _dio.get(
         'https://nominatim.openstreetmap.org/search',
         queryParameters: {'q': trimmed, 'format': 'jsonv2', 'limit': 5},
@@ -66,7 +97,20 @@ class GeocodingService {
   /// tap-to-drop-a-pin still fills the address field for a user who never
   /// typed anything.
   Future<String?> reverse(LatLng point) async {
+    final token = AppConfig.mapboxAccessToken;
     try {
+      if (token.isNotEmpty) {
+        final response = await _dio.get(
+          'https://api.mapbox.com/geocoding/v5/mapbox.places/${point.longitude},${point.latitude}.json',
+          queryParameters: {'access_token': token, 'country': 'tz'},
+        );
+
+        final features = response.data['features'] as List;
+        return features.isEmpty
+            ? null
+            : features.first['place_name'] as String?;
+      }
+
       final response = await _dio.get(
         'https://nominatim.openstreetmap.org/reverse',
         queryParameters: {

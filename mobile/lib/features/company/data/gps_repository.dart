@@ -16,8 +16,12 @@ class GpsConnectionSummary {
       id: json['id'] as int,
       provider: json['provider'] as String,
       status: json['status'] as String,
-      connectedAt: json['connected_at'] == null ? null : DateTime.parse(json['connected_at'] as String),
-      lastSyncedAt: json['last_synced_at'] == null ? null : DateTime.parse(json['last_synced_at'] as String),
+      connectedAt: json['connected_at'] == null
+          ? null
+          : DateTime.parse(json['connected_at'] as String),
+      lastSyncedAt: json['last_synced_at'] == null
+          ? null
+          : DateTime.parse(json['last_synced_at'] as String),
     );
   }
 
@@ -32,7 +36,12 @@ class GpsConnectionSummary {
 /// not yet linked to anything; the company confirms/overrides
 /// [suggestedTruckId] before import() actually links it.
 class GpsUnitCandidate {
-  const GpsUnitCandidate({required this.unitId, required this.name, required this.hasPosition, required this.suggestedTruckId});
+  const GpsUnitCandidate({
+    required this.unitId,
+    required this.name,
+    required this.hasPosition,
+    required this.suggestedTruckId,
+  });
 
   factory GpsUnitCandidate.fromJson(Map<String, dynamic> json) {
     return GpsUnitCandidate(
@@ -60,29 +69,75 @@ class GpsRepository {
   Future<List<GpsConnectionSummary>> list() async {
     final body = await _client.get('/company/gps-connections');
 
-    return (body['data'] as List).map((e) => GpsConnectionSummary.fromJson(e as Map<String, dynamic>)).toList();
+    return (body['data'] as List)
+        .map((e) => GpsConnectionSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<({GpsConnectionSummary connection, List<GpsUnitCandidate> units})> connect({
-    required String provider,
-    required String accessToken,
-  }) async {
-    final body = await _client.post('/company/gps-connections', data: {'provider': provider, 'access_token': accessToken});
+  Future<({GpsConnectionSummary connection, List<GpsUnitCandidate> units})>
+  connect({required String provider, required String accessToken}) async {
+    final body = await _client.post(
+      '/company/gps-connections',
+      data: {'provider': provider, 'access_token': accessToken},
+    );
 
     return (
-      connection: GpsConnectionSummary.fromJson(body['connection'] as Map<String, dynamic>),
-      units: (body['units'] as List).map((e) => GpsUnitCandidate.fromJson(e as Map<String, dynamic>)).toList(),
+      connection: GpsConnectionSummary.fromJson(
+        body['connection'] as Map<String, dynamic>,
+      ),
+      units: (body['units'] as List)
+          .map((e) => GpsUnitCandidate.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
-  Future<List<Truck>> import({required int connectionId, required Map<String, int> unitIdToTruckId}) async {
+  Future<List<Truck>> import({
+    required int connectionId,
+    required List<GpsUnitMatch> matches,
+  }) async {
     final body = await _client.post(
       '/company/gps-connections/$connectionId/import',
       data: {
-        'matches': unitIdToTruckId.entries.map((e) => {'unit_id': e.key, 'truck_id': e.value}).toList(),
+        'matches': matches
+            .map(
+              (m) => {
+                'unit_id': m.unitId,
+                if (m.createNew) 'create_new': true,
+                if (m.createNew) 'unit_name': m.unitName,
+                if (!m.createNew) 'truck_id': m.truckId,
+              },
+            )
+            .toList(),
       },
     );
 
-    return (body['data'] as List).map((e) => Truck.fromJson(e as Map<String, dynamic>)).toList();
+    return (body['data'] as List)
+        .map((e) => Truck.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
+
+  /// Fleet screen's Connect/Disconnect toggle — every truck linked to this
+  /// connection drops back to "GPS off"; the connection stays around
+  /// (marked disconnected) so it still shows up for reconnecting.
+  Future<void> disconnect(int connectionId) =>
+      _client.delete('/company/gps-connections/$connectionId');
+}
+
+/// One confirmed action for a unit returned by connect() — either link it
+/// to an existing [truckId], or [createNew] a bare truck for it (needs
+/// [unitName] so the server can parse a plate without a second provider
+/// round-trip).
+class GpsUnitMatch {
+  const GpsUnitMatch.existing({required this.unitId, required this.truckId})
+    : createNew = false,
+      unitName = null;
+
+  const GpsUnitMatch.createNew({required this.unitId, required this.unitName})
+    : createNew = true,
+      truckId = null;
+
+  final String unitId;
+  final int? truckId;
+  final bool createNew;
+  final String? unitName;
 }

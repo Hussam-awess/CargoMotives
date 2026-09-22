@@ -2,6 +2,7 @@
 
 namespace App\Services\Gps\Wialon;
 
+use App\Services\Gps\DeviceNameParser;
 use App\Services\Gps\GpsProvider;
 use App\Services\Gps\GpsProviderException;
 use App\Services\Gps\GpsUnit;
@@ -79,10 +80,11 @@ class WialonGpsProvider implements GpsProvider
 
         return collect($response['items'] ?? [])->map(function (array $item) {
             $pos = $item['pos'] ?? null;
+            $name = (string) ($item['nm'] ?? $item['id']);
 
             return new GpsUnit(
                 unitId: (string) $item['id'],
-                name: (string) ($item['nm'] ?? $item['id']),
+                name: $name,
                 lat: $pos['y'] ?? null,
                 lng: $pos['x'] ?? null,
                 heading: $pos['c'] ?? null,
@@ -90,6 +92,11 @@ class WialonGpsProvider implements GpsProvider
                 // Wialon's own 'pos.s' is already km/h, unlike Traccar's
                 // knots — no unit conversion needed here.
                 speedKmh: isset($pos['s']) ? (float) $pos['s'] : null,
+                // Wialon's unit list carries no driver field of its own, so
+                // the unit name is the only place a driver can appear — the
+                // same "<PLATE> <driver name>" convention real fleets type
+                // into Tracksolid's device names (see DeviceNameParser).
+                driverName: DeviceNameParser::parse($name)['driverName'],
             );
         })->all();
     }

@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
+import '../config/app_config.dart';
+
 class RouteResult {
   const RouteResult({
     required this.points,
@@ -15,13 +17,16 @@ class RouteResult {
   final double durationMinutes;
 }
 
-/// OSRM's public demo server — free, no API key, matching this app's
-/// no-billing constraint throughout (AppMap's tiles, GeocodingService's
-/// search). Explicitly a demo/fair-use service per OSRM's own project
-/// docs, not a production SLA: fine for this app's real-world traffic
-/// today, but a genuine future scale-up should move to a paid host or a
-/// self-hosted OSRM instance — same category of caveat already accepted
-/// for the tile server, not a new one.
+/// Mapbox's Directions API once `AppConfig.mapboxAccessToken` is
+/// configured, falling back to OSRM's public demo server otherwise — see
+/// AppMap's docblock for why Mapbox is preferred and why the fallback
+/// exists. OSRM's demo server is explicitly a demo/fair-use service per
+/// its own project docs, not a production SLA — fine as a no-token
+/// fallback, not something to lean on for real traffic.
+///
+/// Both share the same response shape (a GeoJSON route geometry plus
+/// distance/duration), so this stays a single method rather than two
+/// parallel code paths with duplicated parsing.
 ///
 /// Best-effort: a failed route request degrades to no drawn route rather
 /// than blocking job posting — the straight-line haversine distance
@@ -33,12 +38,23 @@ class RoutingService {
   final Dio _dio;
 
   Future<RouteResult?> route(LatLng from, LatLng to) async {
+    final token = AppConfig.mapboxAccessToken;
     try {
-      final response = await _dio.get(
-        'https://router.project-osrm.org/route/v1/driving/'
-        '${from.longitude},${from.latitude};${to.longitude},${to.latitude}',
-        queryParameters: {'overview': 'full', 'geometries': 'geojson'},
-      );
+      final response = token.isNotEmpty
+          ? await _dio.get(
+              'https://api.mapbox.com/directions/v5/mapbox/driving/'
+              '${from.longitude},${from.latitude};${to.longitude},${to.latitude}',
+              queryParameters: {
+                'overview': 'full',
+                'geometries': 'geojson',
+                'access_token': token,
+              },
+            )
+          : await _dio.get(
+              'https://router.project-osrm.org/route/v1/driving/'
+              '${from.longitude},${from.latitude};${to.longitude},${to.latitude}',
+              queryParameters: {'overview': 'full', 'geometries': 'geojson'},
+            );
 
       final routes = response.data['routes'] as List;
       if (routes.isEmpty) return null;

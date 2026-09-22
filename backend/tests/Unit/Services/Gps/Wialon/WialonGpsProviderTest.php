@@ -57,6 +57,35 @@ class WialonGpsProviderTest extends TestCase
         $this->assertFalse($units[1]->hasPosition());
     }
 
+    /**
+     * Wialon's unit list has no driver field of its own, so a driver typed
+     * into the unit name is the only one there is — same convention every
+     * provider here now reads (see DeviceNameParser).
+     */
+    public function test_reads_a_driver_name_out_of_the_unit_name(): void
+    {
+        Http::fake(function (Request $request) {
+            return match ($this->svcOf($request)) {
+                'token/login' => Http::response(['eid' => 'session-123']),
+                'core/search_items' => Http::response([
+                    'items' => [
+                        ['id' => 1001, 'nm' => 'T579EKP MWINYI'],
+                        // A plate written with spaces — its own tail must
+                        // never come back as a driver's name.
+                        ['id' => 1002, 'nm' => 'T 456 XYZ'],
+                    ],
+                ]),
+                'core/logout' => Http::response(['error' => 0]),
+                default => Http::response([], 404),
+            };
+        });
+
+        $units = (new WialonGpsProvider('https://hst-api.wialon.com'))->listUnits('a-real-token');
+
+        $this->assertSame('MWINYI', $units[0]->driverName);
+        $this->assertNull($units[1]->driverName);
+    }
+
     public function test_an_invalid_token_throws_a_clear_exception(): void
     {
         Http::fake(fn (Request $request) => Http::response(['error' => 8]));

@@ -12,12 +12,52 @@ use Tests\TestCase;
 /**
  * Exercises TraccarGpsProvider against faked HTTP responses shaped like
  * Traccar's real REST API (plain /api/devices + /api/positions resource
- * routes, a `token` query param) — there's no real Traccar server to test
- * against here, same graceful-degradation-for-missing-credentials pattern
- * as WialonGpsProviderTest.
+ * routes, an `Authorization: Bearer` token) — same graceful-degradation-
+ * for-missing-credentials pattern as WialonGpsProviderTest.
  */
 class TraccarGpsProviderTest extends TestCase
 {
+    public function test_sends_the_token_as_a_bearer_header_not_a_query_param(): void
+    {
+        // Confirmed against a real, locally-run Traccar 6.15.3 server: a
+        // `?token=` query param (this class's original assumption) gets a
+        // flat 401 on that version — only the Bearer header works.
+        Http::fake(fn () => Http::response([]));
+
+        (new TraccarGpsProvider('https://traccar.example.com'))->listUnits('a-real-token');
+
+        Http::assertSent(function (Request $request) {
+            return $request->hasHeader('Authorization', 'Bearer a-real-token')
+                && ! str_contains($request->url(), 'token=');
+        });
+    }
+
+    /**
+     * Traccar models drivers as a separate resource this app doesn't read,
+     * so a driver typed into the device name is the only one available —
+     * same convention every provider here now reads (see DeviceNameParser).
+     */
+    public function test_reads_a_driver_name_out_of_the_device_name(): void
+    {
+        Http::fake(function (Request $request) {
+            return match (true) {
+                str_contains($request->url(), '/api/devices') => Http::response([
+                    ['id' => 1, 'name' => 'T579EKP MWINYI', 'uniqueId' => 'imei-1'],
+                    // A plate written with spaces — its own tail must never
+                    // come back as a driver's name.
+                    ['id' => 2, 'name' => 'T 456 XYZ', 'uniqueId' => 'imei-2'],
+                ]),
+                str_contains($request->url(), '/api/positions') => Http::response([]),
+                default => Http::response([], 404),
+            };
+        });
+
+        $units = (new TraccarGpsProvider('https://traccar.example.com'))->listUnits('a-real-token');
+
+        $this->assertSame('MWINYI', $units[0]->driverName);
+        $this->assertNull($units[1]->driverName);
+    }
+
     public function test_lists_units_by_combining_devices_and_positions(): void
     {
         Http::fake(function (Request $request) {

@@ -21,6 +21,10 @@ final readonly class GpsUnit
         public ?float $heading,
         public ?CarbonImmutable $recordedAt,
         public ?float $speedKmh = null,
+        // Only Tracksolid Pro reports this today (tied to how the SIM/
+        // hardware was registered on their side, not a real assignment in
+        // our own `drivers` table) — null for every other provider.
+        public ?string $driverName = null,
     ) {}
 
     public function hasPosition(): bool

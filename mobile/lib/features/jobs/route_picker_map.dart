@@ -6,8 +6,9 @@ import '../../core/map/app_map.dart';
 import '../../core/map/geocoding_service.dart';
 import '../../core/map/routing_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../customer/addresses/saved_addresses_screen.dart' show SavedAddress;
 
-enum _PinMode { pickup, dropoff }
+enum MapPinMode { pickup, dropoff }
 
 /// One combined map for both pickup and drop-off (replacing the earlier
 /// two-separate-maps layout) — a search bar to find a place by name
@@ -15,10 +16,13 @@ enum _PinMode { pickup, dropoff }
 /// toggle deciding which pin the next tap or search result moves, and —
 /// once both pins are set — a real road-following route drawn between
 /// them via RoutingService, with its distance/duration shown the way
-/// Bolt/Uber-style apps do. Falls back gracefully at every external call:
-/// a failed search shows "No results", a failed route just leaves no
-/// line drawn (the straight-line haversine distance the caller already
-/// computes from the coordinates is always available regardless).
+/// Bolt/Uber-style apps do. A customer's saved-address book, when the
+/// caller has one to offer, appears as quick-fill chips alongside the
+/// toggle — tapping one moves the active pin straight there. Falls back
+/// gracefully at every external call: a failed search shows "No results",
+/// a failed route just leaves no line drawn (the straight-line haversine
+/// distance the caller already computes from the coordinates is always
+/// available regardless).
 class RoutePickerMap extends StatefulWidget {
   const RoutePickerMap({
     super.key,
@@ -27,6 +31,8 @@ class RoutePickerMap extends StatefulWidget {
     required this.onPickupChanged,
     required this.onDropoffChanged,
     this.onRouteDistanceChanged,
+    this.onModeChanged,
+    this.savedAddresses = const [],
     this.geocodingService,
     this.routingService,
   });
@@ -41,6 +47,18 @@ class RoutePickerMap extends StatefulWidget {
   /// this over its own straight-line estimate without showing two
   /// different numbers for the same trip.
   final void Function(double? km)? onRouteDistanceChanged;
+
+  /// Fires whenever the active Pickup/Drop-off toggle changes (a manual
+  /// tap, or the auto-advance to Drop-off after the first pin) — lets a
+  /// caller offer its own "save this point" action that knows which of
+  /// the two pins is currently active, without duplicating the toggle.
+  final void Function(MapPinMode mode)? onModeChanged;
+
+  /// A customer's saved address book, offered here as quick-fill chips —
+  /// tapping one moves the active pin straight to that address instead of
+  /// a fresh search. Empty by default so this stays a plain map picker
+  /// wherever a caller has none to offer.
+  final List<SavedAddress> savedAddresses;
   final GeocodingService? geocodingService;
   final RoutingService? routingService;
 
@@ -56,7 +74,7 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
 
   late LatLng? _pickup = widget.initialPickup;
   late LatLng? _dropoff = widget.initialDropoff;
-  _PinMode _mode = _PinMode.pickup;
+  MapPinMode _mode = MapPinMode.pickup;
 
   List<PlaceResult> _searchResults = [];
   bool _searching = false;
@@ -96,9 +114,39 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
     });
   }
 
+  void _setMode(MapPinMode mode) {
+    setState(() => _mode = mode);
+    widget.onModeChanged?.call(mode);
+  }
+
+  /// Applies an already-known point+address to whichever pin is active —
+  /// shared by search-result selection and saved-address selection, both
+  /// of which resolve a point synchronously rather than dropping a pin
+  /// first and filling its address in later (see [_setPin] for that case).
+  void _placePin(LatLng point, String? address) {
+    setState(() {
+      if (_mode == MapPinMode.pickup) {
+        _pickup = point;
+      } else {
+        _dropoff = point;
+      }
+      _setRoute(null);
+    });
+    if (_mode == MapPinMode.pickup) {
+      widget.onPickupChanged(point, address);
+      // Auto-advance to drop-off the first time only — once both pins
+      // exist, the toggle is the only way to switch modes, so re-selecting
+      // to adjust pickup doesn't unexpectedly jump to drop-off.
+      if (_dropoff == null) _setMode(MapPinMode.dropoff);
+    } else {
+      widget.onDropoffChanged(point, address);
+    }
+    if (_pickup != null && _dropoff != null) _fetchRoute();
+  }
+
   Future<void> _setPin(LatLng point) async {
     setState(() {
-      if (_mode == _PinMode.pickup) {
+      if (_mode == MapPinMode.pickup) {
         _pickup = point;
       } else {
         _dropoff = point;
@@ -111,12 +159,9 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
     final address = await _geocoding.reverse(point);
     if (!mounted) return;
 
-    if (_mode == _PinMode.pickup) {
+    if (_mode == MapPinMode.pickup) {
       widget.onPickupChanged(point, address);
-      // Auto-advance to drop-off the first time only — once both pins
-      // exist, the toggle is the only way to switch modes, so re-tapping
-      // to adjust pickup doesn't unexpectedly jump to drop-off.
-      if (_dropoff == null) setState(() => _mode = _PinMode.dropoff);
+      if (_dropoff == null) _setMode(MapPinMode.dropoff);
     } else {
       widget.onDropoffChanged(point, address);
     }
@@ -147,22 +192,33 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
       _searchController.clear();
     });
     FocusScope.of(context).unfocus();
+    _placePin(result.point, result.displayName);
+  }
 
-    setState(() {
-      if (_mode == _PinMode.pickup) {
-        _pickup = result.point;
-      } else {
-        _dropoff = result.point;
+  /// A saved address usually already carries its own coordinates (one
+  /// picked from this very map previously); an older entry saved before
+  /// that existed falls back to a fresh geocode of its address text, same
+  /// as typing it into the search box above.
+  Future<void> _selectSavedAddress(SavedAddress saved) async {
+    var point = (saved.lat != null && saved.lng != null)
+        ? LatLng(saved.lat!, saved.lng!)
+        : null;
+    if (point == null) {
+      final results = await _geocoding.search(saved.address);
+      if (!mounted) return;
+      if (results.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not locate "${saved.label}" on the map.'),
+          ),
+        );
+        return;
       }
-      _setRoute(null);
-    });
-    if (_mode == _PinMode.pickup) {
-      widget.onPickupChanged(result.point, result.displayName);
-      if (_dropoff == null) setState(() => _mode = _PinMode.dropoff);
-    } else {
-      widget.onDropoffChanged(result.point, result.displayName);
+      point = results.first.point;
     }
-    if (_pickup != null && _dropoff != null) _fetchRoute();
+    if (!mounted) return;
+    _mapController.move(point, 15);
+    _placePin(point, saved.address);
   }
 
   @override
@@ -239,30 +295,48 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
             ),
           ),
         const SizedBox(height: 10),
-        SegmentedButton<_PinMode>(
+        SegmentedButton<MapPinMode>(
           segments: [
             ButtonSegment(
-              value: _PinMode.pickup,
+              value: MapPinMode.pickup,
               label: const Text('Pickup'),
               icon: Icon(Icons.circle, size: 12, color: AppColors.statusLive),
             ),
             ButtonSegment(
-              value: _PinMode.dropoff,
+              value: MapPinMode.dropoff,
               label: const Text('Drop-off'),
               icon: Icon(Icons.circle, size: 12, color: AppColors.statusError),
             ),
           ],
           selected: {_mode},
-          onSelectionChanged: (selection) =>
-              setState(() => _mode = selection.first),
+          onSelectionChanged: (selection) => _setMode(selection.first),
         ),
         const SizedBox(height: 8),
         Text(
-          _mode == _PinMode.pickup
+          _mode == MapPinMode.pickup
               ? 'Tap the map (or search above) to set the pickup point.'
               : 'Tap the map (or search above) to set the drop-off point.',
           style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
         ),
+        if (widget.savedAddresses.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: widget.savedAddresses.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final saved = widget.savedAddresses[index];
+                return ActionChip(
+                  avatar: const Icon(Icons.bookmark_outline, size: 16),
+                  label: Text(saved.label),
+                  onPressed: () => _selectSavedAddress(saved),
+                );
+              },
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(10),

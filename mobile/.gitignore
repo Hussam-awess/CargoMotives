@@ -47,3 +47,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local API tokens for --dart-define-from-file (e.g. MAPBOX_ACCESS_TOKEN) —
+# a per-developer/deployment credential, never committed even though this
+# particular one is a Mapbox public token (see AppConfig.mapboxAccessToken's
+# own docblock on why that's safe to ship client-side; keeping it out of git
+# is still about not baking one account's quota into everyone's checkout).
+dart_defines.json
