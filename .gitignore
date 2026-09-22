@@ -17,6 +17,12 @@ Thumbs.db
 # script that starts it (start-redis.ps1) IS tracked.
 /.local-services/redis/
 
+# Same story for the portable JDK, ngrok, and Traccar server used for local
+# GPS-provider testing — downloaded binaries, not authored here.
+/.local-services/jdk21/
+/.local-services/ngrok/
+/.local-services/traccar/
+
 # Redis's own snapshot file — written to whatever the server's working
 # directory happened to be when it last saved (the repo root, if started
 # from here), not something to commit.
