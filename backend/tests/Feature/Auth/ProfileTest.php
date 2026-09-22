@@ -51,6 +51,30 @@ class ProfileTest extends TestCase
             ->assertJsonValidationErrors('language_preference');
     }
 
+    public function test_either_account_type_can_change_their_preferred_currency(): void
+    {
+        $customer = User::factory()->create(['preferred_currency' => 'TZS']);
+        $company = User::factory()->transporterCompany()->create(['preferred_currency' => 'TZS']);
+
+        $this->actingAs($customer)->postJson('/api/auth/profile/currency', ['preferred_currency' => 'USD'])
+            ->assertOk()->assertJsonPath('data.preferred_currency', 'USD');
+        $this->actingAs($company)->postJson('/api/auth/profile/currency', ['preferred_currency' => 'USD'])
+            ->assertOk()->assertJsonPath('data.preferred_currency', 'USD');
+
+        $this->assertSame('USD', $customer->fresh()->preferred_currency);
+        $this->assertSame('USD', $company->fresh()->preferred_currency);
+    }
+
+    public function test_preferred_currency_must_be_a_supported_currency(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/currency', ['preferred_currency' => 'EUR'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('preferred_currency');
+    }
+
     public function test_me_endpoint_returns_the_authenticated_user(): void
     {
         $user = User::factory()->create();

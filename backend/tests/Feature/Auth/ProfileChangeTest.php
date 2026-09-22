@@ -45,9 +45,11 @@ class ProfileChangeTest extends TestCase
     public function test_requesting_an_email_change_sends_a_code_and_does_not_change_the_email_yet(): void
     {
         Mail::fake();
-        $user = User::factory()->create(['email' => 'old@example.com']);
+        $user = User::factory()->withPassword('password123')->create(['email' => 'old@example.com']);
 
-        $this->actingAs($user)->postJson('/api/auth/profile/email/request-change', ['new_email' => 'new@example.com'])->assertOk();
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/email/request-change', ['new_email' => 'new@example.com', 'current_password' => 'password123'])
+            ->assertOk();
 
         $this->assertSame('old@example.com', $user->fresh()->email);
         Mail::assertSent(CustomerOtpMail::class);
@@ -56,11 +58,24 @@ class ProfileChangeTest extends TestCase
     public function test_requesting_an_email_change_to_an_address_already_in_use_is_rejected(): void
     {
         User::factory()->create(['email' => 'taken@example.com']);
-        $user = User::factory()->create(['email' => 'mine@example.com']);
+        $user = User::factory()->withPassword('password123')->create(['email' => 'mine@example.com']);
 
         $this->actingAs($user)
-            ->postJson('/api/auth/profile/email/request-change', ['new_email' => 'taken@example.com'])
+            ->postJson('/api/auth/profile/email/request-change', ['new_email' => 'taken@example.com', 'current_password' => 'password123'])
             ->assertUnprocessable();
+    }
+
+    public function test_requesting_an_email_change_with_the_wrong_current_password_is_rejected(): void
+    {
+        Mail::fake();
+        $user = User::factory()->withPassword('password123')->create(['email' => 'old@example.com']);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/email/request-change', ['new_email' => 'new@example.com', 'current_password' => 'wrong-password'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('current_password');
+
+        Mail::assertNotSent(CustomerOtpMail::class);
     }
 
     public function test_confirming_an_email_change_with_the_right_code_applies_it(): void
@@ -100,9 +115,11 @@ class ProfileChangeTest extends TestCase
 
     public function test_requesting_a_phone_change_sends_a_code_and_does_not_change_the_phone_yet(): void
     {
-        $user = User::factory()->create(['phone_number' => '+255700111000']);
+        $user = User::factory()->withPassword('password123')->create(['phone_number' => '+255700111000']);
 
-        $this->actingAs($user)->postJson('/api/auth/profile/phone/request-change', ['new_phone' => '0712345678'])->assertOk();
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/phone/request-change', ['new_phone' => '0712345678', 'current_password' => 'password123'])
+            ->assertOk();
 
         $this->assertSame('+255700111000', $user->fresh()->phone_number);
     }
@@ -110,11 +127,23 @@ class ProfileChangeTest extends TestCase
     public function test_requesting_a_phone_change_to_a_number_already_in_use_is_rejected(): void
     {
         User::factory()->create(['phone_number' => '+255712345678']);
-        $user = User::factory()->create(['phone_number' => '+255700111000']);
+        $user = User::factory()->withPassword('password123')->create(['phone_number' => '+255700111000']);
 
         $this->actingAs($user)
-            ->postJson('/api/auth/profile/phone/request-change', ['new_phone' => '0712345678'])
+            ->postJson('/api/auth/profile/phone/request-change', ['new_phone' => '0712345678', 'current_password' => 'password123'])
             ->assertUnprocessable();
+    }
+
+    public function test_requesting_a_phone_change_with_the_wrong_current_password_is_rejected(): void
+    {
+        $user = User::factory()->withPassword('password123')->create(['phone_number' => '+255700111000']);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/phone/request-change', ['new_phone' => '0712345678', 'current_password' => 'wrong-password'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('current_password');
+
+        $this->assertSame('+255700111000', $user->fresh()->phone_number);
     }
 
     public function test_confirming_a_phone_change_with_the_right_code_applies_the_normalized_number(): void
