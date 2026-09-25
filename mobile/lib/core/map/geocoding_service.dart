@@ -40,7 +40,16 @@ class GeocodingService {
 
   final Dio _dio;
 
-  Future<List<PlaceResult>> search(String query) async {
+  /// [near] biases ranking toward whatever the map is currently centered
+  /// on (proximity, not a hard filter) — without it, an ambiguous local
+  /// name that exists in several regions (a common pattern for
+  /// neighborhood/street names) tends to surface the wrong one first.
+  /// No `types` filter is passed to Mapbox deliberately: leaving it unset
+  /// searches every index it has (address, street, neighborhood, place/
+  /// town, and POI/landmark) instead of narrowing to just one of them, so
+  /// a search for a street name, a town, or a well-known building/landmark
+  /// all go through the same call.
+  Future<List<PlaceResult>> search(String query, {LatLng? near}) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
 
@@ -49,12 +58,17 @@ class GeocodingService {
       if (token.isNotEmpty) {
         final response = await _dio.get(
           'https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(trimmed)}.json',
-          // country=tz: this app only ever operates in Tanzania (see
-          // phone_input.dart's Tanzania-only validation) — without it,
-          // Mapbox's global index matches generic English place-name
-          // fragments worldwide (e.g. "Mbezi Beach" returning "Beachwood
-          // Canyon, Los Angeles") instead of the local place meant.
-          queryParameters: {'access_token': token, 'limit': 5, 'country': 'tz'},
+          queryParameters: {
+            'access_token': token,
+            'limit': 8,
+            // country=tz: this app only ever operates in Tanzania (see
+            // phone_input.dart's Tanzania-only validation) — without it,
+            // Mapbox's global index matches generic English place-name
+            // fragments worldwide (e.g. "Mbezi Beach" returning "Beachwood
+            // Canyon, Los Angeles") instead of the local place meant.
+            'country': 'tz',
+            if (near != null) 'proximity': '${near.longitude},${near.latitude}',
+          },
         );
 
         final features = response.data['features'] as List;
@@ -73,7 +87,16 @@ class GeocodingService {
 
       final response = await _dio.get(
         'https://nominatim.openstreetmap.org/search',
-        queryParameters: {'q': trimmed, 'format': 'jsonv2', 'limit': 5},
+        queryParameters: {
+          'q': trimmed,
+          'format': 'jsonv2',
+          'limit': 8,
+          'addressdetails': 1,
+          // Same reasoning as Mapbox's country=tz above — Nominatim has no
+          // such restriction by default and can otherwise return a
+          // same-named place well outside Tanzania.
+          'countrycodes': 'tz',
+        },
       );
 
       final results = response.data as List;

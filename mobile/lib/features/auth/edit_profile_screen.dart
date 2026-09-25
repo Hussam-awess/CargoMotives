@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/validation/phone_input.dart';
+import '../../shared/widgets/plus_badge.dart';
 import 'data/auth_repository.dart';
 
 enum ProfileCredential { email, phone }
@@ -279,6 +280,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(child: _buildAvatar()),
+            if (widget.profile.isFeatured) ...[
+              const SizedBox(height: 10),
+              const Center(child: PlusBadge()),
+            ],
             const SizedBox(height: 28),
             const Divider(),
             const SizedBox(height: 20),

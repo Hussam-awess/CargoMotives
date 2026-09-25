@@ -162,9 +162,8 @@ class TruckRepository {
         .toList();
   }
 
-  /// The Featured "fleet map" (AppFlow §2.7) — Featured-only server-side;
-  /// a non-Featured company gets a 403 (ApiException), which the screen
-  /// shows as a friendly upgrade prompt rather than a generic error.
+  /// The fleet map (AppFlow §2.7) — every transporter's own GPS-connected
+  /// trucks, not a Plus-only feature.
   Future<List<Truck>> map() async {
     final body = await _client.get('/company/fleet/map');
 

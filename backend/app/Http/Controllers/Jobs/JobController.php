@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Jobs\PostJobRequest;
 use App\Http\Resources\DisputeResource;
 use App\Http\Resources\JobResource;
+use App\Models\Bid;
 use App\Models\Dispute;
 use App\Models\Job;
 use App\Models\Truck;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\Services\Documents\DocumentStorage;
 use App\Services\Geo\GeoPoint;
 use App\Services\Jobs\JobPostQuotaService;
+use App\Services\Notifications\NotificationService;
 use App\Services\Quota\QuotaExceededException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,6 +33,7 @@ class JobController extends Controller
     public function __construct(
         private readonly JobPostQuotaService $postQuota,
         private readonly DocumentStorage $documents,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -107,9 +110,58 @@ class JobController extends Controller
         $this->authorizeCustomerOwnership($request, $job);
         $this->assertEditable($job);
 
+        // Captured before save() overwrites the PostGIS columns — the only
+        // way to tell whether the pin actually moved (route model binding
+        // doesn't load pickup_lat/lng; only Job::withCoordinates() does).
+        $previous = Job::withCoordinates()->findOrFail($job->id);
         $updated = $this->save($request, $request->user()->id, $job);
 
+        if ($this->locationChanged($previous, $request->validated())) {
+            $this->withdrawPendingBids($updated);
+        }
+
         return new JobResource(Job::withCoordinates()->findOrFail($updated->id));
+    }
+
+    /**
+     * Rounded to 5 decimal places (~1.1m) rather than compared exactly —
+     * a value that round-trips through PostGIS storage and back can pick up
+     * float noise even when the customer didn't actually move the pin.
+     */
+    private function locationChanged(Job $previous, array $validated): bool
+    {
+        return round((float) $previous->pickup_lat, 5) !== round((float) $validated['pickup_lat'], 5)
+            || round((float) $previous->pickup_lng, 5) !== round((float) $validated['pickup_lng'], 5)
+            || round((float) $previous->dropoff_lat, 5) !== round((float) $validated['dropoff_lat'], 5)
+            || round((float) $previous->dropoff_lng, 5) !== round((float) $validated['dropoff_lng'], 5);
+    }
+
+    /**
+     * A pending bid was priced for a specific distance — moving the pickup
+     * or drop-off point out from under it would leave a company committed
+     * to a price that may no longer make sense, so editing the route
+     * withdraws every pending bid instead of leaving them silently stale.
+     * Never touches an already-accepted bid: assertEditable() already
+     * guarantees the job is still 'open', and a job only leaves 'open' by
+     * accepting one (BidController::accept()), so no bid here can be
+     * anything but 'pending' or already resolved from an earlier cycle.
+     */
+    private function withdrawPendingBids(Job $job): void
+    {
+        Bid::where('job_id', $job->id)->where('status', 'pending')->with('company.owner')->get()
+            ->each(function (Bid $bid) use ($job) {
+                $bid->update(['status' => 'withdrawn']);
+
+                if ($bid->company->owner !== null) {
+                    $this->notifications->send(
+                        $bid->company->owner,
+                        'bid_withdrawn',
+                        'Bid withdrawn',
+                        "The pickup/drop-off location for Job #{$job->id} changed, so your bid was automatically withdrawn. You're welcome to place a new one at the updated distance.",
+                        $job,
+                    );
+                }
+            });
     }
 
     public function cancel(Request $request, Job $job): JobResource
@@ -224,6 +276,47 @@ class JobController extends Controller
         ]);
 
         return new DisputeResource($dispute);
+    }
+
+    /**
+     * The pickup permit a cargo-authority checkpoint requires before
+     * loading — customer-uploaded, informational only (never blocks any
+     * job transition). See submitDropoffPermit()'s docblock for the
+     * counterpart that DOES block.
+     */
+    public function submitPickupPermit(Request $request, Job $job): JobResource
+    {
+        $this->authorizeCustomerOwnership($request, $job);
+
+        $request->validate(['document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240']]);
+
+        $path = $this->documents->store($request->file('document'), "jobs/permits/{$job->id}");
+        $job->update(['pickup_permit_path' => $path, 'pickup_permit_uploaded_at' => now()]);
+
+        return new JobResource($job->fresh());
+    }
+
+    /**
+     * The drop-off permit a cargo-authority checkpoint requires before
+     * unloading — customer-uploaded, and a hard blocker on
+     * JobAssignmentController::submitProofOfDelivery() and
+     * DriverLinkPageController::submitProofOfDelivery() alike (both check
+     * $job->dropoff_permit_path directly, never a re-derived flag). No
+     * status restriction on when it can be (re-)uploaded — a customer may
+     * replace a mistaken upload any time; the old file is left orphaned
+     * rather than deleted, matching DocumentStorage's existing no-cleanup
+     * convention for every other document type in this app.
+     */
+    public function submitDropoffPermit(Request $request, Job $job): JobResource
+    {
+        $this->authorizeCustomerOwnership($request, $job);
+
+        $request->validate(['document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240']]);
+
+        $path = $this->documents->store($request->file('document'), "jobs/permits/{$job->id}");
+        $job->update(['dropoff_permit_path' => $path, 'dropoff_permit_uploaded_at' => now()]);
+
+        return new JobResource($job->fresh());
     }
 
     private function authorizeCustomerOwnership(Request $request, Job $job): void

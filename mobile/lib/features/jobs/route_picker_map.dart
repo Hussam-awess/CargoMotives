@@ -7,6 +7,7 @@ import '../../core/map/geocoding_service.dart';
 import '../../core/map/routing_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../customer/addresses/saved_addresses_screen.dart' show SavedAddress;
+import 'map_placeholder.dart' show MapFloatingButton;
 
 enum MapPinMode { pickup, dropoff }
 
@@ -32,15 +33,24 @@ class RoutePickerMap extends StatefulWidget {
     required this.onDropoffChanged,
     this.onRouteDistanceChanged,
     this.onModeChanged,
+    this.onCleared,
     this.savedAddresses = const [],
     this.geocodingService,
     this.routingService,
+    this.mapHeight = 260,
+    this.showExpandButton = true,
   });
 
   final LatLng? initialPickup;
   final LatLng? initialDropoff;
   final void Function(LatLng point, String? address) onPickupChanged;
   final void Function(LatLng point, String? address) onDropoffChanged;
+
+  /// Fires after "Clear locations" resets both pins here — lets a caller
+  /// (e.g. PostJobScreen) also blank out its own address/lat/lng fields
+  /// for both points, since this widget only owns the pins/route, not the
+  /// text fields a caller displays alongside them.
+  final VoidCallback? onCleared;
 
   /// The real road-following distance once both pins are set and routing
   /// succeeds; null before that or if it fails — lets the caller prefer
@@ -61,6 +71,17 @@ class RoutePickerMap extends StatefulWidget {
   final List<SavedAddress> savedAddresses;
   final GeocodingService? geocodingService;
   final RoutingService? routingService;
+
+  /// How tall the map itself renders — a small fixed box (the default)
+  /// when embedded inline in a form, or something much taller when pushed
+  /// as its own full-screen route (see [showExpandButton]).
+  final double mapHeight;
+
+  /// The floating "view full screen" button — this widget pushes another
+  /// instance of itself as a full-screen route rather than needing a
+  /// separate screen, so this is turned off on that pushed instance to
+  /// avoid an infinite chain of "expand" buttons.
+  final bool showExpandButton;
 
   @override
   State<RoutePickerMap> createState() => _RoutePickerMapState();
@@ -117,6 +138,85 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
   void _setMode(MapPinMode mode) {
     setState(() => _mode = mode);
     widget.onModeChanged?.call(mode);
+  }
+
+  /// Pushes a second, much larger instance of this very widget as its own
+  /// full-screen route — not a different screen, so there's nothing else
+  /// to keep in sync with this one's own search/geocoding/routing setup.
+  /// Its callbacks both bubble straight up to whatever this widget's own
+  /// caller already provided (so e.g. PostJobScreen's address fields
+  /// update live while the full-screen picker is still open) AND update
+  /// this widget's own pins/route, since the two are otherwise-independent
+  /// State objects that don't share anything automatically.
+  void _openFullScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Pickup & drop-off')),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: RoutePickerMap(
+                initialPickup: _pickup,
+                initialDropoff: _dropoff,
+                savedAddresses: widget.savedAddresses,
+                geocodingService: _geocoding,
+                routingService: _routing,
+                mapHeight: MediaQuery.sizeOf(context).height * 0.55,
+                showExpandButton: false,
+                onModeChanged: (mode) {
+                  setState(() => _mode = mode);
+                  widget.onModeChanged?.call(mode);
+                },
+                onPickupChanged: (point, address) {
+                  setState(() {
+                    _pickup = point;
+                    _setRoute(null);
+                  });
+                  widget.onPickupChanged(point, address);
+                  if (_dropoff != null) _fetchRoute();
+                },
+                onDropoffChanged: (point, address) {
+                  setState(() {
+                    _dropoff = point;
+                    _setRoute(null);
+                  });
+                  widget.onDropoffChanged(point, address);
+                  if (_pickup != null) _fetchRoute();
+                },
+                onRouteDistanceChanged: widget.onRouteDistanceChanged,
+                onCleared: () {
+                  setState(() {
+                    _pickup = null;
+                    _dropoff = null;
+                    _mode = MapPinMode.pickup;
+                    _setRoute(null);
+                  });
+                  widget.onCleared?.call();
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Resets both pins and the route so a customer who picked the wrong
+  /// spots (or wants to plan a completely different trip) doesn't have to
+  /// drag each pin back across the map individually — back to the exact
+  /// blank state this widget starts in.
+  void _clearLocations() {
+    setState(() {
+      _pickup = null;
+      _dropoff = null;
+      _searchResults = [];
+      _searchController.clear();
+      _mode = MapPinMode.pickup;
+      _setRoute(null);
+    });
+    widget.onModeChanged?.call(MapPinMode.pickup);
+    widget.onCleared?.call();
   }
 
   /// Applies an already-known point+address to whichever pin is active —
@@ -176,7 +276,14 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
       _searchFailed = false;
     });
 
-    final results = await _geocoding.search(query);
+    // Bias toward whatever's currently on screen — the map is always
+    // already showing somewhere in Tanzania by this point (its own
+    // default center, or wherever a pin/prior search moved it), so this
+    // is free relevance for an ambiguous local name.
+    final results = await _geocoding.search(
+      query,
+      near: _mapController.camera.center,
+    );
     if (!mounted) return;
     setState(() {
       _searchResults = results;
@@ -240,6 +347,7 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
             // is flaky on Flutter Web's canvas renderer, where Enter
             // doesn't always reach the TextField's input handler.
             prefixIcon: IconButton(
+              tooltip: MaterialLocalizations.of(context).searchFieldLabel,
               icon: const Icon(Icons.search),
               onPressed: () => _search(_searchController.text),
             ),
@@ -295,21 +403,48 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
             ),
           ),
         const SizedBox(height: 10),
-        SegmentedButton<MapPinMode>(
-          segments: [
-            ButtonSegment(
-              value: MapPinMode.pickup,
-              label: const Text('Pickup'),
-              icon: Icon(Icons.circle, size: 12, color: AppColors.statusLive),
+        Row(
+          children: [
+            Expanded(
+              child: SegmentedButton<MapPinMode>(
+                segments: [
+                  ButtonSegment(
+                    value: MapPinMode.pickup,
+                    label: const Text('Pickup'),
+                    icon: Icon(
+                      Icons.circle,
+                      size: 12,
+                      color: AppColors.statusLive,
+                    ),
+                  ),
+                  ButtonSegment(
+                    value: MapPinMode.dropoff,
+                    label: const Text('Drop-off'),
+                    icon: Icon(
+                      Icons.circle,
+                      size: 12,
+                      color: AppColors.statusError,
+                    ),
+                  ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (selection) => _setMode(selection.first),
+              ),
             ),
-            ButtonSegment(
-              value: MapPinMode.dropoff,
-              label: const Text('Drop-off'),
-              icon: Icon(Icons.circle, size: 12, color: AppColors.statusError),
-            ),
+            // Only worth offering once there's actually something to
+            // clear — an empty map has nothing for this to do.
+            if (_pickup != null || _dropoff != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _clearLocations,
+                tooltip: 'Clear pickup and drop-off',
+                icon: const Icon(Icons.clear),
+                style: IconButton.styleFrom(
+                  side: BorderSide(color: AppColors.border),
+                ),
+              ),
+            ],
           ],
-          selected: {_mode},
-          onSelectionChanged: (selection) => _setMode(selection.first),
         ),
         const SizedBox(height: 8),
         Text(
@@ -341,7 +476,7 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: SizedBox(
-            height: 260,
+            height: widget.mapHeight,
             child: Stack(
               children: [
                 AppMap(
@@ -410,6 +545,15 @@ class _RoutePickerMapState extends State<RoutePickerMap> {
                           color: AppColors.primary,
                         ),
                       ),
+                    ),
+                  ),
+                if (widget.showExpandButton)
+                  Positioned(
+                    right: 8,
+                    bottom: 8,
+                    child: MapFloatingButton(
+                      icon: Icons.fullscreen,
+                      onTap: _openFullScreen,
                     ),
                   ),
               ],

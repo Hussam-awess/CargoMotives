@@ -55,4 +55,19 @@ class DocumentStorage
     {
         return Storage::disk(self::DISK)->response($key);
     }
+
+    /**
+     * Best-effort: a missing file is already the desired end state, so
+     * this never throws for one — only real storage errors propagate.
+     *
+     * @param  array<int, string>  $keys
+     */
+    public function delete(array $keys): void
+    {
+        $keys = array_values(array_filter($keys, fn ($key) => is_string($key) && $key !== ''));
+
+        if ($keys !== []) {
+            Storage::disk(self::DISK)->delete($keys);
+        }
+    }
 }

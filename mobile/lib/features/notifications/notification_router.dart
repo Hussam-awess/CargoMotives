@@ -12,7 +12,11 @@ enum NotificationDestination { job, support, fleet, none }
 /// re-fetches and shows the live verification status as the entire home
 /// surface the moment the company opens the app, so there's no additional
 /// screen worth pushing — the notification still marks itself read on tap,
-/// it just doesn't navigate anywhere further.
+/// it just doesn't navigate anywhere further. `featured_expiring_soon` is
+/// the same: Customer and Company have separate Featured/Plus screens and
+/// this router has no role context to pick between them, so it falls
+/// through to [NotificationDestination.none] too — a deliberate scope cut,
+/// not an oversight.
 NotificationDestination destinationFor(String type) => switch (type) {
   'support_message' => NotificationDestination.support,
   'truck_approved' || 'truck_rejected' => NotificationDestination.fleet,
@@ -29,6 +33,8 @@ NotificationDestination destinationFor(String type) => switch (type) {
   'gps_signal_lost' ||
   'job_status_changed' ||
   'job_arrived_at_dropoff' ||
+  'dropoff_permit_needed' ||
+  'job_auto_completed' ||
   'new_message' ||
   'job_completed_rate_prompt' ||
   'bidding_closed_no_bids' ||

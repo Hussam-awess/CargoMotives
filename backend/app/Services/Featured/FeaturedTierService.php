@@ -29,14 +29,18 @@ class FeaturedTierService
     {
         $until = now()->addDays($this->settings->getInt('featured_duration_days', 30));
 
-        match ($payment->purpose) {
-            'featured_company' => TransporterCompany::where('owner_user_id', $payment->user_id)
-                ->firstOrFail()
-                ->update(['is_featured' => true, 'featured_until' => $until]),
-            'featured_customer' => User::whereKey($payment->user_id)
-                ->firstOrFail()
-                ->update(['is_featured' => true, 'featured_until' => $until]),
+        $model = match ($payment->purpose) {
+            'featured_company' => TransporterCompany::where('owner_user_id', $payment->user_id)->firstOrFail(),
+            'featured_customer' => User::whereKey($payment->user_id)->firstOrFail(),
             default => throw new InvalidArgumentException("Payment #{$payment->id} has no Featured activation for purpose '{$payment->purpose}'."),
         };
+
+        // featured_expiry_reminder_sent_at is system-only (never in either
+        // model's #[Fillable]), so it needs forceFill — reset here on every
+        // (re-)purchase so a renewal gets its own fresh expiry-warning
+        // cycle rather than staying permanently "already reminded" from a
+        // previous subscription period.
+        $model->update(['is_featured' => true, 'featured_until' => $until]);
+        $model->forceFill(['featured_expiry_reminder_sent_at' => null])->save();
     }
 }

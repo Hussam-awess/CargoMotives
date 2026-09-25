@@ -29,9 +29,17 @@ class JobRouteMapScreen extends StatefulWidget {
 class _JobRouteMapScreenState extends State<JobRouteMapScreen> {
   late final _routing = widget.routingService ?? RoutingService();
   final _mapController = MapController();
+  final _sheetController = DraggableScrollableController();
 
   RouteResult? _route;
   bool _isLoadingRoute = true;
+
+  /// Collapses the route sheet down to its minimum peek so the map fills
+  /// almost the whole screen — an explicit "extended map" option, same as
+  /// LiveGpsTrackingScreen's own fullscreen toggle, so a transporter isn't
+  /// left with only a small, sheet-obscured strip of a freshly assigned
+  /// shipment's route.
+  bool _isMapExpanded = false;
 
   Job get job => widget.job;
 
@@ -48,6 +56,32 @@ class _JobRouteMapScreenState extends State<JobRouteMapScreen> {
   void initState() {
     super.initState();
     _loadRoute();
+    _sheetController.addListener(_syncExpandedFromSheet);
+  }
+
+  @override
+  void dispose() {
+    _sheetController.removeListener(_syncExpandedFromSheet);
+    _sheetController.dispose();
+    super.dispose();
+  }
+
+  /// Keeps the fullscreen button's icon truthful even when the user
+  /// dragged the sheet by hand instead of tapping it.
+  void _syncExpandedFromSheet() {
+    if (!_sheetController.isAttached) return;
+    final expanded = _sheetController.size <= 0.2;
+    if (expanded != _isMapExpanded) setState(() => _isMapExpanded = expanded);
+  }
+
+  void _toggleMapExpanded() {
+    final expanding = !_isMapExpanded;
+    _sheetController.animateTo(
+      expanding ? 0.12 : 0.32,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+    setState(() => _isMapExpanded = expanding);
   }
 
   Future<void> _loadRoute() async {
@@ -157,6 +191,13 @@ class _JobRouteMapScreenState extends State<JobRouteMapScreen> {
                     _mapController.camera.zoom - 1,
                   ),
                 ),
+                const SizedBox(height: 8),
+                MapFloatingButton(
+                  icon: _isMapExpanded
+                      ? Icons.fullscreen_exit
+                      : Icons.fullscreen,
+                  onTap: _toggleMapExpanded,
+                ),
               ],
             ),
           ),
@@ -169,6 +210,7 @@ class _JobRouteMapScreenState extends State<JobRouteMapScreen> {
           // with its own content scrollable if it still overflows.
           DraggableScrollableSheet(
             key: const Key('routeMapSheet'),
+            controller: _sheetController,
             initialChildSize: 0.32,
             minChildSize: 0.12,
             maxChildSize: 0.6,

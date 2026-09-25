@@ -23,6 +23,7 @@ class ProofOfDeliveryResource extends JsonResource
             'photo_urls' => collect($this->photo_urls)->map(fn (string $key) => $documents->signedUrl($key))->all(),
             'recipient_name' => $this->recipient_name,
             'notes' => $this->notes,
+            'is_system_generated' => (bool) $this->is_system_generated,
             'confirmed_by_customer_at' => $this->confirmed_by_customer_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

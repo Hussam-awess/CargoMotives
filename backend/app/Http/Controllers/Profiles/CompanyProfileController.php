@@ -19,6 +19,11 @@ class CompanyProfileController extends Controller
 {
     public function show(Request $request, TransporterCompany $company): CompanyProfileResource
     {
+        // The owner soft-deleted their account (AccountDeletionService) —
+        // the company row survives for job history, but is no longer a
+        // public profile anyone can browse.
+        abort_if($company->owner === null, 404, 'This company is no longer on Cargo Motives.');
+
         return new CompanyProfileResource($company);
     }
 

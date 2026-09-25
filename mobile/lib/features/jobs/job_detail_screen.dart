@@ -1,5 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/realtime/job_bid_channel.dart';
@@ -63,6 +65,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   int? _confirmingAwardId;
   GpsLocation? _liveLocation;
   bool _isFeatured = false;
+  bool _isUploadingPickupPermit = false;
+  bool _isUploadingDropoffPermit = false;
+
+  static const _permitFileExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
 
   @override
   void initState() {
@@ -108,6 +114,44 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PostJobScreen(prefillClone: _job!)),
     );
+  }
+
+  /// While still 'open' (before any bid is accepted — JobController's own
+  /// assertEditable()), the customer can correct a mistaken pickup/drop-off
+  /// pin. Editing the route auto-withdraws any pending bids server-side, so
+  /// this warns first when there's at least one to lose.
+  Future<void> _openEditShipment() async {
+    final pendingBids = _job!.bidsCount ?? 0;
+    if (pendingBids > 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Edit shipment?'),
+          content: Text(
+            'This job has $pendingBids pending bid${pendingBids == 1 ? '' : 's'}. '
+            'Editing the pickup/drop-off location will withdraw ${pendingBids == 1 ? 'it' : 'them'} '
+            'so companies can bid again at the new distance.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    if (!mounted) return;
+    final result = await Navigator.of(
+      context,
+    ).push<Job>(MaterialPageRoute(builder: (_) => PostJobScreen(editJob: _job!)));
+    if (result != null && mounted) setState(() => _job = result);
   }
 
   void _openMessages(BuildContext context) {
@@ -274,12 +318,61 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
+  /// Uploads (or replaces) a cargo-authority checkpoint permit — see
+  /// [Job.pickupPermitUrl]/[Job.dropoffPermitUrl]'s docblock for why the
+  /// drop-off one matters more than the pickup one (it's a hard blocker on
+  /// the company/driver being able to end the job).
+  Future<void> _uploadPermit({required bool isPickup}) async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: _permitFileExtensions,
+      withData: true,
+    );
+    final file = result?.files.singleOrNull;
+    if (file == null) return;
+
+    setState(
+      () => isPickup
+          ? _isUploadingPickupPermit = true
+          : _isUploadingDropoffPermit = true,
+    );
+    try {
+      final updated = isPickup
+          ? await widget.jobRepository.uploadPickupPermit(widget.jobId, file)
+          : await widget.jobRepository.uploadDropoffPermit(
+              widget.jobId,
+              file,
+            );
+      if (mounted) setState(() => _job = updated);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) {
+        setState(
+          () => isPickup
+              ? _isUploadingPickupPermit = false
+              : _isUploadingDropoffPermit = false,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Shipment Details'),
         actions: [
+          if (_job?.isOpen == true)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit shipment',
+              onPressed: _openEditShipment,
+            ),
           if (_job?.assignedCompanyName != null)
             IconButton(
               icon: const Icon(Icons.chat_bubble_outline),
@@ -342,7 +435,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     const SizedBox(height: 20),
                     const _SectionLabel('Timeline'),
                     const SizedBox(height: 4),
-                    _StatusTimeline(status: _job!.status),
+                    _StatusTimeline(
+                      status: _job!.status,
+                      pickupPermitUrl: _job!.pickupPermitUrl,
+                      dropoffPermitUrl: _job!.dropoffPermitUrl,
+                    ),
                     if (_job!.assignedDriverName != null) ...[
                       const SizedBox(height: 20),
                       const _SectionLabel('Transporter'),
@@ -389,6 +486,30 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     const _SectionLabel('Cargo'),
                     const SizedBox(height: 4),
                     _CargoDetailsCard(job: _job!),
+                  ],
+                  // Cargo-authority checkpoint permits (job-level even for
+                  // a split-award job — see the backend permit migrations'
+                  // docblocks) — shown once a truck/driver is actually
+                  // assigned, not while the job is still just 'open'.
+                  if (_job!.isAssignable || _job!.isAwaitingDeliveryConfirmation || _job!.status == 'completed') ...[
+                    const SizedBox(height: 20),
+                    const _SectionLabel('Permits'),
+                    const SizedBox(height: 8),
+                    _PermitCard(
+                      title: 'Pickup permit',
+                      subtitle: 'Optional — hand this to the driver before pickup.',
+                      permitUrl: _job!.pickupPermitUrl,
+                      isUploading: _isUploadingPickupPermit,
+                      onUpload: () => _uploadPermit(isPickup: true),
+                    ),
+                    const SizedBox(height: 8),
+                    _PermitCard(
+                      title: 'Drop-off permit',
+                      subtitle: 'Required before this job can be marked delivered.',
+                      permitUrl: _job!.dropoffPermitUrl,
+                      isUploading: _isUploadingDropoffPermit,
+                      onUpload: () => _uploadPermit(isPickup: false),
+                    ),
                   ],
                   // Ratings are deferred for a split job (JobResource.
                   // isViewerAParticipant() already returns false whenever
@@ -477,6 +598,90 @@ class _SectionLabel extends StatelessWidget {
         fontWeight: FontWeight.w600,
         color: AppColors.textLabel,
         letterSpacing: 0.7,
+      ),
+    );
+  }
+}
+
+/// A cargo-authority checkpoint permit's upload/replace/view row — used for
+/// both the pickup permit (informational) and drop-off permit (a hard
+/// blocker on the job being marked delivered, enforced server-side).
+class _PermitCard extends StatelessWidget {
+  const _PermitCard({
+    required this.title,
+    required this.subtitle,
+    required this.permitUrl,
+    required this.isUploading,
+    required this.onUpload,
+  });
+
+  final String title;
+  final String subtitle;
+  final String? permitUrl;
+  final bool isUploading;
+  final VoidCallback onUpload;
+
+  Future<void> _open(BuildContext context) async {
+    final uri = Uri.parse(permitUrl!);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open $uri')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final attached = permitUrl != null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(
+              attached ? Icons.task_alt : Icons.upload_file_outlined,
+              color: attached ? AppColors.statusLive : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isUploading)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else ...[
+              if (attached)
+                TextButton(
+                  onPressed: () => _open(context),
+                  child: const Text('View'),
+                ),
+              TextButton(
+                onPressed: onUpload,
+                child: Text(attached ? 'Replace' : 'Upload'),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -648,7 +853,12 @@ class _SummaryStat extends StatelessWidget {
   }
 }
 
-const _timelineStages = [
+/// The job's own status vocabulary — unchanged from before the permit
+/// stages existed. [_StatusTimeline] interleaves two more synthetic rows
+/// ("Waiting for pickup/drop-off permit") around these, computed from
+/// permit presence rather than [Job.status] (which has no state for
+/// "a permit is pending").
+const _realTimelineStages = [
   'open',
   'assigned',
   'picked_up',
@@ -656,45 +866,56 @@ const _timelineStages = [
   'delivered',
   'completed',
 ];
-const _timelineLabels = [
-  'Shipment posted',
-  'Transporter assigned',
-  'Loading cargo',
-  'In transit',
-  'Delivered',
-  'Completed',
-];
-
-/// One icon per stage — the same truck glyph Fleet Management uses for a
-/// truck itself (Icons.local_shipping_outlined, e.g. TruckListTab's own
-/// truck-photo placeholder) marks "Transporter assigned" here too, so a
-/// customer sees the same visual language a transporter's own fleet
-/// screen uses, not an unrelated icon set invented just for this list.
-const _timelineIcons = [
-  Icons.description_outlined,
-  Icons.local_shipping_outlined,
-  Icons.inventory_2_outlined,
-  Icons.local_shipping,
-  Icons.check_circle_outline,
-  Icons.task_alt,
-];
+enum _TimelineStageState { done, current, upcoming }
 
 /// A live status ladder, not a fabricated event history — this app has no
 /// per-event audit trail exposed to Customers, only the job's current
 /// status, so each stage is shown as done/current/upcoming relative to
 /// that one value.
 class _StatusTimeline extends StatelessWidget {
-  const _StatusTimeline({required this.status});
+  const _StatusTimeline({
+    required this.status,
+    this.pickupPermitUrl,
+    this.dropoffPermitUrl,
+  });
 
   final String status;
 
-  int get _stageIndex {
-    if (status == 'cancelled') return -1;
+  /// Always the JOB-level permit fields (Job.pickupPermitUrl/
+  /// dropoffPermitUrl) — never an award's own, since permits stay job-level
+  /// even for a split-award job. Callers rendering this for one award's own
+  /// status still pass the enclosing job's permit fields, not anything
+  /// from that award.
+  final String? pickupPermitUrl;
+  final String? dropoffPermitUrl;
+
+  int get _realStageIndex {
     // 'en_route_pickup' has no timeline row of its own — it still reads
     // as "Transporter assigned" until the truck is actually loaded.
     final effective = status == 'en_route_pickup' ? 'assigned' : status;
-    final index = _timelineStages.indexOf(effective);
+    final index = _realTimelineStages.indexOf(effective);
     return index == -1 ? 0 : index;
+  }
+
+  _TimelineStageState _realStageState(int realIndex, int real) {
+    if (realIndex < real) return _TimelineStageState.done;
+    if (realIndex == real) return _TimelineStageState.current;
+    return _TimelineStageState.upcoming;
+  }
+
+  /// Informational only — pickup permit never blocks progress (unlike the
+  /// drop-off one below), so it reads "done" once the job has clearly moved
+  /// on even if no permit was ever attached.
+  _TimelineStageState _pickupPermitState(int real) {
+    if (pickupPermitUrl != null || real > 1) return _TimelineStageState.done;
+    return real == 1 ? _TimelineStageState.current : _TimelineStageState.upcoming;
+  }
+
+  /// A real gate — the backend hard-blocks 'delivered' without this
+  /// attached, so by construction real > 3 here always means it's set.
+  _TimelineStageState _dropoffPermitState(int real) {
+    if (dropoffPermitUrl != null || real > 3) return _TimelineStageState.done;
+    return real == 3 ? _TimelineStageState.current : _TimelineStageState.upcoming;
   }
 
   @override
@@ -706,11 +927,41 @@ class _StatusTimeline extends StatelessWidget {
       );
     }
 
-    final current = _stageIndex;
+    final real = _realStageIndex;
+    final states = [
+      _realStageState(0, real), // Shipment posted
+      _realStageState(1, real), // Transporter assigned
+      _pickupPermitState(real), // Waiting for pickup permit
+      _realStageState(2, real), // Loading cargo
+      _realStageState(3, real), // In transit
+      _dropoffPermitState(real), // Waiting for drop-off permit
+      _realStageState(4, real), // Delivered
+      _realStageState(5, real), // Completed
+    ];
+    const labels = [
+      'Shipment posted',
+      'Transporter assigned',
+      'Waiting for pickup permit',
+      'Loading cargo',
+      'In transit',
+      'Waiting for drop-off permit',
+      'Delivered',
+      'Completed',
+    ];
+    const icons = [
+      Icons.description_outlined,
+      Icons.local_shipping_outlined,
+      Icons.assignment_outlined,
+      Icons.inventory_2_outlined,
+      Icons.local_shipping,
+      Icons.assignment_outlined,
+      Icons.check_circle_outline,
+      Icons.task_alt,
+    ];
 
     return Column(
       children: [
-        for (var i = 0; i < _timelineStages.length; i++)
+        for (var i = 0; i < states.length; i++)
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -724,13 +975,13 @@ class _StatusTimeline extends StatelessWidget {
                         height: 28,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: i <= current
+                          color: states[i] != _TimelineStageState.upcoming
                               ? AppColors.ctaBlue
                               : AppColors.surface,
-                          border: i <= current
+                          border: states[i] != _TimelineStageState.upcoming
                               ? null
                               : Border.all(color: AppColors.border, width: 2),
-                          boxShadow: i == current
+                          boxShadow: states[i] == _TimelineStageState.current
                               ? const [
                                   BoxShadow(
                                     color: Color(0xFFDCE9F7),
@@ -742,18 +993,18 @@ class _StatusTimeline extends StatelessWidget {
                         ),
                         alignment: Alignment.center,
                         child: Icon(
-                          _timelineIcons[i],
+                          icons[i],
                           size: 15,
-                          color: i <= current
+                          color: states[i] != _TimelineStageState.upcoming
                               ? Colors.white
                               : AppColors.textTertiary,
                         ),
                       ),
-                      if (i != _timelineStages.length - 1)
+                      if (i != states.length - 1)
                         Expanded(
                           child: Container(
                             width: 1.5,
-                            color: i < current
+                            color: states[i] == _TimelineStageState.done
                                 ? AppColors.ctaBlue
                                 : AppColors.border,
                           ),
@@ -766,14 +1017,14 @@ class _StatusTimeline extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.only(
                       top: 6,
-                      bottom: i == _timelineStages.length - 1 ? 0 : 18,
+                      bottom: i == states.length - 1 ? 0 : 18,
                     ),
                     child: Text(
-                      _timelineLabels[i],
+                      labels[i],
                       style: TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: i <= current
+                        color: states[i] != _TimelineStageState.upcoming
                             ? AppColors.textPrimary
                             : AppColors.textTertiary,
                       ),
@@ -1148,7 +1399,11 @@ class _AwardedCompaniesList extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _StatusTimeline(status: award.status),
+                _StatusTimeline(
+                  status: award.status,
+                  pickupPermitUrl: job.pickupPermitUrl,
+                  dropoffPermitUrl: job.dropoffPermitUrl,
+                ),
                 if (award.assignedFleet.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   GpsStatusCard(
@@ -1422,37 +1677,46 @@ class _ProofOfDeliveryCard extends StatelessWidget {
         children: [
           const _SectionLabel('Proof of delivery'),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 100,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: proofOfDelivery.photoUrls.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, index) => ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  proofOfDelivery.photoUrls[index],
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) => progress == null
-                      ? child
-                      : const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                  errorBuilder: (context, error, stackTrace) => Container(
+          if (proofOfDelivery.isSystemGenerated)
+            Row(
+              children: [
+                Icon(Icons.smart_toy_outlined, color: AppColors.textSecondary),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('Automatically completed')),
+              ],
+            )
+          else
+            SizedBox(
+              height: 100,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: proofOfDelivery.photoUrls.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    proofOfDelivery.photoUrls[index],
                     width: 100,
                     height: 100,
-                    color: AppColors.background,
-                    child: Icon(
-                      Icons.broken_image_outlined,
-                      color: AppColors.textTertiary,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) => progress == null
+                        ? child
+                        : const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 100,
+                      height: 100,
+                      color: AppColors.background,
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
           if (proofOfDelivery.recipientName != null) ...[
             const SizedBox(height: 12),
             Text('Received by: ${proofOfDelivery.recipientName}'),

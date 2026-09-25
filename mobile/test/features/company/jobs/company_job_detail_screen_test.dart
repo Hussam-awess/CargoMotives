@@ -84,6 +84,88 @@ void main() {
     expect(find.text('TZS 850000'), findsOneWidget);
   });
 
+  /// A starting point, not a rule — nudges toward a competitive price
+  /// close to (a shade under) the customer's budget, rounded to a clean
+  /// number, and never above the budget itself.
+  testWidgets(
+    'shows a suggested bid price close to the customer\'s budget, and tapping it fills the field',
+    (tester) async {
+      final jobWithBudget = Job(
+        id: 5,
+        status: 'open',
+        pickupAddress: 'Kariakoo',
+        pickupLat: -6.8,
+        pickupLng: 39.2,
+        dropoffAddress: 'Mbezi Beach',
+        dropoffLat: -6.7,
+        dropoffLng: 39.1,
+        containerType: 'Dry Van',
+        containerSize: '40ft',
+        approxWeightTons: 12,
+        cargoDescription: 'General cargo',
+        preferredPickupWindowStart: DateTime(2026, 9, 10, 9),
+        customerNotes: null,
+        budgetPrice: 850000,
+        agreedPrice: null,
+        currency: 'TZS',
+        assignedCompanyName: null,
+        assignedTruckRegistration: null,
+        assignedDriverName: null,
+        proofOfDelivery: null,
+        bidsCount: 0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CompanyJobDetailScreen(
+            jobId: 5,
+            jobRepository: FakeCompanyJobRepository(
+              onShow: (_) async => jobWithBudget,
+            ),
+            bidRepository: FakeBidRepository(
+              onCompanyQuotaRemaining: () async => 3,
+            ),
+            locationChannel: FakeJobLocationChannel(jobId: 5),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Suggested: TZS 810000'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.textContaining('Suggested: TZS 810000'));
+      await tester.pumpAndSettle();
+
+      final priceField = tester.widget<TextField>(
+        find.byKey(const Key('bidPriceField')),
+      );
+      expect(priceField.controller!.text, '810000');
+    },
+  );
+
+  testWidgets('shows no suggested price when the job has no budget', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyJobDetailScreen(
+          jobId: 5,
+          jobRepository: FakeCompanyJobRepository(onShow: (_) async => _openJob),
+          bidRepository: FakeBidRepository(
+            onCompanyQuotaRemaining: () async => 3,
+          ),
+          locationChannel: FakeJobLocationChannel(jobId: 5),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Suggested:'), findsNothing);
+  });
+
   testWidgets('the "view route on map" icon is wired up', (tester) async {
     // Navigating for real would hit the live RoutingService (no fake
     // injection point at this call site) and could hang the test on a
@@ -815,7 +897,14 @@ void main() {
     },
   );
 
-  Job assignedJobWith({required String status}) => Job(
+  Job assignedJobWith({
+    required String status,
+    // Defaults to already-attached so every existing call site below keeps
+    // exercising an enabled End-job button unless a test explicitly opts
+    // into the unattached (disabled) case.
+    String? dropoffPermitUrl = 'https://example.com/dropoff-permit.pdf',
+    String? driverInstructions,
+  }) => Job(
     id: 5,
     status: status,
     pickupAddress: _openJob.pickupAddress,
@@ -838,6 +927,8 @@ void main() {
     proofOfDelivery: null,
     bidsCount: 0,
     isAssignedToViewer: true,
+    dropoffPermitUrl: dropoffPermitUrl,
+    driverInstructions: driverInstructions,
   );
 
   testWidgets(
@@ -893,6 +984,205 @@ void main() {
       expect(find.textContaining('already underway'), findsOneWidget);
       expect(find.text('View driver link'), findsOneWidget);
       expect(find.text('GPS Tracking Not Available'), findsOneWidget);
+    },
+  );
+
+  /// The manual escape hatch for a job stuck at 'in_transit' because of an
+  /// inaccurate GPS fix — the company can end the job from its own app
+  /// instead of needing the driver to visit the separate Driver Link page.
+  testWidgets(
+    'an in-transit job shows an End job action that opens the end-job screen',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CompanyJobDetailScreen(
+            jobId: 5,
+            jobRepository: FakeCompanyJobRepository(
+              onShow: (_) async => assignedJobWith(status: 'in_transit'),
+            ),
+            bidRepository: FakeBidRepository(
+              onCompanyQuotaRemaining: () async => 3,
+            ),
+            assignmentRepository: FakeJobAssignmentRepository(),
+            locationChannel: FakeJobLocationChannel(jobId: 5),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('End job'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('End job'));
+      await tester.tap(find.text('End job'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark as delivered'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'an in-transit job with no drop-off permit shows a disabled End job button and a waiting message',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CompanyJobDetailScreen(
+            jobId: 5,
+            jobRepository: FakeCompanyJobRepository(
+              onShow: (_) async =>
+                  assignedJobWith(status: 'in_transit', dropoffPermitUrl: null),
+            ),
+            bidRepository: FakeBidRepository(
+              onCompanyQuotaRemaining: () async => 3,
+            ),
+            assignmentRepository: FakeJobAssignmentRepository(),
+            locationChannel: FakeJobLocationChannel(jobId: 5),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Waiting on the customer to attach it'),
+        findsOneWidget,
+      );
+      expect(find.text('End job'), findsOneWidget);
+
+      // A disabled OutlinedButton has no tap handler at all — tapping it
+      // is a no-op, so the end-job screen never opens.
+      await tester.ensureVisible(find.text('End job'));
+      await tester.tap(find.text('End job'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark as delivered'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'an in-transit job with a drop-off permit attached shows it as attached and lets End job proceed',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CompanyJobDetailScreen(
+            jobId: 5,
+            jobRepository: FakeCompanyJobRepository(
+              onShow: (_) async => assignedJobWith(status: 'in_transit'),
+            ),
+            bidRepository: FakeBidRepository(
+              onCompanyQuotaRemaining: () async => 3,
+            ),
+            assignmentRepository: FakeJobAssignmentRepository(),
+            locationChannel: FakeJobLocationChannel(jobId: 5),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Attached'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('End job'));
+      await tester.tap(find.text('End job'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark as delivered'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a completed job shows no End job action', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyJobDetailScreen(
+          jobId: 5,
+          jobRepository: FakeCompanyJobRepository(
+            onShow: (_) async => assignedJobWith(status: 'completed'),
+          ),
+          bidRepository: FakeBidRepository(
+            onCompanyQuotaRemaining: () async => 3,
+          ),
+          assignmentRepository: FakeJobAssignmentRepository(),
+          locationChannel: FakeJobLocationChannel(jobId: 5),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('End job'), findsNothing);
+  });
+
+  testWidgets(
+    'shows an Add prompt for driver instructions when none are set, and sends them on submit',
+    (tester) async {
+      String? sentJobIdInstructions;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CompanyJobDetailScreen(
+            jobId: 5,
+            jobRepository: FakeCompanyJobRepository(
+              onShow: (_) async => assignedJobWith(status: 'in_transit'),
+            ),
+            bidRepository: FakeBidRepository(
+              onCompanyQuotaRemaining: () async => 3,
+            ),
+            assignmentRepository: FakeJobAssignmentRepository(
+              onUpdateInstructions: (jobId, instructions) async {
+                sentJobIdInstructions = instructions;
+                return assignedJobWith(
+                  status: 'in_transit',
+                  driverInstructions: instructions,
+                );
+              },
+            ),
+            locationChannel: FakeJobLocationChannel(jobId: 5),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Instructions for driver'), findsOneWidget);
+      expect(find.text("Send a note to the driver's phone by SMS."), findsOneWidget);
+      expect(find.text('Add'), findsOneWidget);
+
+      await tester.tap(find.text('Add'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byType(TextField),
+        'Use the back gate.',
+      );
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+
+      expect(sentJobIdInstructions, 'Use the back gate.');
+      expect(find.text('Use the back gate.'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'shows existing driver instructions with an Edit action',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CompanyJobDetailScreen(
+            jobId: 5,
+            jobRepository: FakeCompanyJobRepository(
+              onShow: (_) async => assignedJobWith(
+                status: 'in_transit',
+                driverInstructions: 'Ask for the warehouse supervisor.',
+              ),
+            ),
+            bidRepository: FakeBidRepository(
+              onCompanyQuotaRemaining: () async => 3,
+            ),
+            assignmentRepository: FakeJobAssignmentRepository(),
+            locationChannel: FakeJobLocationChannel(jobId: 5),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ask for the warehouse supervisor.'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Add'), findsNothing);
     },
   );
 

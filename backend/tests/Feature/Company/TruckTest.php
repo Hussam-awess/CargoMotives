@@ -230,10 +230,13 @@ class TruckTest extends TestCase
     }
 
     /**
-     * Once a truck is locked (real details already on file), even
-     * attaching a new document is ignored — hasFile() doesn't care about
-     * validation rules, so TruckController::save() has to explicitly skip
-     * the whole document-handling block for a locked update.
+     * Once a truck is locked (real details already on file), attaching a
+     * new identity document (registration card, insurance, roadworthiness
+     * permit) is ignored — hasFile() doesn't care about validation rules,
+     * so TruckController::save() has to explicitly skip that part of the
+     * document-handling block for a locked update. Photos are the one
+     * exception (see test_a_locked_trucks_photos_can_still_be_replaced
+     * below) — they're just a visual reference, not a legal document.
      */
     public function test_editing_an_already_real_truck_ignores_a_reattached_document(): void
     {
@@ -257,6 +260,56 @@ class TruckTest extends TestCase
         $this->assertSame('trucks/documents/existing-insurance.pdf', $documents['insurance']);
         $this->assertSame('trucks/documents/existing-card.pdf', $documents['registration_card']);
         $this->assertSame(['trucks/photos/existing.jpg'], $documents['photos']);
+    }
+
+    /**
+     * The one exception to the lock: photos are just a visual reference,
+     * not a legal identity document, so a company can still refresh them
+     * (a repaint, a better angle, an extra photo) on an otherwise-locked
+     * truck without that counting as "changing the vehicle."
+     */
+    public function test_a_locked_trucks_photos_can_still_be_replaced(): void
+    {
+        Storage::fake('local');
+        $user = $this->approvedCompanyUser();
+        $truck = Truck::factory()->approved()->for($user->transporterCompany, 'company')->create([
+            'documents' => [
+                'photos' => ['trucks/photos/existing.jpg'],
+                'registration_card' => 'trucks/documents/existing-card.pdf',
+                'insurance' => 'trucks/documents/existing-insurance.pdf',
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->postJson("/api/company/trucks/{$truck->id}", [
+            'capacity_tons' => 10,
+            'vehicle_type' => $truck->vehicle_type,
+            'photos' => [UploadedFile::fake()->create('new-photo.jpg', 100, 'image/jpeg')],
+        ]);
+
+        $response->assertOk();
+        $documents = $truck->fresh()->documents;
+        $this->assertNotSame(['trucks/photos/existing.jpg'], $documents['photos']);
+        // The identity documents stay completely untouched.
+        $this->assertSame('trucks/documents/existing-card.pdf', $documents['registration_card']);
+        $this->assertSame('trucks/documents/existing-insurance.pdf', $documents['insurance']);
+    }
+
+    /**
+     * Photos stay optional on a locked edit — a company adjusting just
+     * capacity/type shouldn't be forced to also re-pick a photo.
+     */
+    public function test_a_locked_truck_edit_with_no_photos_still_succeeds(): void
+    {
+        Storage::fake('local');
+        $user = $this->approvedCompanyUser();
+        $truck = Truck::factory()->approved()->for($user->transporterCompany, 'company')->create([
+            'documents' => ['photos' => ['trucks/photos/existing.jpg']],
+        ]);
+
+        $this->actingAs($user)->postJson("/api/company/trucks/{$truck->id}", [
+            'capacity_tons' => 12,
+            'vehicle_type' => $truck->vehicle_type,
+        ])->assertOk()->assertJsonPath('data.capacity_tons', 12);
     }
 
     public function test_registering_a_new_truck_still_requires_its_documents(): void

@@ -48,8 +48,8 @@ class JobStatusAutoAdvancer
             // for an assigned truck means it's now genuinely en route.
             'assigned' => $statusHolder->update(['status' => 'en_route_pickup']),
             'en_route_pickup' => $this->maybeAdvanceToPickedUp($statusHolder, $pickup, $truckPosition),
-            'picked_up' => $this->maybeAdvanceToInTransit($statusHolder, $pickup, $truckPosition),
-            'in_transit' => $this->maybeNotifyArrivedAtDropoff($statusHolder, $job, $dropoff, $truckPosition),
+            'picked_up' => $this->maybeAdvanceToInTransit($statusHolder, $pickup, $dropoff, $truckPosition),
+            'in_transit' => $this->handleInTransit($statusHolder, $job, $dropoff, $truckPosition),
             default => null,
         };
     }
@@ -61,11 +61,67 @@ class JobStatusAutoAdvancer
         }
     }
 
-    private function maybeAdvanceToInTransit(Model $statusHolder, GeoPoint $pickup, GeoPoint $truckPosition): void
+    /**
+     * The departure radius is a ceiling, not a fixed distance — see
+     * config/gps.php's job_status_departure_radius_fraction docblock for
+     * why a short-haul job (pickup and drop-off close together) needs a
+     * smaller, always-reachable threshold instead of the flat default.
+     */
+    private function maybeAdvanceToInTransit(Model $statusHolder, GeoPoint $pickup, GeoPoint $dropoff, GeoPoint $truckPosition): void
     {
-        if ($pickup->kmTo($truckPosition) >= (float) config('gps.job_status_departure_radius_km', 5)) {
+        $flatRadius = (float) config('gps.job_status_departure_radius_km', 5);
+        $fraction = (float) config('gps.job_status_departure_radius_fraction', 0.4);
+        $arrivalRadius = (float) config('gps.job_status_arrival_radius_km', 0.5);
+
+        $threshold = max($arrivalRadius, min($flatRadius, $pickup->kmTo($dropoff) * $fraction));
+
+        if ($pickup->kmTo($truckPosition) >= $threshold) {
             $statusHolder->update(['status' => 'in_transit']);
         }
+    }
+
+    /**
+     * Both of 'in_transit's own notification checks — the earlier
+     * "prepare the permit" reminder (larger radius) and the later
+     * "arrived" notification (smaller radius) — run independently every
+     * time a position update lands, each guarded by its own idempotency
+     * stamp, so a single truck's approach naturally fires the reminder
+     * first and the arrival notice later, without either blocking the
+     * other.
+     */
+    private function handleInTransit(Model $statusHolder, Job $job, GeoPoint $dropoff, GeoPoint $truckPosition): void
+    {
+        $this->maybeNotifyDropoffPermitReminder($statusHolder, $job, $dropoff, $truckPosition);
+        $this->maybeNotifyArrivedAtDropoff($statusHolder, $job, $dropoff, $truckPosition);
+    }
+
+    /**
+     * Gives the customer lead time to generate the drop-off permit before
+     * the truck actually arrives (AppFlow request: notify ~2km out).
+     * Skipped entirely once a permit is already attached — no need to nag
+     * — and guarded by its own dropoff_permit_reminder_sent_at stamp so it
+     * fires at most once per job/award, same idempotency idiom as
+     * maybeNotifyArrivedAtDropoff's own dropoff_arrival_notified_at.
+     */
+    private function maybeNotifyDropoffPermitReminder(Model $statusHolder, Job $job, GeoPoint $dropoff, GeoPoint $truckPosition): void
+    {
+        if ($statusHolder->dropoff_permit_reminder_sent_at !== null || $job->dropoff_permit_path !== null) {
+            return;
+        }
+
+        if ($dropoff->kmTo($truckPosition) > (float) config('gps.dropoff_permit_reminder_radius_km', 2.0)) {
+            return;
+        }
+
+        $statusHolder->forceFill(['dropoff_permit_reminder_sent_at' => now()])->saveQuietly();
+
+        $this->notifications->send(
+            $job->customer,
+            'dropoff_permit_needed',
+            'Prepare the drop-off permit',
+            "Job #{$job->id}'s truck is approaching the drop-off point. Generate and attach the drop-off permit now.",
+            $job,
+        );
     }
 
     /**

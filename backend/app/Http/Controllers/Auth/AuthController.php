@@ -11,10 +11,12 @@ use App\Http\Requests\Auth\RequestPasswordResetRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Auth\DeviceName;
 use App\Services\Auth\LoginThrottle;
 use App\Services\Auth\OtpCooldownException;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\PhoneNumberNormalizer;
+use App\Services\Auth\TwoFactorChallenge;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -40,7 +42,11 @@ class AuthController extends Controller
 
     private const PENDING_REGISTRATION_PREFIX = 'transporter_registration:';
 
-    public function __construct(private readonly OtpService $otp, private readonly LoginThrottle $loginThrottle) {}
+    public function __construct(
+        private readonly OtpService $otp,
+        private readonly LoginThrottle $loginThrottle,
+        private readonly TwoFactorChallenge $twoFactor,
+    ) {}
 
     public function requestOtp(RequestOtpRequest $request): JsonResponse
     {
@@ -90,11 +96,20 @@ class AuthController extends Controller
         $existing = User::where('phone_number', $phone)->first();
 
         if ($existing !== null) {
-            // Already has an account (e.g. re-requested a code) — nothing
-            // left to create, just issue a fresh token. The pending cache
-            // entry (if any) is stale and can be discarded either way.
             Cache::forget($this->pendingKey($phone));
-            $token = $existing->createToken('mobile-app')->plainTextToken;
+
+            // With two-factor on, a phone code alone must not be enough to
+            // get in — that's exactly the one-factor path 2FA exists to
+            // close (e.g. a SIM-swapped number). Password + code only.
+            if ($existing->two_factor_enabled) {
+                throw ValidationException::withMessages([
+                    'phone_number' => ['This number already has an account. Log in with your password instead.'],
+                ]);
+            }
+
+            // Already has an account (e.g. re-requested a code) — nothing
+            // left to create, just issue a fresh token.
+            $token = $existing->createToken(DeviceName::from($request))->plainTextToken;
 
             return response()->json(['token' => $token, 'user' => new UserResource($existing)]);
         }
@@ -126,7 +141,7 @@ class AuthController extends Controller
         $user->password_hash = $pending['password_hash'];
         $user->save();
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        $token = $user->createToken(DeviceName::from($request))->plainTextToken;
 
         return response()->json([
             'token' => $token,
@@ -163,8 +178,12 @@ class AuthController extends Controller
 
         $this->loginThrottle->clear($throttleKey);
 
+        if ($user->two_factor_enabled) {
+            return response()->json($this->twoFactor->start($user, DeviceName::from($request)));
+        }
+
         return response()->json([
-            'token' => $user->createToken('mobile-app')->plainTextToken,
+            'token' => $user->createToken(DeviceName::from($request))->plainTextToken,
             'user' => new UserResource($user),
         ]);
     }

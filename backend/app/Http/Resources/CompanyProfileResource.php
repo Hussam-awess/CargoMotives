@@ -50,6 +50,10 @@ class CompanyProfileResource extends JsonResource
             // company's own bids).
             'is_featured' => (bool) $this->is_featured,
             'location' => $this->physical_address,
+            // Null on a company that hasn't dropped a pin yet — the public
+            // profile falls back to the plain address text above.
+            'location_lat' => $this->physical_lat,
+            'location_lng' => $this->physical_lng,
             'member_since' => $this->created_at?->toIso8601String(),
             'average_rating' => $this->average_rating !== null ? (float) $this->average_rating : null,
             'rating_count' => (int) $this->rating_count,

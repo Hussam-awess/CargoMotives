@@ -96,7 +96,7 @@ class DriverLinkPageTest extends TestCase
     public function test_submitting_proof_of_delivery_marks_the_job_delivered_and_the_link_used(): void
     {
         Storage::fake('local');
-        $job = Job::factory()->assigned()->create();
+        $job = Job::factory()->assigned()->create(['dropoff_permit_path' => 'permits/test.pdf']);
         $driver = Driver::factory()->create();
         $link = DriverLink::factory()->create(['job_id' => $job->id, 'driver_id' => $driver->id]);
 
@@ -128,6 +128,18 @@ class DriverLinkPageTest extends TestCase
 
         $this->post("/driver-link/{$link->token}/proof-of-delivery", ['recipient_name' => 'Asha Mwinyi'])
             ->assertSessionHasErrors('photos');
+        $this->assertSame('assigned', $job->fresh()->status);
+    }
+
+    public function test_proof_of_delivery_is_rejected_without_a_dropoff_permit_attached(): void
+    {
+        Storage::fake('local');
+        $job = Job::factory()->assigned()->create(); // no dropoff_permit_path
+        $link = DriverLink::factory()->create(['job_id' => $job->id]);
+
+        $this->post("/driver-link/{$link->token}/proof-of-delivery", [
+            'photos' => [UploadedFile::fake()->create('proof.jpg', 200, 'image/jpeg')],
+        ])->assertSessionHasErrors('dropoff_permit');
         $this->assertSame('assigned', $job->fresh()->status);
     }
 
@@ -268,7 +280,7 @@ class DriverLinkPageTest extends TestCase
     public function test_an_awards_lead_link_can_submit_proof_of_delivery_scoped_to_that_award(): void
     {
         Storage::fake('local');
-        $job = Job::factory()->create(['status' => 'open', 'trucks_needed' => 20]);
+        $job = Job::factory()->create(['status' => 'open', 'trucks_needed' => 20, 'dropoff_permit_path' => 'permits/test.pdf']);
         $company = TransporterCompany::factory()->approved()->create();
         $bid = Bid::factory()->create(['job_id' => $job->id, 'transporter_company_id' => $company->id, 'trucks_offered' => 8]);
         $award = JobAward::create([
@@ -317,7 +329,7 @@ class DriverLinkPageTest extends TestCase
     public function test_two_different_awards_on_the_same_job_can_each_submit_their_own_proof_of_delivery(): void
     {
         Storage::fake('local');
-        $job = Job::factory()->create(['status' => 'open', 'trucks_needed' => 20]);
+        $job = Job::factory()->create(['status' => 'open', 'trucks_needed' => 20, 'dropoff_permit_path' => 'permits/test.pdf']);
 
         $companyA = TransporterCompany::factory()->approved()->create();
         $bidA = Bid::factory()->create(['job_id' => $job->id, 'transporter_company_id' => $companyA->id, 'trucks_offered' => 8]);

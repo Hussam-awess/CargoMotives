@@ -138,6 +138,21 @@ class AppServiceProvider extends ServiceProvider
         // surface on that current password.
         RateLimiter::for('profile-password-change', fn (Request $request) => Limit::perMinute(5)->by($request->user()->id));
 
+        // Two-factor login step — same request/verify split and limits as
+        // otp-request/otp-verify, keyed on the challenge token instead of
+        // a phone/email (the code's own max_attempts is still the primary
+        // guard; this stops rapid-fire guessing across requests).
+        RateLimiter::for('two-factor-verify', fn (Request $request) => Limit::perMinute(10)->by($request->input('challenge_token').'|'.$request->ip()));
+        RateLimiter::for('two-factor-resend', fn (Request $request) => Limit::perMinute(3)->by($request->input('challenge_token').'|'.$request->ip()));
+
+        // A ceiling on every /api route (applied via throttleApi() in
+        // bootstrap/app.php), on top of the tighter per-endpoint limiters
+        // above: generous enough that no real screen gets near it, but a
+        // runaway client loop or a scraper can't hammer the database.
+        // Keyed per user when authenticated so a whole office behind one
+        // NAT'd IP isn't lumped into a single bucket.
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(300)->by($request->user()?->id ?: $request->ip()));
+
         // Phase 9's activity_logs (Backend Schema §2.16) is populated
         // entirely through observers rather than threading a logging call
         // into every controller across Phases 1-8 — see

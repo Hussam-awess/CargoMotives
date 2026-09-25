@@ -222,6 +222,7 @@ class _PlusHero extends StatelessWidget {
             Row(
               children: [
                 IconButton(
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                   onPressed: () => Navigator.of(context).maybePop(),
                   icon: const Icon(
                     Icons.arrow_back,

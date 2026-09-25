@@ -30,6 +30,11 @@ class LocalPrefs {
     await prefs.setString(key, value);
   }
 
+  Future<void> remove(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(key);
+  }
+
   Future<List<String>> getStringList(String key) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList(key) ?? [];

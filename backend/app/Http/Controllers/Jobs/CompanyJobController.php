@@ -94,6 +94,8 @@ class CompanyJobController extends Controller
             $this->applyPreferredRoutesFilter($query, $company);
         }
 
+        $this->applyFloorRateFilter($query, $company);
+
         return JobResource::collection($query->paginate(20));
     }
 
@@ -413,6 +415,29 @@ class CompanyJobController extends Controller
                         ->where('dropoff_address', 'like', "%{$route['destination']}%");
                 });
             }
+        });
+    }
+
+    /**
+     * A company's own standing preference (not opt-in per-request like
+     * preferred routes above) — hides an open job priced below the
+     * company's floor rate, so it never has to manually decline it. Only
+     * ever excludes a job that's genuinely comparable: same currency AND
+     * genuinely below floor. A cross-currency job, or one with no stated
+     * budget at all, is never wrongly hidden — this app has no
+     * currency-conversion system (see PostJobRequest's own docblock), so a
+     * raw cross-currency number comparison would be meaningless.
+     */
+    private function applyFloorRateFilter(Builder $query, TransporterCompany $company): void
+    {
+        if (! $company->auto_decline_below_budget || $company->floor_rate === null) {
+            return;
+        }
+
+        $query->where(function (Builder $q) use ($company) {
+            $q->where('jobs.currency', '!=', $company->floor_rate_currency)
+                ->orWhere('jobs.budget_price', '>=', $company->floor_rate)
+                ->orWhereNull('jobs.budget_price');
         });
     }
 }

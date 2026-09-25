@@ -4,12 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/session_store.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/generated/app_localizations.dart';
+import '../../shared/data/payment_repository.dart';
+import '../../shared/payments/payment_history_screen.dart';
 import '../auth/data/auth_repository.dart';
 import '../auth/edit_profile_screen.dart';
 import '../support/help_support_screen.dart';
 import 'addresses/saved_addresses_screen.dart';
 import 'featured/featured_screen.dart';
-import 'payments/payment_history_screen.dart';
 import 'settings/customer_settings_screen.dart';
 import 'shipments/customer_shipments_screen.dart';
 
@@ -125,7 +126,9 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
                 label: 'Payment history',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const PaymentHistoryScreen(),
+                    builder: (_) => PaymentHistoryScreen(
+                      repository: PaymentRepository(isCompany: false),
+                    ),
                   ),
                 ),
               ),

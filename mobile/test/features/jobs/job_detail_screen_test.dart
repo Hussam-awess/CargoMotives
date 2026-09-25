@@ -48,7 +48,11 @@ const _company = BidCompany(
   ratingCount: 20,
 );
 
-Job _jobWithStatus(String status) => Job(
+Job _jobWithStatus(
+  String status, {
+  String? pickupPermitUrl,
+  String? dropoffPermitUrl,
+}) => Job(
   id: 10,
   status: status,
   pickupAddress: 'Kariakoo',
@@ -70,6 +74,8 @@ Job _jobWithStatus(String status) => Job(
   assignedDriverName: null,
   proofOfDelivery: null,
   bidsCount: 0,
+  pickupPermitUrl: pickupPermitUrl,
+  dropoffPermitUrl: dropoffPermitUrl,
 );
 
 const _pendingBid = Bid(
@@ -100,6 +106,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // The timeline now has 8 rows (permit-wait stages included), pushing
+    // the Cargo card below the default unscrolled viewport.
+    await tester.scrollUntilVisible(
+      find.text('Dry Van · 40ft'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Dry Van · 40ft'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.textContaining('ABC Logistics'),
@@ -929,6 +942,16 @@ void main() {
       expect(find.text('Edit & Repost'), findsOneWidget);
       expect(find.text('No bids yet.'), findsNothing);
 
+      await tester.scrollUntilVisible(
+        find.text('Repost Job'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // scrollUntilVisible only guarantees the target intersects the
+      // viewport, not that its center (what tap() targets) is within
+      // bounds — nudge a little further so the tap actually lands.
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -80));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Repost Job'));
       await tester.pumpAndSettle();
 
@@ -1154,7 +1177,7 @@ void main() {
   });
 
   testWidgets(
-    'the timeline shows all six stages, including In transit as its own step',
+    'the timeline shows all eight stages, including the two permit-wait rows',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -1179,9 +1202,15 @@ void main() {
 
       expect(find.text('Shipment posted'), findsOneWidget);
       expect(find.text('Transporter assigned'), findsOneWidget);
+      expect(find.text('Waiting for pickup permit'), findsOneWidget);
       expect(find.text('Loading cargo'), findsOneWidget);
       // In transit is a distinct stage now, not folded into "Loading cargo".
       expect(find.text('In transit'), findsOneWidget);
+      // No permit uploaded on this fixture, and the job is already past
+      // 'assigned' — the pickup-permit row still shows "done" (informational
+      // only, never blocks progress), and the job is currently 'in_transit',
+      // so the drop-off row is the one highlighted as current.
+      expect(find.text('Waiting for drop-off permit'), findsOneWidget);
       expect(find.text('Delivered'), findsOneWidget);
       expect(find.text('Completed'), findsOneWidget);
 
@@ -1190,6 +1219,50 @@ void main() {
       // a truck itself marks "Transporter assigned" here too.
       expect(find.byIcon(Icons.local_shipping_outlined), findsOneWidget);
       expect(find.byIcon(Icons.local_shipping), findsOneWidget);
+      // One assignment_outlined icon per permit-wait row.
+      expect(find.byIcon(Icons.assignment_outlined), findsNWidgets(2));
+    },
+  );
+
+  testWidgets(
+    'the drop-off permit-wait row reads done once the permit is attached',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: JobDetailScreen(
+            jobId: 10,
+            jobRepository: FakeJobRepository(
+              onShow: (_) async => _jobWithStatus(
+                'in_transit',
+                dropoffPermitUrl: 'https://example.com/dropoff.pdf',
+              ),
+            ),
+            bidRepository: FakeBidRepository(onForJob: (_) async => []),
+            bidChannel: FakeJobBidChannel(jobId: 10),
+            locationChannel: FakeJobLocationChannel(jobId: 10),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Waiting for drop-off permit'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      final icon = tester.widget<Icon>(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('Waiting for drop-off permit'),
+            matching: find.byType(Row),
+          ),
+          matching: find.byIcon(Icons.assignment_outlined),
+        ),
+      );
+      // "Done" rows render white-on-blue; only "upcoming" rows use the
+      // tertiary/gray icon color (see _StatusTimeline's own build()).
+      expect(icon.color, isNot(AppColors.textTertiary));
     },
   );
 
@@ -1231,4 +1304,91 @@ void main() {
       expect(assignedIcon.color, isNot(AppColors.textTertiary));
     },
   );
+
+  group('cargo-authority checkpoint permits', () {
+    testWidgets(
+      'shows upload prompts for both permits when neither is attached',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: JobDetailScreen(
+              jobId: 10,
+              jobRepository: FakeJobRepository(
+                onShow: (_) async => _jobWithStatus('in_transit'),
+              ),
+              bidRepository: FakeBidRepository(onForJob: (_) async => []),
+              bidChannel: FakeJobBidChannel(jobId: 10),
+              locationChannel: FakeJobLocationChannel(jobId: 10),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.text('Drop-off permit'),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+
+        expect(find.text('Pickup permit'), findsOneWidget);
+        expect(find.text('Drop-off permit'), findsOneWidget);
+        expect(find.text('Upload'), findsNWidgets(2));
+        expect(find.text('View'), findsNothing);
+      },
+    );
+
+    testWidgets('shows View for whichever permit is already attached', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: JobDetailScreen(
+            jobId: 10,
+            jobRepository: FakeJobRepository(
+              onShow: (_) async => _jobWithStatus(
+                'in_transit',
+                dropoffPermitUrl: 'https://example.com/dropoff.pdf',
+              ),
+            ),
+            bidRepository: FakeBidRepository(onForJob: (_) async => []),
+            bidChannel: FakeJobBidChannel(jobId: 10),
+            locationChannel: FakeJobLocationChannel(jobId: 10),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Drop-off permit'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      expect(find.text('View'), findsOneWidget);
+      expect(find.text('Replace'), findsOneWidget);
+      // The pickup permit is still unattached in this scenario.
+      expect(find.text('Upload'), findsOneWidget);
+    });
+
+    testWidgets('no permit cards show while the job is still just open', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: JobDetailScreen(
+            jobId: 10,
+            jobRepository: FakeJobRepository(onShow: (_) async => _openJob),
+            bidRepository: FakeBidRepository(
+              onForJob: (_) async => [_pendingBid],
+            ),
+            bidChannel: FakeJobBidChannel(jobId: 10),
+            locationChannel: FakeJobLocationChannel(jobId: 10),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Drop-off permit'), findsNothing);
+    });
+  });
 }

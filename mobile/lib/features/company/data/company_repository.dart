@@ -14,6 +14,8 @@ class CompanyVerification {
     this.registrationNumber,
     this.tin,
     this.physicalAddress,
+    this.physicalLat,
+    this.physicalLng,
     this.companyPhone,
     this.companyEmail,
     this.repFullName,
@@ -30,6 +32,8 @@ class CompanyVerification {
       registrationNumber: json['registration_number'] as String?,
       tin: json['tin'] as String?,
       physicalAddress: json['physical_address'] as String?,
+      physicalLat: (json['physical_lat'] as num?)?.toDouble(),
+      physicalLng: (json['physical_lng'] as num?)?.toDouble(),
       companyPhone: json['company_phone'] as String?,
       companyEmail: json['company_email'] as String?,
       repFullName: json['rep_full_name'] as String?,
@@ -54,6 +58,13 @@ class CompanyVerification {
   final String? registrationNumber;
   final String? tin;
   final String? physicalAddress;
+
+  /// The company's "home base" pin — null until it sets one via
+  /// CompanyRepository.updateLocation(), independent of whether
+  /// physicalAddress itself is set (the address is required at
+  /// verification time; the map pin is optional and added separately).
+  final double? physicalLat;
+  final double? physicalLng;
   final String? companyPhone;
   final String? companyEmail;
   final String? repFullName;
@@ -166,6 +177,21 @@ class CompanyRepository {
     }, ListFormat.multiCompatible);
 
     final body = await _client.postForm('/company/verification', formData);
+
+    return CompanyVerification.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Sets or updates the company's home-base pin — a standalone action,
+  /// not a resubmission (see UpdateCompanyLocationRequest's backend
+  /// docblock), so it's always callable regardless of verification status.
+  Future<CompanyVerification> updateLocation({
+    required double lat,
+    required double lng,
+  }) async {
+    final body = await _client.post(
+      '/company/verification/location',
+      data: {'lat': lat, 'lng': lng},
+    );
 
     return CompanyVerification.fromJson(body['data'] as Map<String, dynamic>);
   }

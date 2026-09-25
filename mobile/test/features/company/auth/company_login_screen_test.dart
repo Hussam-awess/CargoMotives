@@ -1,4 +1,5 @@
 import 'package:cargo_motives/core/auth/session_store.dart';
+import 'package:cargo_motives/core/local/local_prefs.dart';
 import 'package:cargo_motives/core/localization/locale_controller.dart';
 import 'package:cargo_motives/core/localization/locale_scope.dart';
 import 'package:cargo_motives/core/network/api_exception.dart';
@@ -9,17 +10,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../support/fake_auth_repository.dart';
 import '../../../support/fake_secure_storage_platform.dart';
 
-Widget _appUnder({required FakeAuthRepository repository}) {
+Widget _appUnder({required FakeAuthRepository repository, LocalPrefs prefs = const LocalPrefs()}) {
   final router = GoRouter(
     initialLocation: '/company-login',
     routes: [
       GoRoute(
         path: '/company-login',
-        builder: (context, state) => CompanyLoginScreen(repository: repository, sessionStore: SessionStore()),
+        builder: (context, state) =>
+            CompanyLoginScreen(repository: repository, sessionStore: SessionStore(), prefs: prefs),
       ),
       GoRoute(path: '/phone-entry', builder: (context, state) => const Text('PHONE_ENTRY_SCREEN')),
       GoRoute(path: '/company', builder: (context, state) => const Text('COMPANY_HOME')),
@@ -39,6 +42,7 @@ Widget _appUnder({required FakeAuthRepository repository}) {
 void main() {
   setUp(() {
     FlutterSecureStoragePlatform.instance = FakeSecureStoragePlatform();
+    SharedPreferences.setMockInitialValues({});
   });
 
   testWidgets('shows a validation error when phone is empty', (tester) async {
@@ -108,5 +112,54 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CompanyForgotPasswordScreen), findsOneWidget);
+  });
+
+  testWidgets('checking "Remember me" saves the phone number for next time, not the password', (tester) async {
+    final repository = FakeAuthRepository(onLogin: (phone, password) async => 'a-real-token');
+    final prefs = const LocalPrefs();
+
+    await tester.pumpWidget(_appUnder(repository: repository, prefs: prefs));
+    await tester.enterText(find.byType(TextField).at(0), '0712345678');
+    await tester.enterText(find.byType(TextField).at(1), 'password123');
+    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log in'));
+    await tester.pumpAndSettle();
+
+    expect(await prefs.getBool('company_login_remember_me', defaultValue: false), isTrue);
+    expect(await prefs.getString('company_login_remembered_phone'), '0712345678');
+  });
+
+  testWidgets('logging in without "Remember me" checked forgets any previously remembered phone', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'company_login_remember_me': true,
+      'company_login_remembered_phone': '0700000000',
+    });
+    final repository = FakeAuthRepository(onLogin: (phone, password) async => 'a-real-token');
+    final prefs = const LocalPrefs();
+
+    await tester.pumpWidget(_appUnder(repository: repository, prefs: prefs));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.enterText(find.byType(TextField).at(1), 'password123');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log in'));
+    await tester.pumpAndSettle();
+
+    expect(await prefs.getBool('company_login_remember_me', defaultValue: false), isFalse);
+    expect(await prefs.getString('company_login_remembered_phone'), isNull);
+  });
+
+  testWidgets('pre-fills the phone field from a previously remembered login', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'company_login_remember_me': true,
+      'company_login_remembered_phone': '0712345678',
+    });
+    final repository = FakeAuthRepository();
+
+    await tester.pumpWidget(_appUnder(repository: repository));
+    await tester.pumpAndSettle();
+
+    final phoneField = tester.widget<TextField>(find.byType(TextField).at(0));
+    expect(phoneField.controller!.text, '0712345678');
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
   });
 }

@@ -44,6 +44,19 @@ class SettingsToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // MergeSemantics: a screen reader announces "Shipment updates, switch,
+    // on" as one element instead of an unlabeled "switch, on". Tapping
+    // anywhere on the row toggles it — a far bigger touch target than the
+    // switch alone.
+    return MergeSemantics(
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        child: _buildRow(),
+      ),
+    );
+  }
+
+  Widget _buildRow() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
       decoration: isLast
@@ -97,6 +110,13 @@ class SettingsNavRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      button: onTap != null,
+      child: _buildRow(),
+    );
+  }
+
+  Widget _buildRow() {
     return InkWell(
       onTap: onTap,
       child: Container(

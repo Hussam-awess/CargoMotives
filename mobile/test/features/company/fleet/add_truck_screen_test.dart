@@ -143,8 +143,10 @@ void main() {
   });
 
   /// An already-real truck (not a bare GPS import) is locked: only
-  /// capacity/type stay editable, and the whole Documents section is
-  /// hidden — there's nothing to re-attach because nothing can change.
+  /// capacity/type/photos stay editable — the identity-document tiles
+  /// (registration card, insurance, roadworthiness permit) are hidden
+  /// since there's nothing to re-attach there, but the photo picker still
+  /// renders since photos are exempt from the lock.
   testWidgets('changing the tonnage on an already-real truck submits directly, with no confirm dialog', (
     tester,
   ) async {
@@ -179,13 +181,26 @@ void main() {
       ),
     );
 
-    // Locked: the Documents section (and its "on file" tiles) doesn't
-    // render at all — there's nothing left there that could change.
-    expect(find.text('Documents'), findsNothing);
+    // Locked: the identity-document tiles don't render at all — there's
+    // nothing left there that could change. The Documents heading and
+    // photo picker still do, since photos are exempt from the lock.
+    expect(find.text('Documents'), findsOneWidget);
+    expect(find.text('Photos on file — tap to replace'), findsOneWidget);
     expect(
       find.text('Registration card — on file, tap to replace'),
       findsNothing,
     );
+
+    // The photo picker is genuinely tappable while locked, not just
+    // visually present — a company can still refresh a truck's photos
+    // after everything else is confirmed.
+    final photoPickerInkWell = tester.widget<InkWell>(
+      find.ancestor(
+        of: find.text('Photos on file — tap to replace'),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(photoPickerInkWell.onTap, isNotNull);
 
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Capacity (tons)'),
@@ -403,7 +418,7 @@ void main() {
 
       expect(
         find.text(
-          'These details are locked once confirmed. Only capacity and type can be changed.',
+          'These details are locked once confirmed. Only capacity, type, and photos can be changed.',
         ),
         findsOneWidget,
       );

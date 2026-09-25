@@ -50,6 +50,8 @@ class CompanyHomeTab extends StatefulWidget {
     DriverRepository? driverRepository,
     NotificationRepository? notificationRepository,
     CompanyFeaturedRepository? featuredRepository,
+    this.unreadCountNotifier,
+    this.onNotificationRead,
     this.onFindJobs,
     this.onManageFleet,
     this.onAddTruck,
@@ -69,6 +71,14 @@ class CompanyHomeTab extends StatefulWidget {
   final DriverRepository driverRepository;
   final NotificationRepository notificationRepository;
   final CompanyFeaturedRepository featuredRepository;
+
+  /// When provided (CompanyHomeShell owns both), the header's bell renders
+  /// this shared count and calls [onNotificationRead] after the
+  /// notifications screen closes, instead of fetching its own — see
+  /// NotificationBellButton's own docblock for why this exists (the Find
+  /// Jobs tab's bell used to go stale independently of this one).
+  final ValueNotifier<int>? unreadCountNotifier;
+  final VoidCallback? onNotificationRead;
 
   /// CompanyHomeShell owns cross-tab navigation (switching the bottom-nav
   /// IndexedStack) and the Jobs-board push — when unset (e.g. a standalone
@@ -191,6 +201,8 @@ class CompanyHomeTabState extends State<CompanyHomeTab> {
                     companyLabel: widget.companyName,
                     isFeatured: data.isFeatured,
                     notificationRepository: widget.notificationRepository,
+                    unreadCountNotifier: widget.unreadCountNotifier,
+                    onNotificationRead: widget.onNotificationRead,
                     onTapJob: _openJob,
                     onOpenSupport: _openSupport,
                     onOpenFleet: _openFleet,
@@ -283,6 +295,8 @@ class _Header extends StatelessWidget {
     required this.companyLabel,
     required this.isFeatured,
     required this.notificationRepository,
+    this.unreadCountNotifier,
+    this.onNotificationRead,
     required this.onTapJob,
     required this.onOpenSupport,
     required this.onOpenFleet,
@@ -291,6 +305,8 @@ class _Header extends StatelessWidget {
   final String companyLabel;
   final bool isFeatured;
   final NotificationRepository notificationRepository;
+  final ValueNotifier<int>? unreadCountNotifier;
+  final VoidCallback? onNotificationRead;
   final void Function(int jobId) onTapJob;
   final VoidCallback onOpenSupport;
   final VoidCallback onOpenFleet;
@@ -387,6 +403,8 @@ class _Header extends StatelessWidget {
             onTapJob: onTapJob,
             onOpenSupport: onOpenSupport,
             onOpenFleet: onOpenFleet,
+            externalUnreadCount: unreadCountNotifier,
+            onRead: onNotificationRead,
           ),
         ],
       ),
@@ -849,7 +867,7 @@ class _PlusPromoBanner extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Unlimited bidding, priority placement, fleet map and more.',
+                    'Unlimited bidding, priority placement, and more.',
                     style: TextStyle(fontSize: 12, color: AppColors.lightBlue),
                   ),
                 ],

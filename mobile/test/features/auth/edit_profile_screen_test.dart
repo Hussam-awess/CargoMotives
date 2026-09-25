@@ -235,4 +235,37 @@ void main() {
     expect(captured, 'Amina Logistics');
     expect(find.text('Business details updated.'), findsOneWidget);
   });
+
+  testWidgets('shows the Plus badge when the profile is featured', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EditProfileScreen(
+          profile: const UserProfile(
+            fullName: 'Amina Hassan',
+            companyName: null,
+            isFeatured: true,
+            email: 'amina@example.com',
+          ),
+          credential: ProfileCredential.email,
+          authRepository: FakeAuthRepository(),
+        ),
+      ),
+    );
+
+    expect(find.text('PLUS'), findsOneWidget);
+  });
+
+  testWidgets('hides the Plus badge when the profile is not featured', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EditProfileScreen(
+          profile: _profile,
+          credential: ProfileCredential.email,
+          authRepository: FakeAuthRepository(),
+        ),
+      ),
+    );
+
+    expect(find.text('PLUS'), findsNothing);
+  });
 }

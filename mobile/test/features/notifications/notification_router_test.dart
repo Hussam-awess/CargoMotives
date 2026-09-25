@@ -25,6 +25,7 @@ void main() {
       'gps_signal_lost',
       'job_status_changed',
       'job_arrived_at_dropoff',
+      'dropoff_permit_needed',
       'new_message',
       'bidding_closed_no_bids',
       'bidding_closed_has_bids',

@@ -143,4 +143,44 @@ void main() {
       expect(heightAfterExpand, greaterThan(heightAfter));
     },
   );
+
+  /// The explicit "extended map" option — a transporter looking at a
+  /// freshly assigned shipment's route shouldn't have to discover the
+  /// sheet is draggable at all to see more of the map.
+  testWidgets(
+    'the fullscreen button collapses the route sheet, and toggles back',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: JobRouteMapScreen(
+            job: _job(),
+            routingService: _FakeRoutingService(
+              result: const RouteResult(
+                points: [LatLng(-6.8161, 39.2803), LatLng(-6.7, 39.2)],
+                distanceKm: 12.5,
+                durationMinutes: 22,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final sheetContent = find.byKey(const Key('routeMapSheetContent'));
+      final heightBefore = tester.getSize(sheetContent).height;
+
+      expect(find.byIcon(Icons.fullscreen), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.fullscreen));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(sheetContent).height, lessThan(heightBefore));
+      expect(find.byIcon(Icons.fullscreen_exit), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.fullscreen_exit));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(sheetContent).height, heightBefore);
+      expect(find.byIcon(Icons.fullscreen), findsOneWidget);
+    },
+  );
 }

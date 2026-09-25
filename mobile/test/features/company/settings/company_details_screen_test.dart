@@ -47,4 +47,68 @@ void main() {
 
     expect(find.text('Could not load your company details.'), findsOneWidget);
   });
+
+  testWidgets('shows "Not set" and a Set action when no pin exists yet', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyDetailsScreen(
+          repository: FakeCompanyRepository(
+            onGetStatus: () async => const CompanyVerification(
+              status: 'approved',
+              rejectedReason: null,
+              companyName: 'ABC Logistics',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Not set'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Set'), findsOneWidget);
+  });
+
+  testWidgets('shows "Pin set" and an Edit action once a pin exists', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyDetailsScreen(
+          repository: FakeCompanyRepository(
+            onGetStatus: () async => const CompanyVerification(
+              status: 'approved',
+              rejectedReason: null,
+              companyName: 'ABC Logistics',
+              physicalLat: -6.8161,
+              physicalLng: 39.2803,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pin set'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Edit'), findsOneWidget);
+  });
+
+  testWidgets('tapping Set opens the location picker', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompanyDetailsScreen(
+          repository: FakeCompanyRepository(
+            onGetStatus: () async => const CompanyVerification(
+              status: 'approved',
+              rejectedReason: null,
+              companyName: 'ABC Logistics',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, 'Set'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Company location'), findsOneWidget);
+  });
 }

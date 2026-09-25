@@ -32,6 +32,36 @@ class CompanyProfileTest extends TestCase
             ->assertJsonPath('data.completed_jobs_count', 0);
     }
 
+    public function test_shows_the_companys_home_base_pin_when_it_has_set_one(): void
+    {
+        $viewer = User::factory()->create();
+        $company = TransporterCompany::factory()->approved()->create([
+            'physical_lat' => -6.8161,
+            'physical_lng' => 39.2803,
+        ]);
+
+        $response = $this->actingAs($viewer)->getJson("/api/profiles/companies/{$company->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.location_lat', -6.8161)
+            ->assertJsonPath('data.location_lng', 39.2803);
+    }
+
+    public function test_home_base_pin_is_null_when_the_company_never_set_one(): void
+    {
+        $viewer = User::factory()->create();
+        $company = TransporterCompany::factory()->approved()->create([
+            'physical_lat' => null,
+            'physical_lng' => null,
+        ]);
+
+        $response = $this->actingAs($viewer)->getJson("/api/profiles/companies/{$company->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.location_lat', null)
+            ->assertJsonPath('data.location_lng', null);
+    }
+
     public function test_shows_the_companys_own_logo_when_it_has_one(): void
     {
         $viewer = User::factory()->create();

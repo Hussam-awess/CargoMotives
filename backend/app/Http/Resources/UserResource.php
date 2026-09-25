@@ -38,14 +38,18 @@ class UserResource extends JsonResource
             // system exists here, see the migration's own docblock.
             'preferred_currency' => $this->preferred_currency,
             'is_featured' => $this->is_featured,
-            // Resolved with defaults filled in (absent = on — see
+            'two_factor_enabled' => (bool) $this->two_factor_enabled,
+            // Resolved with defaults filled in (see
             // User::wantsNotificationCategory) so the client never has to
-            // know that opt-out semantics itself, just render four toggles.
+            // know the opt-out vs opt-in semantics itself, just render the
+            // toggles.
             'notification_preferences' => [
                 'bids' => $this->wantsNotificationCategory('bids'),
                 'shipment_updates' => $this->wantsNotificationCategory('shipment_updates'),
                 'messages' => $this->wantsNotificationCategory('messages'),
                 'new_job_matches' => $this->wantsNotificationCategory('new_job_matches'),
+                'sms_alerts' => $this->wantsNotificationCategory('sms_alerts'),
+                'promotions' => $this->wantsNotificationCategory('promotions'),
             ],
         ];
     }

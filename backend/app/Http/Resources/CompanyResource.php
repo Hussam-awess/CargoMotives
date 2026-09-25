@@ -25,6 +25,8 @@ class CompanyResource extends JsonResource
             'registration_number' => $this->registration_number,
             'tin' => $this->tin,
             'physical_address' => $this->physical_address,
+            'physical_lat' => $this->physical_lat,
+            'physical_lng' => $this->physical_lng,
             'company_phone' => $this->company_phone,
             'company_email' => $this->company_email,
             // Every *_url / documents value below is a private storage key
@@ -54,6 +56,11 @@ class CompanyResource extends JsonResource
             'auto_check_notes' => $this->auto_check_notes,
             'verified_at' => $this->verified_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
+            'auto_decline_below_budget' => (bool) $this->auto_decline_below_budget,
+            'floor_rate' => $this->floor_rate !== null ? (float) $this->floor_rate : null,
+            'floor_rate_currency' => $this->floor_rate_currency,
+            'display_currency' => $this->display_currency,
+            'accepting_loads' => (bool) $this->accepting_loads,
         ];
     }
 }

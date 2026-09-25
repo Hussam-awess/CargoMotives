@@ -28,6 +28,11 @@ class FakeAuthRepository extends AuthRepository {
     this.onChangePassword,
     this.onUpdatePreferredCurrency,
     this.onLogout,
+    this.onUpdateTwoFactor,
+    this.onSessions,
+    this.onRevokeSession,
+    this.onRevokeOtherSessions,
+    this.onDeleteAccount,
   });
 
   final Future<void> Function(
@@ -74,6 +79,30 @@ class FakeAuthRepository extends AuthRepository {
 
   @override
   Future<void> logout() => onLogout?.call() ?? Future.value();
+
+  final Future<UserProfile> Function(bool enabled, String currentPassword)? onUpdateTwoFactor;
+  final Future<List<ActiveSession>> Function()? onSessions;
+  final Future<void> Function(int sessionId)? onRevokeSession;
+  final Future<void> Function()? onRevokeOtherSessions;
+  final Future<void> Function(String currentPassword)? onDeleteAccount;
+
+  @override
+  Future<UserProfile> updateTwoFactor({required bool enabled, required String currentPassword}) =>
+      onUpdateTwoFactor?.call(enabled, currentPassword) ??
+      Future.value(UserProfile(fullName: 'Test User', companyName: null, isFeatured: false, twoFactorEnabled: enabled));
+
+  @override
+  Future<List<ActiveSession>> sessions() => onSessions?.call() ?? Future.value(const []);
+
+  @override
+  Future<void> revokeSession(int sessionId) => onRevokeSession?.call(sessionId) ?? Future.value();
+
+  @override
+  Future<void> revokeOtherSessions() => onRevokeOtherSessions?.call() ?? Future.value();
+
+  @override
+  Future<void> deleteAccount({required String currentPassword}) =>
+      onDeleteAccount?.call(currentPassword) ?? Future.value();
 
   @override
   Future<void> requestOtp({

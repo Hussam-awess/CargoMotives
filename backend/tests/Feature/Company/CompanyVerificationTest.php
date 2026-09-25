@@ -322,4 +322,88 @@ class CompanyVerificationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.verification_status', 'pending');
     }
+
+    public function test_a_company_can_set_its_home_base_pin(): void
+    {
+        $user = User::factory()->transporterCompany()->create();
+        $company = TransporterCompany::factory()->approved()->for($user, 'owner')->create();
+
+        $response = $this->actingAs($user)->postJson('/api/company/verification/location', [
+            'lat' => -6.8161,
+            'lng' => 39.2803,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.physical_lat', -6.8161)
+            ->assertJsonPath('data.physical_lng', 39.2803);
+        $this->assertEqualsWithDelta(-6.8161, (float) $company->fresh()->physical_lat, 0.0001);
+        $this->assertEqualsWithDelta(39.2803, (float) $company->fresh()->physical_lng, 0.0001);
+    }
+
+    /**
+     * Deliberately not gated behind approval — see updateLocation()'s own
+     * docblock on why a pending company can still set this.
+     */
+    public function test_a_pending_company_can_also_set_its_home_base_pin(): void
+    {
+        $user = User::factory()->transporterCompany()->create();
+        TransporterCompany::factory()->for($user, 'owner')->create(); // still pending
+
+        $this->actingAs($user)
+            ->postJson('/api/company/verification/location', ['lat' => -6.8161, 'lng' => 39.2803])
+            ->assertOk();
+    }
+
+    public function test_a_company_can_update_its_home_base_pin(): void
+    {
+        $user = User::factory()->transporterCompany()->create();
+        $company = TransporterCompany::factory()->approved()->for($user, 'owner')
+            ->create(['physical_lat' => -6.0, 'physical_lng' => 39.0]);
+
+        $this->actingAs($user)
+            ->postJson('/api/company/verification/location', ['lat' => -6.8161, 'lng' => 39.2803])
+            ->assertOk();
+
+        $this->assertEqualsWithDelta(-6.8161, (float) $company->fresh()->physical_lat, 0.0001);
+    }
+
+    public function test_home_base_pin_requires_both_coordinates(): void
+    {
+        $user = User::factory()->transporterCompany()->create();
+        TransporterCompany::factory()->approved()->for($user, 'owner')->create();
+
+        $this->actingAs($user)
+            ->postJson('/api/company/verification/location', ['lat' => -6.8161])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['lng']);
+    }
+
+    public function test_home_base_pin_rejects_an_out_of_range_coordinate(): void
+    {
+        $user = User::factory()->transporterCompany()->create();
+        TransporterCompany::factory()->approved()->for($user, 'owner')->create();
+
+        $this->actingAs($user)
+            ->postJson('/api/company/verification/location', ['lat' => 200, 'lng' => 39.2803])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['lat']);
+    }
+
+    public function test_a_customer_cannot_set_a_company_home_base_pin(): void
+    {
+        $user = User::factory()->create(); // default account_type is customer
+
+        $this->actingAs($user)
+            ->postJson('/api/company/verification/location', ['lat' => -6.8161, 'lng' => 39.2803])
+            ->assertForbidden();
+    }
+
+    public function test_a_company_with_no_submission_yet_gets_a_404_on_location(): void
+    {
+        $user = User::factory()->transporterCompany()->create();
+
+        $this->actingAs($user)
+            ->postJson('/api/company/verification/location', ['lat' => -6.8161, 'lng' => 39.2803])
+            ->assertNotFound();
+    }
 }

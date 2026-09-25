@@ -27,6 +27,8 @@ class CompanyJobsScreen extends StatefulWidget {
     CompanyJobRepository? repository,
     CompanyFeaturedRepository? featuredRepository,
     NotificationRepository? notificationRepository,
+    this.unreadCountNotifier,
+    this.onNotificationRead,
   }) : repository = repository ?? CompanyJobRepository(),
        featuredRepository = featuredRepository ?? CompanyFeaturedRepository(),
        notificationRepository =
@@ -35,6 +37,13 @@ class CompanyJobsScreen extends StatefulWidget {
   final CompanyJobRepository repository;
   final CompanyFeaturedRepository featuredRepository;
   final NotificationRepository notificationRepository;
+
+  /// See NotificationBellButton's own docblock — when provided
+  /// (CompanyHomeShell owns both), this tab's bell shares the Dashboard
+  /// tab's own unread count instead of fetching an independent one that
+  /// never syncs with it.
+  final ValueNotifier<int>? unreadCountNotifier;
+  final VoidCallback? onNotificationRead;
 
   @override
   State<CompanyJobsScreen> createState() => _CompanyJobsScreenState();
@@ -115,6 +124,8 @@ class _CompanyJobsScreenState extends State<CompanyJobsScreen> {
               onOpenFleet: () => Navigator.of(
                 context,
               ).push(MaterialPageRoute(builder: (_) => FleetScreen())),
+              externalUnreadCount: widget.unreadCountNotifier,
+              onRead: widget.onNotificationRead,
             ),
           ],
           bottom: TabBar(

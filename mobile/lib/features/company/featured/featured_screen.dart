@@ -16,13 +16,15 @@ const _plusTextDark = Color(0xFF5C4409);
 const _plusTextMuted = Color(0xFF8A6410);
 
 /// Upgrade to Featured (Company) — AppFlow §2.7: "explains the
-/// [bid quota], priority placement, fleet map, route filter,
-/// and return-load suggestions → pay via mobile money → unlocks
-/// immediately." The tools themselves are automatic once is_featured
-/// flips (bid quota/priority: BidQuotaService/BidController — Plus now
-/// removes the bid quota outright rather than just raising it;
-/// fleet map/route filter/return-load: Phase 8's other endpoints) — this
-/// screen is only the purchase flow and the preferred-routes setting.
+/// [bid quota], priority placement, route filter, and return-load
+/// suggestions → pay via mobile money → unlocks immediately." The tools
+/// themselves are automatic once is_featured flips (bid quota/priority:
+/// BidQuotaService/BidController — Plus now removes the bid quota
+/// outright rather than just raising it; route filter/return-load: Phase
+/// 8's other endpoints) — this screen is only the purchase flow and the
+/// preferred-routes setting. The fleet map used to be listed here too,
+/// but it's no longer Plus-gated (Plus Polish Batch Phase 1) — every
+/// transporter can see their own fleet's live positions for free.
 class CompanyFeaturedScreen extends StatefulWidget {
   CompanyFeaturedScreen({super.key, CompanyFeaturedRepository? repository})
     : repository = repository ?? CompanyFeaturedRepository();
@@ -323,6 +325,7 @@ class _PlusHero extends StatelessWidget {
             Row(
               children: [
                 IconButton(
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                   onPressed: () => Navigator.of(context).maybePop(),
                   icon: const Icon(
                     Icons.arrow_back,
@@ -430,12 +433,6 @@ class _CompanyBenefitsList extends StatelessWidget {
           icon: Icons.push_pin_outlined,
           title: 'Priority placement on your bids',
           body: 'Your bids are pinned above the rest on every job you bid on.',
-        ),
-        const SizedBox(height: 8),
-        const _BenefitCard(
-          icon: Icons.map_outlined,
-          title: 'A map of your GPS-connected fleet',
-          body: 'See every truck with GPS connected on one live map.',
         ),
         const SizedBox(height: 8),
         const _BenefitCard(
@@ -800,6 +797,7 @@ class _PreferredRoutesScreenState extends State<PreferredRoutesScreen> {
                               '${route.origin} → ${route.destination}',
                             ),
                             trailing: IconButton(
+                              tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
                               icon: const Icon(Icons.delete_outline),
                               onPressed: () =>
                                   setState(() => _routes.removeAt(index)),

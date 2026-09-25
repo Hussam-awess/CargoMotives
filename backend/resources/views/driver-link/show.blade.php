@@ -40,6 +40,13 @@
         @endif
     </div>
 
+    @if ($driverInstructions)
+        <div class="card">
+            <h1>Instructions</h1>
+            <p>{{ $driverInstructions }}</p>
+        </div>
+    @endif
+
     @if ($nextStatus && $mayControlStatus)
         <div class="card">
             <form method="POST" action="{{ route('driver-link.status', $token) }}">
@@ -54,9 +61,24 @@
         </div>
     @endif
 
+    @if ($pickupPermitUrl || $dropoffPermitUrl)
+        <div class="card">
+            <h1>Permits</h1>
+            @if ($pickupPermitUrl)
+                <a href="{{ $pickupPermitUrl }}" class="btn secondary" target="_blank">Download pickup permit</a>
+            @endif
+            @if ($dropoffPermitUrl)
+                <a href="{{ $dropoffPermitUrl }}" class="btn secondary" target="_blank">Download drop-off permit</a>
+            @endif
+        </div>
+    @endif
+
     @if ($canSubmitProofOfDelivery)
         <div class="card">
             <h1>Submit Proof of Delivery</h1>
+            @if (! $dropoffPermitUrl)
+                <p class="muted">The drop-off permit hasn't been attached by the customer yet — submission will be rejected until it is.</p>
+            @endif
             <form method="POST" action="{{ route('driver-link.pod', $token) }}" enctype="multipart/form-data">
                 @csrf
                 <label class="label">Photos</label>

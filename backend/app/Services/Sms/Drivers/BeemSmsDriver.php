@@ -6,6 +6,7 @@ use App\Services\Sms\SmsGateway;
 use App\Services\Sms\SmsSendResult;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -35,6 +36,30 @@ class BeemSmsDriver implements SmsGateway
         private readonly string $senderId,
     ) {}
 
+    /**
+     * Beem's plain-text encoding (encoding: 0) rejects the whole message —
+     * HTTP 400 API_UNSUPPORTED_VALUE — if it contains any Unicode, and
+     * several of this app's messages do: "A → B" routes in notifications,
+     * em dashes, and whatever a company types into driver instructions
+     * (curly quotes, emoji). Transliterate instead of losing the SMS.
+     */
+    public static function toPlainText(string $body): string
+    {
+        $body = strtr($body, [
+            "\u{2192}" => '->', "\u{2190}" => '<-', "\u{2014}" => '-', "\u{2013}" => '-',
+            "\u{2018}" => "'", "\u{2019}" => "'", "\u{201C}" => '"', "\u{201D}" => '"',
+            "\u{2026}" => '...', "\u{2022}" => '*', "\u{00A0}" => ' ',
+        ]);
+
+        // Str::ascii transliterates accents (é -> e) — applied per line, as it
+        // would otherwise flatten a multi-line driver instruction into one.
+        // Anything with no ASCII equivalent (emoji) is dropped rather than
+        // failing the send.
+        $body = (string) preg_replace_callback('/[^\r\n]+/', fn (array $line) => Str::ascii($line[0]), $body);
+
+        return (string) preg_replace('/[^\x09\x0A\x0D\x20-\x7E]/', '', $body);
+    }
+
     public function send(string $to, string $body): SmsSendResult
     {
         // This app's canonical phone format (PhoneNumberNormalizer) keeps
@@ -51,7 +76,7 @@ class BeemSmsDriver implements SmsGateway
                 ->post(self::ENDPOINT, [
                     'source_addr' => $this->senderId,
                     'encoding' => 0,
-                    'message' => $body,
+                    'message' => self::toPlainText($body),
                     'recipients' => [
                         ['recipient_id' => 1, 'dest_addr' => $destination],
                     ],

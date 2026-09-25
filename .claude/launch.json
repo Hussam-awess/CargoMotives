@@ -10,6 +10,12 @@
     {
       "name": "backend",
       "url": "http://localhost:8000"
+    },
+    {
+      "name": "backend-serve",
+      "runtimeExecutable": "C:\\php\\php.exe",
+      "runtimeArgs": ["backend/artisan", "serve", "--host=127.0.0.1", "--port=8000"],
+      "port": 8000
     }
   ]
 }

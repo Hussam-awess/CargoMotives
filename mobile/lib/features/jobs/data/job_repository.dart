@@ -1,3 +1,6 @@
+import 'package:dio/dio.dart' show FormData, MultipartFile;
+import 'package:file_picker/file_picker.dart';
+
 import '../../../core/network/api_client.dart';
 
 /// A driver's delivery submission (Backend Schema §2.10), embedded on a
@@ -8,6 +11,7 @@ class ProofOfDelivery {
     required this.recipientName,
     required this.notes,
     required this.confirmedByCustomerAt,
+    this.isSystemGenerated = false,
   });
 
   factory ProofOfDelivery.fromJson(Map<String, dynamic> json) {
@@ -18,6 +22,7 @@ class ProofOfDelivery {
       confirmedByCustomerAt: json['confirmed_by_customer_at'] == null
           ? null
           : DateTime.parse(json['confirmed_by_customer_at'] as String),
+      isSystemGenerated: json['is_system_generated'] as bool? ?? false,
     );
   }
 
@@ -25,6 +30,12 @@ class ProofOfDelivery {
   final String? recipientName;
   final String? notes;
   final DateTime? confirmedByCustomerAt;
+
+  /// True when AutoCompleteStuckDeliveries (backend) submitted this on the
+  /// transporter's behalf after the grace period passed, rather than a real
+  /// driver/company submission — the UI shows a plain "Automatically
+  /// completed" label instead of blank recipient/photos in that case.
+  final bool isSystemGenerated;
 }
 
 /// A truck's position as of some moment (Backend Schema §2.3's
@@ -101,6 +112,7 @@ class JobAward {
     this.gpsSignalStatus = 'not_applicable',
     this.lastKnownLocation,
     this.proofOfDelivery,
+    this.driverInstructions,
   });
 
   factory JobAward.fromJson(Map<String, dynamic> json) {
@@ -135,6 +147,7 @@ class JobAward {
           : ProofOfDelivery.fromJson(
               json['proof_of_delivery'] as Map<String, dynamic>,
             ),
+      driverInstructions: json['driver_instructions'] as String?,
     );
   }
 
@@ -155,6 +168,11 @@ class JobAward {
   final String gpsSignalStatus;
   final GpsLocation? lastKnownLocation;
   final ProofOfDelivery? proofOfDelivery;
+
+  /// A one-way note from this award's own company to its own driver(s) —
+  /// independent of the job's [Job.driverInstructions] and of every other
+  /// award on the same job.
+  final String? driverInstructions;
 
   bool get isAwaitingDeliveryConfirmation => status == 'delivered';
 
@@ -216,6 +234,11 @@ class Job {
     this.biddingExpiresAt,
     this.biddingClosed,
     this.jobViewsCount,
+    this.pickupPermitUrl,
+    this.pickupPermitUploadedAt,
+    this.dropoffPermitUrl,
+    this.dropoffPermitUploadedAt,
+    this.driverInstructions,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -289,6 +312,15 @@ class Job {
           : DateTime.parse(json['bidding_expires_at'] as String),
       biddingClosed: json['bidding_closed'] as bool?,
       jobViewsCount: json['job_views_count'] as int?,
+      pickupPermitUrl: json['pickup_permit_url'] as String?,
+      pickupPermitUploadedAt: json['pickup_permit_uploaded_at'] == null
+          ? null
+          : DateTime.parse(json['pickup_permit_uploaded_at'] as String),
+      dropoffPermitUrl: json['dropoff_permit_url'] as String?,
+      dropoffPermitUploadedAt: json['dropoff_permit_uploaded_at'] == null
+          ? null
+          : DateTime.parse(json['dropoff_permit_uploaded_at'] as String),
+      driverInstructions: json['driver_instructions'] as String?,
     );
   }
 
@@ -433,6 +465,21 @@ class Job {
   /// presence — a non-Plus customer's job still carries a real count, the
   /// UI just doesn't show it to them.
   final int? jobViewsCount;
+
+  /// Cargo-authority checkpoint permits (customer-uploaded, job-level even
+  /// for a split-award job — see the backend permit migrations' docblocks).
+  /// The pickup one is informational only; the drop-off one is a hard
+  /// blocker on ending the job (JobAssignmentController/
+  /// DriverLinkPageController's submitProofOfDelivery()).
+  final String? pickupPermitUrl;
+  final DateTime? pickupPermitUploadedAt;
+  final String? dropoffPermitUrl;
+  final DateTime? dropoffPermitUploadedAt;
+
+  /// A one-way note from the company to the driver(s) currently on this
+  /// job (JobAssignmentController::updateInstructions()) — null for a
+  /// split-award job, whose own copy lives on each [JobAward] instead.
+  final String? driverInstructions;
 
   bool get isOpen => status == 'open';
 
@@ -613,6 +660,15 @@ class JobRepository {
     return Job.fromJson(body['data'] as Map<String, dynamic>);
   }
 
+  /// Only accepted by the backend while the job is still 'open'
+  /// (JobController::assertEditable()) — editing the pickup/drop-off
+  /// location auto-withdraws any pending bids on the job.
+  Future<Job> update(int jobId, JobSubmission submission) async {
+    final body = await _client.post('/jobs/$jobId', data: submission.toJson());
+
+    return Job.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
   Future<Job> cancel(int jobId, {String? reason}) async {
     final body = await _client.post(
       '/jobs/$jobId/cancel',
@@ -656,5 +712,36 @@ class JobRepository {
     );
 
     return Job.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Cargo-authority checkpoint permits (informational for pickup, a hard
+  /// blocker on ending the job for drop-off — see [Job.dropoffPermitUrl]).
+  Future<Job> uploadPickupPermit(int jobId, PlatformFile document) async {
+    final formData = FormData.fromMap({
+      'document': await _toMultipart(document),
+    });
+    final body = await _client.postForm('/jobs/$jobId/pickup-permit', formData);
+
+    return Job.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  Future<Job> uploadDropoffPermit(int jobId, PlatformFile document) async {
+    final formData = FormData.fromMap({
+      'document': await _toMultipart(document),
+    });
+    final body = await _client.postForm(
+      '/jobs/$jobId/dropoff-permit',
+      formData,
+    );
+
+    return Job.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  Future<MultipartFile> _toMultipart(PlatformFile file) async {
+    if (file.bytes != null) {
+      return MultipartFile.fromBytes(file.bytes!, filename: file.name);
+    }
+
+    return MultipartFile.fromFile(file.path!, filename: file.name);
   }
 }

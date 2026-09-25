@@ -74,6 +74,25 @@ class JobResource extends JsonResource
             'agreed_price' => $this->agreed_price !== null ? (float) $this->agreed_price : null,
             'currency' => $this->currency,
             'cancelled_reason' => $this->cancelled_reason,
+            // Cargo-authority checkpoint permits — plain Job columns,
+            // always present (unlike proof_of_delivery below, which is
+            // whenLoaded-gated since it comes from an eager-loaded
+            // relation). The drop-off one is a hard blocker on
+            // submitProofOfDelivery() in both JobAssignmentController and
+            // DriverLinkPageController; the pickup one is informational.
+            'pickup_permit_url' => $this->pickup_permit_path !== null
+                ? app(DocumentStorage::class)->signedUrl($this->pickup_permit_path)
+                : null,
+            'pickup_permit_uploaded_at' => $this->pickup_permit_uploaded_at?->toIso8601String(),
+            'dropoff_permit_url' => $this->dropoff_permit_path !== null
+                ? app(DocumentStorage::class)->signedUrl($this->dropoff_permit_path)
+                : null,
+            'dropoff_permit_uploaded_at' => $this->dropoff_permit_uploaded_at?->toIso8601String(),
+            // A one-way note from the company to the driver(s) currently on
+            // this job — see JobAssignmentController::updateInstructions().
+            // Null for a split-award job (each award carries its own copy
+            // instead — see JobAwardResource).
+            'driver_instructions' => $this->driver_instructions,
             // The real moment this job was marked completed
             // (JobController::confirmDelivery()) — never the scheduled
             // preferred_pickup_window_start/end above.

@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\CapturesOtpCodes;
 use Tests\TestCase;
 
 /**
@@ -17,6 +18,7 @@ use Tests\TestCase;
  */
 class CustomerAuthTest extends TestCase
 {
+    use CapturesOtpCodes;
     use RefreshDatabase;
 
     private function registerPayload(array $overrides = []): array
@@ -49,7 +51,7 @@ class CustomerAuthTest extends TestCase
     {
         Mail::fake();
         $this->postJson('/api/auth/customer/register', $this->registerPayload(['company_name' => 'Amina Textiles']))->assertOk();
-        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $code = $this->emailCodeSentTo('amina@example.com');
 
         $response = $this->postJson('/api/auth/customer/register/verify', [
             'email' => 'amina@example.com',
@@ -79,7 +81,7 @@ class CustomerAuthTest extends TestCase
     {
         Mail::fake();
         $this->postJson('/api/auth/customer/register', $this->registerPayload(['preferred_currency' => 'USD']))->assertOk();
-        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $code = $this->emailCodeSentTo('amina@example.com');
 
         $response = $this->postJson('/api/auth/customer/register/verify', ['email' => 'amina@example.com', 'code' => $code]);
 
@@ -91,7 +93,7 @@ class CustomerAuthTest extends TestCase
     {
         Mail::fake();
         $this->postJson('/api/auth/customer/register', $this->registerPayload())->assertOk();
-        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $code = $this->emailCodeSentTo('amina@example.com');
 
         $response = $this->postJson('/api/auth/customer/register/verify', ['email' => 'amina@example.com', 'code' => $code]);
 
@@ -140,7 +142,7 @@ class CustomerAuthTest extends TestCase
     {
         Mail::fake();
         $this->postJson('/api/auth/customer/register', $this->registerPayload())->assertOk();
-        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $code = $this->emailCodeSentTo('amina@example.com');
         $this->postJson('/api/auth/customer/register/verify', ['email' => 'amina@example.com', 'code' => $code])->assertCreated();
 
         $this->postJson('/api/auth/customer/login', ['email' => 'amina@example.com', 'password' => 'password123'])
@@ -153,7 +155,7 @@ class CustomerAuthTest extends TestCase
     {
         Mail::fake();
         $this->postJson('/api/auth/customer/register', $this->registerPayload())->assertOk();
-        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $code = $this->emailCodeSentTo('amina@example.com');
         $this->postJson('/api/auth/customer/register/verify', ['email' => 'amina@example.com', 'code' => $code])->assertCreated();
 
         $this->postJson('/api/auth/customer/login', ['email' => 'amina@example.com', 'password' => 'wrong-password'])
@@ -164,7 +166,7 @@ class CustomerAuthTest extends TestCase
     {
         Mail::fake();
         $this->postJson('/api/auth/customer/register', $this->registerPayload())->assertOk();
-        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $code = $this->emailCodeSentTo('amina@example.com');
         $this->postJson('/api/auth/customer/register/verify', ['email' => 'amina@example.com', 'code' => $code])->assertCreated();
 
         // A different IP on every attempt so the per-route `throttle:*`
@@ -220,7 +222,7 @@ class CustomerAuthTest extends TestCase
         User::factory()->create(['account_type' => 'customer', 'email' => 'amina@example.com']);
 
         $this->postJson('/api/auth/customer/password/forgot', ['email' => 'amina@example.com'])->assertOk();
-        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $code = $this->emailCodeSentTo('amina@example.com');
 
         $this->postJson('/api/auth/customer/password/reset', [
             'email' => 'amina@example.com',
@@ -243,7 +245,7 @@ class CustomerAuthTest extends TestCase
         $token = $user->createToken('mobile-app')->plainTextToken;
 
         $this->postJson('/api/auth/customer/password/forgot', ['email' => 'amina@example.com'])->assertOk();
-        $code = Cache::get('email_otp:amina@example.com:code')['code'];
+        $code = $this->emailCodeSentTo('amina@example.com');
         $this->postJson('/api/auth/customer/password/reset', [
             'email' => 'amina@example.com',
             'code' => $code,

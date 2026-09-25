@@ -120,8 +120,7 @@ class AppMap extends StatelessWidget {
   /// once, for an initial "show pickup, drop-off, and the truck" view
   /// without the caller hand-picking a zoom level that might not fit.
   static ({LatLng center, double zoom}) fit(List<LatLng> points) {
-    if (points.isEmpty)
-      return (center: const LatLng(-6.7924, 39.2083), zoom: 12);
+    if (points.isEmpty) return (center: const LatLng(-6.7924, 39.2083), zoom: 12);
     if (points.length == 1) return (center: points.first, zoom: 14);
 
     var minLat = points.first.latitude, maxLat = points.first.latitude;

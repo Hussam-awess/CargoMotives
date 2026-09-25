@@ -137,7 +137,9 @@ class TruckController extends Controller
         // doesn't care about validation rules, so a locked request's
         // document fields (not required, but not forbidden either) have
         // to be explicitly skipped here too, or a stray file attach could
-        // sneak a document change past the lock.
+        // sneak a document change past the lock. Photos are deliberately
+        // exempt (see SubmitTruckRequest's own locked rules) — they're
+        // handled unconditionally below, outside this guard.
         $locked = $truck !== null && ! $truck->is_gps_imported;
 
         // Start from whatever this truck already has, so editing only the
@@ -147,12 +149,13 @@ class TruckController extends Controller
         // empty and SubmitTruckRequest requires all three up front.
         $documents = $truck?->documents ?? [];
 
+        if ($request->hasFile('photos')) {
+            $documents['photos'] = collect($request->file('photos'))
+                ->map(fn ($photo) => $this->documents->store($photo, 'trucks/photos'))
+                ->all();
+        }
+
         if (! $locked) {
-            if ($request->hasFile('photos')) {
-                $documents['photos'] = collect($request->file('photos'))
-                    ->map(fn ($photo) => $this->documents->store($photo, 'trucks/photos'))
-                    ->all();
-            }
             foreach (['registration_card', 'insurance', 'roadworthiness_permit'] as $document) {
                 if ($request->hasFile($document)) {
                     $documents[$document] = $this->documents->store($request->file($document), 'trucks/documents');

@@ -1,4 +1,5 @@
 import 'package:cargo_motives/features/jobs/data/job_repository.dart';
+import 'package:file_picker/file_picker.dart';
 
 class FakeJobRepository extends JobRepository {
   FakeJobRepository({
@@ -9,6 +10,8 @@ class FakeJobRepository extends JobRepository {
     this.onPostQuotaRemaining,
     this.onConfirmDelivery,
     this.onConfirmAwardDelivery,
+    this.onUploadPickupPermit,
+    this.onUploadDropoffPermit,
   });
 
   final Future<List<Job>> Function()? onList;
@@ -18,6 +21,10 @@ class FakeJobRepository extends JobRepository {
   final Future<int> Function()? onPostQuotaRemaining;
   final Future<Job> Function(int jobId)? onConfirmDelivery;
   final Future<Job> Function(int jobId, int awardId)? onConfirmAwardDelivery;
+  final Future<Job> Function(int jobId, PlatformFile document)?
+  onUploadPickupPermit;
+  final Future<Job> Function(int jobId, PlatformFile document)?
+  onUploadDropoffPermit;
 
   @override
   Future<List<Job>> list() => onList?.call() ?? Future.value(const []);
@@ -45,6 +52,16 @@ class FakeJobRepository extends JobRepository {
   @override
   Future<Job> confirmAwardDelivery(int jobId, int awardId) =>
       onConfirmAwardDelivery?.call(jobId, awardId) ??
+      Future.value(_defaultJob(jobId));
+
+  @override
+  Future<Job> uploadPickupPermit(int jobId, PlatformFile document) =>
+      onUploadPickupPermit?.call(jobId, document) ??
+      Future.value(_defaultJob(jobId));
+
+  @override
+  Future<Job> uploadDropoffPermit(int jobId, PlatformFile document) =>
+      onUploadDropoffPermit?.call(jobId, document) ??
       Future.value(_defaultJob(jobId));
 }
 

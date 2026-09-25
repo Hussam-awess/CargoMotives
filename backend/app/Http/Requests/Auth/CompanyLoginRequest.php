@@ -20,6 +20,7 @@ class CompanyLoginRequest extends FormRequest
         return [
             'phone_number' => ['required', 'string', new TanzanianMobileNumber],
             'password' => ['required', 'string'],
+            'device_name' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
 }

@@ -43,10 +43,14 @@ class PostJobScreen extends StatefulWidget {
     AuthRepository? authRepository,
     this.prefillReturnFrom,
     this.prefillClone,
+    this.editJob,
   }) : repository = repository ?? JobRepository(),
        authRepository = authRepository ?? AuthRepository(),
        assert(
-         prefillReturnFrom == null || prefillClone == null,
+         (prefillReturnFrom == null ? 0 : 1) +
+                 (prefillClone == null ? 0 : 1) +
+                 (editJob == null ? 0 : 1) <=
+             1,
          'Only one prefill source can be given.',
        );
 
@@ -67,6 +71,15 @@ class PostJobScreen extends StatefulWidget {
   /// window as a starting point the customer adjusts before submitting),
   /// distinct from [prefillReturnFrom]'s reversed route.
   final Job? prefillClone;
+
+  /// Editing a still-open job's own details in place (customer can correct
+  /// a mistaken pickup/drop-off pin before any bid is accepted) — unlike
+  /// [prefillReturnFrom]/[prefillClone], submitting this calls
+  /// [JobRepository.update] against the SAME job rather than creating a new
+  /// one, and pops back to the caller instead of pushing
+  /// [ShipmentPostedScreen]. Editing the pickup/drop-off location
+  /// auto-withdraws any pending bids server-side (JobController::update()).
+  final Job? editJob;
 
   @override
   State<PostJobScreen> createState() => _PostJobScreenState();
@@ -169,6 +182,26 @@ class _PostJobScreenState extends State<PostJobScreen> {
       // customer still has to pick a fresh one; validation catches it
       // unchanged the same way it would for any stale value.
       _biddingExpiresAt = clone.biddingExpiresAt;
+    }
+
+    final editJob = widget.editJob;
+    if (editJob != null) {
+      _pickupAddress.text = editJob.pickupAddress;
+      _pickupLat.text = editJob.pickupLat?.toString() ?? '';
+      _pickupLng.text = editJob.pickupLng?.toString() ?? '';
+      _dropoffAddress.text = editJob.dropoffAddress;
+      _dropoffLat.text = editJob.dropoffLat?.toString() ?? '';
+      _dropoffLng.text = editJob.dropoffLng?.toString() ?? '';
+      _containerType.text = editJob.containerType;
+      _containerSize.text = editJob.containerSize;
+      _trucksNeeded.text = '${editJob.trucksNeeded}';
+      _approxWeightTons.text = editJob.approxWeightTons?.toString() ?? '';
+      _cargoDescription.text = editJob.cargoDescription ?? '';
+      _customerNotes.text = editJob.customerNotes ?? '';
+      _budgetPrice.text = editJob.budgetPrice?.toString() ?? '';
+      _currency = editJob.currency;
+      _pickupWindowStart = editJob.preferredPickupWindowStart;
+      _biddingExpiresAt = editJob.biddingExpiresAt;
     }
 
     _loadProfileDefaults();
@@ -370,33 +403,40 @@ class _PostJobScreenState extends State<PostJobScreen> {
       _errorText = null;
     });
 
+    final submission = JobSubmission(
+      pickupAddress: _pickupAddress.text.trim(),
+      pickupLat: double.parse(_pickupLat.text.trim()),
+      pickupLng: double.parse(_pickupLng.text.trim()),
+      dropoffAddress: _dropoffAddress.text.trim(),
+      dropoffLat: double.parse(_dropoffLat.text.trim()),
+      dropoffLng: double.parse(_dropoffLng.text.trim()),
+      containerType: _containerType.text.trim(),
+      containerSize: _containerSize.text.trim(),
+      trucksNeeded: int.parse(_trucksNeeded.text.trim()),
+      approxWeightTons: _approxWeightTons.text.trim().isEmpty
+          ? null
+          : double.tryParse(_approxWeightTons.text.trim()),
+      cargoDescription: _cargoDescription.text.trim().isEmpty
+          ? null
+          : _cargoDescription.text.trim(),
+      preferredPickupWindowStart: _pickupWindowStart!,
+      customerNotes: _customerNotes.text.trim().isEmpty
+          ? null
+          : _customerNotes.text.trim(),
+      budgetPrice: double.parse(_budgetPrice.text.trim()),
+      currency: _currency,
+      biddingExpiresAt: _biddingExpiresAt!,
+    );
+
     try {
-      final job = await widget.repository.post(
-        JobSubmission(
-          pickupAddress: _pickupAddress.text.trim(),
-          pickupLat: double.parse(_pickupLat.text.trim()),
-          pickupLng: double.parse(_pickupLng.text.trim()),
-          dropoffAddress: _dropoffAddress.text.trim(),
-          dropoffLat: double.parse(_dropoffLat.text.trim()),
-          dropoffLng: double.parse(_dropoffLng.text.trim()),
-          containerType: _containerType.text.trim(),
-          containerSize: _containerSize.text.trim(),
-          trucksNeeded: int.parse(_trucksNeeded.text.trim()),
-          approxWeightTons: _approxWeightTons.text.trim().isEmpty
-              ? null
-              : double.tryParse(_approxWeightTons.text.trim()),
-          cargoDescription: _cargoDescription.text.trim().isEmpty
-              ? null
-              : _cargoDescription.text.trim(),
-          preferredPickupWindowStart: _pickupWindowStart!,
-          customerNotes: _customerNotes.text.trim().isEmpty
-              ? null
-              : _customerNotes.text.trim(),
-          budgetPrice: double.parse(_budgetPrice.text.trim()),
-          currency: _currency,
-          biddingExpiresAt: _biddingExpiresAt!,
-        ),
-      );
+      final editJob = widget.editJob;
+      if (editJob != null) {
+        final job = await widget.repository.update(editJob.id, submission);
+        if (mounted) Navigator.of(context).pop(job);
+        return;
+      }
+
+      final job = await widget.repository.post(submission);
       if (!mounted) return;
       // A push-replace, not a pop: the caller's `await Navigator.push<bool>(...)`
       // future resolves right now via `result: true` (so CustomerHomeShell
@@ -454,6 +494,20 @@ class _PostJobScreenState extends State<PostJobScreen> {
   void _setActiveMapMode(MapPinMode mode) =>
       setState(() => _activeMapMode = mode);
 
+  /// Mirrors RoutePickerMap's own pin/route reset — this widget only owns
+  /// the pins themselves, so clearing them there doesn't touch these
+  /// address/lat/lng fields on its own.
+  void _clearLocations() {
+    setState(() {
+      _pickupAddress.clear();
+      _pickupLat.clear();
+      _pickupLng.clear();
+      _dropoffAddress.clear();
+      _dropoffLat.clear();
+      _dropoffLng.clear();
+    });
+  }
+
   /// "Add a saved address from the map" — saves whichever pin (pickup or
   /// drop-off) the map's toggle is currently on, using the coordinates
   /// and address text already filled into this step's own fields rather
@@ -504,7 +558,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Shipment'),
+        title: Text(widget.editJob != null ? 'Edit Shipment' : 'New Shipment'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -612,7 +666,13 @@ class _PostJobScreenState extends State<PostJobScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : Text(_step < 2 ? 'CONTINUE' : 'POST SHIPMENT'),
+                          : Text(
+                              _step < 2
+                                  ? 'CONTINUE'
+                                  : (widget.editJob != null
+                                        ? 'SAVE CHANGES'
+                                        : 'POST SHIPMENT'),
+                            ),
                     ),
                   ),
                 ],
@@ -661,6 +721,7 @@ class _RouteStep extends StatelessWidget {
           onPickupChanged: state._setPickupPoint,
           onDropoffChanged: state._setDropoffPoint,
           onRouteDistanceChanged: state._setRouteDistanceKm,
+          onCleared: state._clearLocations,
         ),
         Align(
           alignment: Alignment.centerRight,

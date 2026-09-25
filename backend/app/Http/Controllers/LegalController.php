@@ -23,9 +23,9 @@ class LegalController extends Controller
      * Terms and Privacy are edited independently (e.g. Phase 10.13 touched
      * only Terms, this pass touched only Privacy).
      */
-    private const PRIVACY_LAST_UPDATED = '2026-09-17';
+    private const PRIVACY_LAST_UPDATED = '2026-09-25';
 
-    private const TERMS_LAST_UPDATED = '2026-09-17';
+    private const TERMS_LAST_UPDATED = '2026-09-25';
 
     public function privacy(): View
     {

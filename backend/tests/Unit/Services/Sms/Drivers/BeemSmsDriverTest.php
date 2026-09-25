@@ -48,6 +48,20 @@ class BeemSmsDriverTest extends TestCase
         });
     }
 
+    public function test_unicode_is_transliterated_so_beem_does_not_reject_the_message(): void
+    {
+        Http::fake(['*' => Http::response(['successful' => true, 'request_id' => 1])]);
+
+        $this->driver()->send('+255712345678', "New job: Kariakoo \u{2192} Mbezi \u{2014} “fragile” café 🚚");
+
+        Http::assertSent(fn ($request) => $request['message'] === 'New job: Kariakoo -> Mbezi - "fragile" cafe ');
+    }
+
+    public function test_plain_text_passes_through_unchanged(): void
+    {
+        $this->assertSame("Line one\nLine two: 1,000 TZS (ok)", BeemSmsDriver::toPlainText("Line one\nLine two: 1,000 TZS (ok)"));
+    }
+
     public function test_a_declined_message_is_reported_as_a_failure(): void
     {
         Http::fake(['*' => Http::response(['successful' => false, 'message' => 'Insufficient credit.'])]);

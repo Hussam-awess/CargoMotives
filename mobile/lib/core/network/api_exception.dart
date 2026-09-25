@@ -5,12 +5,17 @@
 /// else the endpoint returned (`body`) for the few cases that need more
 /// (e.g. the OTP cooldown's `seconds_remaining`).
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode, this.fieldErrors, this.body});
+  ApiException(this.message, {this.statusCode, this.fieldErrors, this.body, this.requestId});
 
   final String message;
   final int? statusCode;
   final Map<String, List<String>>? fieldErrors;
   final Map<String, dynamic>? body;
+
+  /// The X-Request-Id this call was sent with — the same id is on every
+  /// server log line for it, so a support request quoting it can be traced
+  /// to the exact request.
+  final String? requestId;
 
   String? firstErrorFor(String field) {
     final errors = fieldErrors?[field];

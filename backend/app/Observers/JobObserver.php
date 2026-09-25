@@ -60,6 +60,12 @@ class JobObserver
                         continue;
                     }
 
+                    // The company paused new work from Settings ("Accepting
+                    // loads" off) — its whole fleet is committed.
+                    if (! $company->accepting_loads) {
+                        continue;
+                    }
+
                     // Bulk Cargo epic, corrected by the Multi-Company
                     // Split Awards epic: a company with zero verified
                     // trucks structurally can never bid on anything and

@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Services\Sms\SmsGateway;
+use App\Support\Pii;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -14,6 +15,11 @@ use Illuminate\Support\Facades\Log;
  * OTP is short-lived, high-write, and disposable, which is exactly the data
  * shape Redis suits and Postgres doesn't need to carry (the Backend Schema's
  * table list has no OTP table for this reason).
+ *
+ * Only an HMAC of the code is stored (see hashCode()), never the code
+ * itself, so read access to Redis alone doesn't hand out live codes. The
+ * plaintext exists only in the outgoing SMS — which is also the only place
+ * tests read it from (Tests\Concerns\CapturesOtpCodes).
  *
  * Failure points and how to trace them:
  *  - SMS send fails/times out: issue() still returns normally (the code is
@@ -39,14 +45,17 @@ class OtpService
         $cooldownKey = $this->cooldownKey($normalizedPhone);
         $availableAt = Cache::get($cooldownKey);
 
-        if (is_int($availableAt) && $availableAt > now()->timestamp) {
-            throw new OtpCooldownException($availableAt - now()->timestamp);
+        // is_numeric, not is_int: the Redis cache store hands a stored
+        // integer back as a numeric string, so an is_int check silently
+        // never enforced this cooldown outside the array-cache tests.
+        if (is_numeric($availableAt) && (int) $availableAt > now()->timestamp) {
+            throw new OtpCooldownException((int) $availableAt - now()->timestamp);
         }
 
         $code = $this->generateCode();
         $ttl = now()->addSeconds(config('otp.ttl_seconds'));
 
-        Cache::put($this->codeKey($normalizedPhone), ['code' => $code, 'attempts' => 0], $ttl);
+        Cache::put($this->codeKey($normalizedPhone), ['code_hash' => $this->hashCode($normalizedPhone, $code), 'attempts' => 0], $ttl);
 
         $cooldownSeconds = config('otp.resend_cooldown_seconds');
         Cache::put($cooldownKey, now()->addSeconds($cooldownSeconds)->timestamp, $cooldownSeconds);
@@ -58,7 +67,7 @@ class OtpService
             // usable, so a delivery failure doesn't block sign-in — it just
             // means the user won't receive it by SMS. Logged so a real
             // pattern of SMS failures is visible to whoever's watching logs.
-            Log::warning('OTP SMS delivery failed', ['phone' => $normalizedPhone, 'error' => $result->error]);
+            Log::warning('OTP SMS delivery failed', ['phone' => Pii::maskPhone($normalizedPhone), 'error' => $result->error]);
         }
     }
 
@@ -67,7 +76,11 @@ class OtpService
         $key = $this->codeKey($normalizedPhone);
         $stored = Cache::get($key);
 
-        if (! is_array($stored)) {
+        // An entry without a code_hash is a plaintext code written before
+        // codes were hashed — treated as expired (the user just requests a
+        // new one) rather than erroring for the few minutes they outlive a
+        // deploy.
+        if (! is_array($stored) || ! is_string($stored['code_hash'] ?? null)) {
             return OtpVerificationResult::failure('expired_or_not_requested');
         }
 
@@ -77,7 +90,7 @@ class OtpService
             return OtpVerificationResult::failure('too_many_attempts');
         }
 
-        if (! hash_equals($stored['code'], $submittedCode)) {
+        if (! hash_equals($stored['code_hash'], $this->hashCode($normalizedPhone, $submittedCode))) {
             $attempts = $stored['attempts'] + 1;
 
             // Lock out on the attempt that reaches the limit, not one call
@@ -90,7 +103,7 @@ class OtpService
                 return OtpVerificationResult::failure('too_many_attempts');
             }
 
-            Cache::put($key, ['code' => $stored['code'], 'attempts' => $attempts], now()->addSeconds(config('otp.ttl_seconds')));
+            Cache::put($key, ['code_hash' => $stored['code_hash'], 'attempts' => $attempts], now()->addSeconds(config('otp.ttl_seconds')));
 
             return OtpVerificationResult::failure('invalid_code');
         }
@@ -106,6 +119,17 @@ class OtpService
         $max = (10 ** $length) - 1;
 
         return str_pad((string) random_int(0, $max), $length, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Keyed with the app key: a plain SHA-256 of a 6-digit code falls to
+     * trying all million codes, whereas this needs the key as well. The
+     * phone number is part of the message so a hash observed for one number
+     * says nothing about the same code issued to another.
+     */
+    private function hashCode(string $phone, string $code): string
+    {
+        return hash_hmac('sha256', "{$phone}|{$code}", config('app.key'));
     }
 
     private function codeKey(string $phone): string

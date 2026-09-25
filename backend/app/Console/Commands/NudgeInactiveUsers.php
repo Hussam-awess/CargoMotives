@@ -39,6 +39,15 @@ class NudgeInactiveUsers extends Command
             })
             ->chunkById(200, function ($users) use ($notifications) {
                 foreach ($users as $user) {
+                    // A "come back" nudge is promotional, so it needs the
+                    // user's consent: a customer's Promotions opt-in, or a
+                    // company's own "New matching loads" alerts (the nudge
+                    // just points them at the Open jobs feed).
+                    $consentCategory = $user->account_type === 'customer' ? 'promotions' : 'new_job_matches';
+                    if (! $user->wantsNotificationCategory($consentCategory)) {
+                        continue;
+                    }
+
                     $body = $user->account_type === 'customer'
                         ? "It's been a while — post a shipment and get bids from verified transporters."
                         : "It's been a while — check the Open jobs feed for loads you can bid on.";

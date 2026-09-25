@@ -89,6 +89,33 @@ class JobStatusAutoAdvancerTest extends TestCase
         $this->assertSame('in_transit', $job->fresh()->status);
     }
 
+    /**
+     * A short-haul job (pickup and drop-off only ~3km apart) must not need
+     * the flat 5km default departure radius to reach 'in_transit' — with
+     * the old fixed-radius behavior this job could never leave 'picked_up'
+     * at all, since the truck can never get 5km from a pickup point whose
+     * drop-off is only 3km away.
+     */
+    public function test_a_short_haul_job_still_reaches_in_transit_before_the_flat_default_radius(): void
+    {
+        $pickup = ['lat' => -6.8161, 'lng' => 39.2803];
+        // ~3km from pickup.
+        $dropoff = ['lat' => -6.84, 'lng' => 39.2803];
+
+        $job = Job::factory()->create([
+            'status' => 'picked_up',
+            'pickup_location' => (new GeoPoint($pickup['lat'], $pickup['lng']))->toInsertExpression(),
+            'dropoff_location' => (new GeoPoint($dropoff['lat'], $dropoff['lng']))->toInsertExpression(),
+        ]);
+        $job = $this->loadWithCoordinates($job);
+
+        // ~2km from pickup — well short of the flat 5km default, but past
+        // 40% of this job's own ~3km total distance.
+        $this->advancer()->advance($job, $job, new GeoPoint(-6.834, 39.2803));
+
+        $this->assertSame('in_transit', $job->fresh()->status);
+    }
+
     public function test_arriving_at_dropoff_notifies_once_and_never_sets_delivered(): void
     {
         $customer = User::factory()->create();
@@ -122,6 +149,109 @@ class JobStatusAutoAdvancerTest extends TestCase
 
         $this->assertNull($job->fresh()->dropoff_arrival_notified_at);
         $this->assertDatabaseMissing('notifications', ['type' => 'job_arrived_at_dropoff']);
+    }
+
+    /**
+     * ~1.1km from drop-off — inside the 2km reminder radius but outside
+     * the 0.5km arrival radius, so only the reminder fires here.
+     */
+    public function test_approaching_dropoff_without_a_permit_sends_a_reminder_once(): void
+    {
+        $customer = User::factory()->create();
+        $job = $this->makeJob('in_transit', $customer);
+
+        $this->advancer()->advance($job, $job, new GeoPoint(-6.91, self::DROPOFF['lng']));
+
+        $job->refresh();
+        $this->assertNotNull($job->dropoff_permit_reminder_sent_at);
+        $this->assertNull($job->dropoff_arrival_notified_at);
+        $this->assertDatabaseHas('notifications', ['user_id' => $customer->id, 'type' => 'dropoff_permit_needed']);
+    }
+
+    public function test_a_job_with_a_permit_already_attached_is_never_reminded(): void
+    {
+        $job = Job::factory()->create([
+            'status' => 'in_transit',
+            'dropoff_permit_path' => 'permits/test.pdf',
+            'pickup_location' => (new GeoPoint(self::PICKUP['lat'], self::PICKUP['lng']))->toInsertExpression(),
+            'dropoff_location' => (new GeoPoint(self::DROPOFF['lat'], self::DROPOFF['lng']))->toInsertExpression(),
+        ]);
+        $job = $this->loadWithCoordinates($job);
+
+        $this->advancer()->advance($job, $job, new GeoPoint(self::DROPOFF['lat'], self::DROPOFF['lng']));
+
+        $this->assertNull($job->fresh()->dropoff_permit_reminder_sent_at);
+        $this->assertDatabaseMissing('notifications', ['type' => 'dropoff_permit_needed']);
+    }
+
+    public function test_a_second_ping_within_the_reminder_radius_does_not_remind_again(): void
+    {
+        $job = $this->makeJob('in_transit');
+        $approaching = new GeoPoint(-6.91, self::DROPOFF['lng']);
+
+        $this->advancer()->advance($job, $job, $approaching);
+        $this->advancer()->advance($job->fresh(), $job->fresh(), $approaching);
+
+        $this->assertSame(1, Notification::where('type', 'dropoff_permit_needed')->count());
+    }
+
+    public function test_beyond_the_reminder_radius_does_not_remind(): void
+    {
+        $job = $this->makeJob('in_transit');
+
+        $this->advancer()->advance($job, $job, new GeoPoint(self::PICKUP['lat'], self::PICKUP['lng']));
+
+        $this->assertNull($job->fresh()->dropoff_permit_reminder_sent_at);
+        $this->assertDatabaseMissing('notifications', ['type' => 'dropoff_permit_needed']);
+    }
+
+    /**
+     * A single approach naturally crosses the larger reminder radius
+     * before the smaller arrival radius — two pings (2km-ish, then right
+     * at the drop-off) fire both notifications independently, neither
+     * blocking the other.
+     */
+    public function test_both_the_reminder_and_arrival_notifications_fire_across_an_approach(): void
+    {
+        $customer = User::factory()->create();
+        $job = $this->makeJob('in_transit', $customer);
+
+        $this->advancer()->advance($job, $job, new GeoPoint(-6.91, self::DROPOFF['lng']));
+        // Re-fetched through withCoordinates() (see loadWithCoordinates'
+        // own docblock) — a bare fresh() loses the raw-SQL dropoff_lat/lng
+        // select, which would make this second call's own arrival check
+        // compute distance from a bogus (0,0) dropoff instead of the real
+        // one.
+        $reloaded = $this->loadWithCoordinates($job);
+        $this->advancer()->advance($reloaded, $reloaded, new GeoPoint(self::DROPOFF['lat'], self::DROPOFF['lng']));
+
+        $this->assertDatabaseHas('notifications', ['user_id' => $customer->id, 'type' => 'dropoff_permit_needed']);
+        $this->assertDatabaseHas('notifications', ['user_id' => $customer->id, 'type' => 'job_arrived_at_dropoff']);
+    }
+
+    /**
+     * Mirrors test_an_awards_status_advances_independently_of_the_job for
+     * the reminder stamp — an award's own dropoff_permit_reminder_sent_at
+     * is independent of the job's (which stays null, since jobs.status
+     * itself never reflects a Tier 3 award's own progress).
+     */
+    public function test_an_awards_reminder_stamp_advances_independently_of_the_job(): void
+    {
+        $job = $this->makeJob('open');
+        $bid = Bid::factory()->for($job)->create();
+        $award = JobAward::create([
+            'job_id' => $job->id,
+            'bid_id' => $bid->id,
+            'transporter_company_id' => $bid->transporter_company_id,
+            'trucks_offered' => $bid->trucks_offered,
+            'agreed_price' => $bid->price,
+            'status' => 'in_transit',
+        ]);
+
+        $this->advancer()->advance($award, $job, new GeoPoint(-6.91, self::DROPOFF['lng']));
+
+        $this->assertNotNull($award->fresh()->dropoff_permit_reminder_sent_at);
+        $this->assertNull($job->fresh()->dropoff_permit_reminder_sent_at);
     }
 
     public function test_a_delivered_or_completed_job_is_left_alone(): void

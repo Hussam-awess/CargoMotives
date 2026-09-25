@@ -11,7 +11,10 @@ use App\Models\Job;
 use App\Models\JobAward;
 use App\Models\JobLocationSnapshot;
 use App\Models\JobTruckAssignment;
+use App\Models\Notification;
 use App\Models\Truck;
+use App\Models\User;
+use App\Services\Geo\GeoPoint;
 use App\Services\Jobs\JobStatusAutoAdvancer;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -314,6 +317,62 @@ class NormalizeGpsPositionJobTest extends TestCase
         $this->assertSame('lost', $job->fresh()->gps_signal_status);
         Event::assertNotDispatched(TruckLocationUpdated::class);
         $this->assertSame(0, JobLocationSnapshot::where('job_id', $job->id)->count());
+    }
+
+    /**
+     * End-to-end through the real job dispatch entry point (not
+     * JobStatusAutoAdvancer directly, see JobStatusAutoAdvancerTest for
+     * that): a short-haul job (pickup and drop-off only ~3km apart) must
+     * still walk its full real lifecycle — assigned -> en_route_pickup ->
+     * picked_up -> in_transit -> the "arrived at destination" notification
+     * — driven purely by successive real GPS pings from this job, the same
+     * way PollGpsPositionsJob dispatches it in production.
+     */
+    public function test_a_short_haul_job_reaches_arrival_through_the_full_pipeline(): void
+    {
+        $pickup = ['lat' => -6.8161, 'lng' => 39.2803];
+        // ~3km from pickup.
+        $dropoff = ['lat' => -6.84, 'lng' => 39.2803];
+
+        $customer = User::factory()->create();
+        $truck = Truck::factory()->approved()->create(['current_status' => 'on_job']);
+        $job = Job::factory()->create([
+            'customer_id' => $customer->id,
+            'assigned_truck_id' => $truck->id,
+            'status' => 'assigned',
+            'pickup_location' => (new GeoPoint($pickup['lat'], $pickup['lng']))->toInsertExpression(),
+            'dropoff_location' => (new GeoPoint($dropoff['lat'], $dropoff['lng']))->toInsertExpression(),
+        ]);
+
+        $advancer = app(JobStatusAutoAdvancer::class);
+        $now = CarbonImmutable::now();
+
+        // Ping 1: any position at all advances 'assigned' -> 'en_route_pickup'.
+        (new NormalizeGpsPositionJob($truck->id, -6.9, 39.4, 45.0, $now, 40.0))->handle($advancer);
+        $this->assertSame('en_route_pickup', $job->fresh()->status);
+
+        // Ping 2: at the pickup point -> 'picked_up'.
+        (new NormalizeGpsPositionJob($truck->id, $pickup['lat'], $pickup['lng'], 45.0, $now->addMinute(), 0.0))->handle($advancer);
+        $this->assertSame('picked_up', $job->fresh()->status);
+
+        // Ping 3: ~2km from pickup — short of the flat 5km default radius,
+        // but past 40% of this job's own ~3km total distance, so it must
+        // already reach 'in_transit' here rather than staying stuck at
+        // 'picked_up' for the rest of the trip.
+        (new NormalizeGpsPositionJob($truck->id, -6.834, 39.2803, 45.0, $now->addMinutes(2), 40.0))->handle($advancer);
+        $this->assertSame('in_transit', $job->fresh()->status);
+
+        // Ping 4: at the drop-off — the customer must actually get told,
+        // which only happens once status is 'in_transit'. With the old
+        // flat-radius bug this job could never have reached that status at
+        // all, so this notification would never have sent.
+        (new NormalizeGpsPositionJob($truck->id, $dropoff['lat'], $dropoff['lng'], 45.0, $now->addMinutes(3), 5.0))->handle($advancer);
+
+        $job->refresh();
+        $this->assertSame('in_transit', $job->status);
+        $this->assertNotNull($job->dropoff_arrival_notified_at);
+        $this->assertDatabaseHas('notifications', ['user_id' => $customer->id, 'type' => 'job_arrived_at_dropoff']);
+        $this->assertSame(1, Notification::where('type', 'job_arrived_at_dropoff')->count());
     }
 
     public function test_the_status_advancer_runs_for_a_tier_3_award(): void

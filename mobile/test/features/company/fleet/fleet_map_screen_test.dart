@@ -1,11 +1,15 @@
+import 'package:cargo_motives/core/map/app_map.dart';
 import 'package:cargo_motives/core/network/api_exception.dart';
 import 'package:cargo_motives/core/theme/app_theme.dart';
+import 'package:cargo_motives/features/company/data/company_repository.dart';
 import 'package:cargo_motives/features/company/data/truck_repository.dart';
 import 'package:cargo_motives/features/company/fleet/fleet_map_screen.dart';
+import 'package:cargo_motives/features/company/settings/company_location_screen.dart';
 import 'package:cargo_motives/features/jobs/map_placeholder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../support/fake_company_repository.dart';
 import '../../../support/fake_truck_repository.dart';
 
 void main() {
@@ -389,6 +393,63 @@ void main() {
 
       final heightAfterExpand = tester.getSize(sheetContent).height;
       expect(heightAfterExpand, greaterThan(heightAfter));
+    },
+  );
+
+  /// The company's own "home base" pin, surfaced directly on the map a
+  /// transporter opens most often, rather than only being reachable from
+  /// a settings sub-screen.
+  testWidgets(
+    'shows a company location marker when the company has set a home base pin',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FleetMapScreen(
+            repository: FakeTruckRepository(onMap: () async => const []),
+            companyRepository: FakeCompanyRepository(
+              onGetStatus: () async => const CompanyVerification(
+                status: 'approved',
+                rejectedReason: null,
+                companyName: 'ABC Logistics',
+                physicalLat: -6.8161,
+                physicalLng: 39.2803,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppMapPin), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'the home button opens the company location screen even before a pin is set',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FleetMapScreen(
+            repository: FakeTruckRepository(onMap: () async => const []),
+            companyRepository: FakeCompanyRepository(
+              onGetStatus: () async => const CompanyVerification(
+                status: 'approved',
+                rejectedReason: null,
+                companyName: 'ABC Logistics',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No pin yet, so no marker on the map.
+      expect(find.byType(AppMapPin), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.home));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CompanyLocationScreen), findsOneWidget);
     },
   );
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/realtime/job_location_channel.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../jobs/data/bid_repository.dart';
 import '../../jobs/data/company_job_repository.dart';
 import '../../jobs/data/job_repository.dart';
@@ -20,6 +22,7 @@ import '../../reviews/rate_job_screen.dart';
 import '../data/follow_repository.dart';
 import 'assign_job_screen.dart';
 import 'data/job_assignment_repository.dart';
+import 'end_job_screen.dart';
 
 /// Company's Job Detail + Place Bid (AppFlow §2.4): "Tap a job -> details
 /// -> Place Bid (price, ETA, note) -> quota check (shows remaining bids/
@@ -319,6 +322,72 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
     }
   }
 
+  /// Whether "End job" is worth offering — anything before 'delivered'
+  /// (an already-delivered/completed/cancelled job has nothing left to
+  /// manually end).
+  static const _endableStatuses = {'assigned', 'en_route_pickup', 'picked_up', 'in_transit'};
+
+  Future<void> _openEndJob({int? truckId}) async {
+    final result = await Navigator.of(context).push<Job>(
+      MaterialPageRoute(
+        builder: (_) => EndJobScreen(
+          jobId: widget.jobId,
+          truckId: truckId,
+          repository: widget.assignmentRepository,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _job = result);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Job marked as delivered.')));
+    }
+  }
+
+  /// Opens the drop-off permit (job-level, always an absolute
+  /// already-signed URL from DocumentStorage — unlike _openLegal-style
+  /// links elsewhere, never prefixed with AppConfig.apiBaseUrl).
+  Future<void> _openDropoffPermit() async {
+    final uri = Uri.parse(_job!.dropoffPermitUrl!);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.couldNotOpenUri(uri.toString()),
+          ),
+        ),
+      );
+    }
+  }
+
+  /// A one-way note to the driver(s) currently on this job/award — see
+  /// JobAssignmentController::updateInstructions()'s own docblock for why
+  /// there's no reply channel. Prefilled with whatever's already set so
+  /// editing doesn't start from a blank field.
+  Future<void> _openEditInstructions(String? existing) async {
+    final instructions = await showDialog<String>(
+      context: context,
+      builder: (_) => _EditInstructionsDialog(initialValue: existing),
+    );
+    if (instructions == null || !mounted) return;
+
+    try {
+      final updated = await widget.assignmentRepository.updateInstructions(
+        widget.jobId,
+        instructions,
+      );
+      if (mounted) setState(() => _job = updated);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   void _openMessages(BuildContext context, Job job) {
     final customerId = job.customerId;
     Navigator.of(context).push(
@@ -408,6 +477,20 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                     const SizedBox(height: 16),
                     RateJobCard(onTap: _openRateJob),
                   ],
+                  if (isActiveJob) ...[
+                    const SizedBox(height: 16),
+                    _DropoffPermitCard(
+                      dropoffPermitUrl: job.dropoffPermitUrl,
+                      onOpen: _openDropoffPermit,
+                    ),
+                    const SizedBox(height: 16),
+                    _DriverInstructionsCard(
+                      instructions: award?.driverInstructions ?? job.driverInstructions,
+                      onEdit: () => _openEditInstructions(
+                        award?.driverInstructions ?? job.driverInstructions,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (award != null) ...[
                     const _SectionLabel('Your fleet on this job'),
@@ -451,6 +534,20 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                         icon: const Icon(Icons.near_me_outlined, size: 16),
                         label: const Text('View route on map'),
                       ),
+                      if (_endableStatuses.contains(award.status)) ...[
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          // No truck_id: the backend resolves the award's
+                          // own lead truck automatically. Gated on the
+                          // job-level (never per-award) drop-off permit —
+                          // see _DropoffPermitCard above.
+                          onPressed: job.dropoffPermitUrl != null
+                              ? _openEndJob
+                              : null,
+                          icon: const Icon(Icons.task_alt, size: 16),
+                          label: const Text('End job'),
+                        ),
+                      ],
                     ],
                   ] else if (job.isAssignable && job.isAssignedToViewer) ...[
                     const _SectionLabel('Assignment'),
@@ -483,6 +580,16 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                         icon: const Icon(Icons.near_me_outlined, size: 16),
                         label: const Text('View route on map'),
                       ),
+                      if (_endableStatuses.contains(job.status)) ...[
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: job.dropoffPermitUrl != null
+                              ? _openEndJob
+                              : null,
+                          icon: const Icon(Icons.task_alt, size: 16),
+                          label: const Text('End job'),
+                        ),
+                      ],
                     ],
                   ] else if (!job.isOpen)
                     Text(
@@ -622,6 +729,18 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
                         ],
                       ),
                     ),
+                    if (job.budgetPrice != null) ...[
+                      const SizedBox(height: 8),
+                      _SuggestedPriceChip(
+                        suggestedPrice: _suggestedBidPrice(job.budgetPrice!),
+                        currency: job.currency,
+                        onTap: () => setState(
+                          () => _priceController.text = _suggestedBidPrice(
+                            job.budgetPrice!,
+                          ).toStringAsFixed(0),
+                        ),
+                      ),
+                    ],
                     if (_quotaRemaining != null) ...[
                       const SizedBox(height: 6),
                       Text(
@@ -728,6 +847,70 @@ class _CompanyJobDetailScreenState extends State<CompanyJobDetailScreen> {
   }
 }
 
+/// A starting point, not a rule — nudges a transporter toward a
+/// competitive price close to (a shade under) the customer's stated
+/// budget, rounded to a clean number rather than an odd decimal. Never
+/// suggests more than the budget itself, since the whole point is to look
+/// attractive against it, not to anchor a company toward overbidding.
+double _suggestedBidPrice(double budget) => _roundToNiceIncrement(budget * 0.95);
+
+/// Rounds to an increment scaled to the value's own magnitude, so a small
+/// USD budget rounds to the nearest 5 while a large TZS one rounds to the
+/// nearest 5,000 — one fixed increment would otherwise be either too
+/// coarse or too fine depending on which currency a job happens to use.
+double _roundToNiceIncrement(double value) {
+  final increment = switch (value.abs()) {
+    >= 100000 => 5000.0,
+    >= 10000 => 500.0,
+    >= 1000 => 50.0,
+    >= 100 => 10.0,
+    _ => 5.0,
+  };
+  return (value / increment).round() * increment;
+}
+
+class _SuggestedPriceChip extends StatelessWidget {
+  const _SuggestedPriceChip({
+    required this.suggestedPrice,
+    required this.currency,
+    required this.onTap,
+  });
+
+  final double suggestedPrice;
+  final String currency;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.lightbulb_outline,
+            size: 14,
+            color: AppColors.ctaBlue,
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              'Suggested: $currency ${suggestedPrice.toStringAsFixed(0)} · tap to use',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ctaBlue,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
 
@@ -743,6 +926,164 @@ class _SectionLabel extends StatelessWidget {
         color: AppColors.textLabel,
         letterSpacing: 0.7,
       ),
+    );
+  }
+}
+
+/// View-only drop-off permit status (job-level — customer-uploaded via
+/// [JobController::submitDropoffPermit]). Purely informational here; the
+/// real gate on ending the job is the disabled "End job" button
+/// (CompanyJobDetailScreen's own onPressed check) plus the backend's own
+/// hard block in submitProofOfDelivery().
+class _DropoffPermitCard extends StatelessWidget {
+  const _DropoffPermitCard({required this.dropoffPermitUrl, required this.onOpen});
+
+  final String? dropoffPermitUrl;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final attached = dropoffPermitUrl != null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              attached ? Icons.task_alt : Icons.hourglass_empty,
+              color: attached ? AppColors.statusLive : AppColors.statusPending,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Drop-off permit',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    attached
+                        ? 'Attached — required to end this job.'
+                        : 'Waiting on the customer to attach it. This is required before the job can be ended.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            if (attached)
+              TextButton(onPressed: onOpen, child: const Text('View')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A one-way note the company can set for the driver(s) currently on this
+/// job/award — the only channel that exists to reach a driver at all, since
+/// they have no account and no push channel. See
+/// JobAssignmentController::updateInstructions().
+class _DriverInstructionsCard extends StatelessWidget {
+  const _DriverInstructionsCard({required this.instructions, required this.onEdit});
+
+  final String? instructions;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasInstructions = instructions != null && instructions!.isNotEmpty;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.sms_outlined, color: AppColors.textSecondary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Instructions for driver',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    hasInstructions
+                        ? instructions!
+                        : "Send a note to the driver's phone by SMS.",
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: onEdit,
+              child: Text(hasInstructions ? 'Edit' : 'Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EditInstructionsDialog extends StatefulWidget {
+  const _EditInstructionsDialog({this.initialValue});
+
+  final String? initialValue;
+
+  @override
+  State<_EditInstructionsDialog> createState() => _EditInstructionsDialogState();
+}
+
+class _EditInstructionsDialogState extends State<_EditInstructionsDialog> {
+  late final _controller = TextEditingController(text: widget.initialValue);
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = 'Enter what the driver needs to know.');
+      return;
+    }
+    Navigator.of(context).pop(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Instructions for driver'),
+      content: TextField(
+        controller: _controller,
+        maxLines: 4,
+        autofocus: true,
+        maxLength: 1000,
+        decoration: InputDecoration(
+          hintText: 'e.g. Use the back gate, ask for the warehouse supervisor.',
+          errorText: _error,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(onPressed: _submit, child: const Text('Send')),
+      ],
     );
   }
 }

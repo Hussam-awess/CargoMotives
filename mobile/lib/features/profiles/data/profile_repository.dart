@@ -144,6 +144,8 @@ class CompanyProfile {
     required this.ownerAvatarUrl,
     required this.verified,
     required this.location,
+    this.locationLat,
+    this.locationLng,
     required this.memberSince,
     required this.averageRating,
     required this.ratingCount,
@@ -163,6 +165,8 @@ class CompanyProfile {
       ownerAvatarUrl: json['owner_avatar_url'] as String?,
       verified: json['verified'] as bool,
       location: json['location'] as String?,
+      locationLat: (json['location_lat'] as num?)?.toDouble(),
+      locationLng: (json['location_lng'] as num?)?.toDouble(),
       memberSince: DateTime.parse(json['member_since'] as String),
       averageRating: (json['average_rating'] as num?)?.toDouble(),
       ratingCount: json['rating_count'] as int,
@@ -192,6 +196,11 @@ class CompanyProfile {
   final String? ownerAvatarUrl;
   final bool verified;
   final String? location;
+
+  /// The company's "home base" pin — null until it sets one (a company
+  /// registered before this existed, or that just hasn't set one yet).
+  final double? locationLat;
+  final double? locationLng;
   final DateTime memberSince;
   final double? averageRating;
   final int ratingCount;

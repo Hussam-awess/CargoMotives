@@ -13,13 +13,17 @@ import 'truck_catalog.dart';
 ///
 /// Once a truck has real details on file (anything other than a bare
 /// GPS-imported placeholder — see [_isLocked]), registration number,
-/// make/model, and documents render read-only: they describe a specific
+/// make/model, and the identity documents (registration card, insurance,
+/// roadworthiness permit) render read-only: they describe a specific
 /// physical vehicle and shouldn't casually change after the fact. Only
-/// capacity and type stay editable from then on — the backend enforces
-/// the same split (SubmitTruckRequest's "locked" branch), this is just
-/// the UI reflecting it. The first time real details are ever submitted
-/// (a fresh truck, or completing a GPS import), a confirmation dialog
-/// makes sure the company means it before that lock kicks in.
+/// capacity, type, and photos stay editable from then on — photos are
+/// just a visual reference, not a legal document, so refreshing them
+/// (a repaint, a better angle, an extra photo) never counts as "changing
+/// the vehicle." The backend enforces the same split (SubmitTruckRequest's
+/// "locked" branch), this is just the UI reflecting it. The first time
+/// real details are ever submitted (a fresh truck, or completing a GPS
+/// import), a confirmation dialog makes sure the company means it before
+/// that lock kicks in.
 class AddTruckScreen extends StatefulWidget {
   AddTruckScreen({super.key, TruckRepository? repository, this.editTruck})
     : repository = repository ?? TruckRepository();
@@ -309,7 +313,7 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'These details are locked once confirmed. Only capacity and type can be changed.',
+                          'These details are locked once confirmed. Only capacity, type, and photos can be changed.',
                           style: TextStyle(fontSize: 12.5, color: AppColors.ctaBluePressed, height: 1.4),
                         ),
                       ),
@@ -344,44 +348,49 @@ class _AddTruckScreenState extends State<AddTruckScreen> {
                       : null;
                 },
               ),
-              if (!_isLocked) ...[
-                const SizedBox(height: 24),
-                Text(
-                  'Documents',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: _photos.length >= 5 ? null : _pickPhotos,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.border),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _photos.isEmpty && !_hasPhotosOnFile
-                              ? Icons.add_a_photo_outlined
-                              : Icons.check_circle,
-                          color: _photos.isEmpty && !_hasPhotosOnFile
-                              ? AppColors.textSecondary
-                              : AppColors.statusLive,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _photos.isNotEmpty
-                              ? '${_photos.length} photo(s) selected'
-                              : _hasPhotosOnFile
-                              ? 'Photos on file — tap to replace'
-                              : 'Add photos (up to 5)',
-                        ),
-                      ],
-                    ),
+              const SizedBox(height: 24),
+              Text(
+                'Documents',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              // Photos stay editable even on an otherwise-locked truck —
+              // they're just a visual reference, not a legal identity
+              // document like the ones below, so a company can still
+              // refresh them (a repaint, a better angle, an extra photo)
+              // without that counting as "changing the vehicle."
+              InkWell(
+                onTap: _photos.length >= 5 ? null : _pickPhotos,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _photos.isEmpty && !_hasPhotosOnFile
+                            ? Icons.add_a_photo_outlined
+                            : Icons.check_circle,
+                        color: _photos.isEmpty && !_hasPhotosOnFile
+                            ? AppColors.textSecondary
+                            : AppColors.statusLive,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _photos.isNotEmpty
+                            ? '${_photos.length} photo(s) selected'
+                            : _hasPhotosOnFile
+                            ? 'Photos on file — tap to replace'
+                            : 'Add photos (up to 5)',
+                      ),
+                    ],
                   ),
                 ),
+              ),
+              if (!_isLocked) ...[
                 const SizedBox(height: 12),
                 _FilePickerTile(
                   label: 'Registration card',

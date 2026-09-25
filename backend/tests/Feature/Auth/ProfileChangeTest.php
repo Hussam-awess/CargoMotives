@@ -4,23 +4,25 @@ namespace Tests\Feature\Auth;
 
 use App\Mail\CustomerOtpMail;
 use App\Models\User;
+use App\Services\Auth\EmailOtpService;
+use App\Services\Auth\OtpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\CapturesOtpCodes;
 use Tests\TestCase;
 
 /**
  * Phase 10.16: full_name updates immediately; email/phone (login
  * credentials) require confirming a code sent to the *new* value first.
  * The email/phone flows reuse EmailOtpService/OtpService directly (no new
- * cache shape), so these tests read the code straight out of the cache
- * the same way CustomerAuthController's own tests already do, rather than
- * re-deriving the key format here.
+ * cache shape), so the confirm tests issue a code through those services
+ * and read it from the sent email/SMS — the cache holds only its hash.
  */
 class ProfileChangeTest extends TestCase
 {
+    use CapturesOtpCodes;
     use RefreshDatabase;
 
     public function test_full_name_updates_immediately(): void
@@ -80,11 +82,12 @@ class ProfileChangeTest extends TestCase
 
     public function test_confirming_an_email_change_with_the_right_code_applies_it(): void
     {
+        Mail::fake();
         $user = User::factory()->create(['email' => 'old@example.com']);
-        Cache::put('email_otp:new@example.com:code', ['code' => '123456', 'attempts' => 0], now()->addMinutes(5));
+        app(EmailOtpService::class)->issue('new@example.com');
 
         $this->actingAs($user)
-            ->postJson('/api/auth/profile/email/confirm-change', ['new_email' => 'new@example.com', 'code' => '123456'])
+            ->postJson('/api/auth/profile/email/confirm-change', ['new_email' => 'new@example.com', 'code' => $this->emailCodeSentTo('new@example.com')])
             ->assertOk()
             ->assertJsonPath('data.email', 'new@example.com');
 
@@ -93,11 +96,13 @@ class ProfileChangeTest extends TestCase
 
     public function test_confirming_an_email_change_with_the_wrong_code_does_not_apply_it(): void
     {
+        Mail::fake();
         $user = User::factory()->create(['email' => 'old@example.com']);
-        Cache::put('email_otp:new@example.com:code', ['code' => '123456', 'attempts' => 0], now()->addMinutes(5));
+        app(EmailOtpService::class)->issue('new@example.com');
+        $wrongCode = $this->wrongCodeFor($this->emailCodeSentTo('new@example.com'));
 
         $this->actingAs($user)
-            ->postJson('/api/auth/profile/email/confirm-change', ['new_email' => 'new@example.com', 'code' => '000000'])
+            ->postJson('/api/auth/profile/email/confirm-change', ['new_email' => 'new@example.com', 'code' => $wrongCode])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('code');
 
@@ -148,11 +153,12 @@ class ProfileChangeTest extends TestCase
 
     public function test_confirming_a_phone_change_with_the_right_code_applies_the_normalized_number(): void
     {
+        $this->fakeSms();
         $user = User::factory()->create(['phone_number' => '+255700111000']);
-        Cache::put('otp:+255712345678:code', ['code' => '654321', 'attempts' => 0], now()->addMinutes(5));
+        app(OtpService::class)->issue('+255712345678');
 
         $this->actingAs($user)
-            ->postJson('/api/auth/profile/phone/confirm-change', ['new_phone' => '0712345678', 'code' => '654321'])
+            ->postJson('/api/auth/profile/phone/confirm-change', ['new_phone' => '0712345678', 'code' => $this->smsCodeSentTo('+255712345678')])
             ->assertOk()
             ->assertJsonPath('data.phone_number', '+255712345678');
 
@@ -270,7 +276,7 @@ class ProfileChangeTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_notification_preferences_default_to_all_on(): void
+    public function test_service_notifications_default_on_and_opt_in_ones_default_off(): void
     {
         $user = User::factory()->create();
 
@@ -282,7 +288,20 @@ class ProfileChangeTest extends TestCase
                 'shipment_updates' => true,
                 'messages' => true,
                 'new_job_matches' => true,
+                'sms_alerts' => false,
+                'promotions' => false,
             ]);
+    }
+
+    public function test_sms_alerts_and_promotions_can_be_opted_into(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/profile/notification-preferences', ['sms_alerts' => true, 'promotions' => true])
+            ->assertOk()
+            ->assertJsonPath('data.notification_preferences.sms_alerts', true)
+            ->assertJsonPath('data.notification_preferences.promotions', true);
     }
 
     public function test_a_notification_preference_can_be_turned_off(): void

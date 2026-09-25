@@ -67,10 +67,19 @@ class _LiveGpsTrackingScreenState extends State<LiveGpsTrackingScreen> {
   static const _refreshCountdownSeconds = 12;
 
   final _mapController = MapController();
+  final _sheetController = DraggableScrollableController();
   Timer? _refreshTimer;
   late Job _job;
   RouteResult? _route;
   int _secondsUntilRefresh = _refreshCountdownSeconds;
+
+  /// Collapses the info sheet down to its minimum peek so the map fills
+  /// almost the whole screen — an explicit "extended map" option for
+  /// whoever wants to actually study the route/area rather than just
+  /// glance at it, instead of relying on them discovering the sheet is
+  /// draggable at all. Mirrors the initial/min sizes passed to
+  /// DraggableScrollableSheet below.
+  bool _isMapExpanded = false;
 
   Job get job => _job;
 
@@ -80,12 +89,35 @@ class _LiveGpsTrackingScreenState extends State<LiveGpsTrackingScreen> {
     _job = widget.job;
     _loadRoute();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    _sheetController.addListener(_syncExpandedFromSheet);
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _sheetController.removeListener(_syncExpandedFromSheet);
+    _sheetController.dispose();
     super.dispose();
+  }
+
+  /// Keeps the fullscreen button's icon truthful even when the user
+  /// dragged the sheet by hand instead of tapping it — otherwise a manual
+  /// drag down to the same peek size would leave the button still
+  /// offering to "expand" when the map is already effectively fullscreen.
+  void _syncExpandedFromSheet() {
+    if (!_sheetController.isAttached) return;
+    final expanded = _sheetController.size <= 0.2;
+    if (expanded != _isMapExpanded) setState(() => _isMapExpanded = expanded);
+  }
+
+  void _toggleMapExpanded() {
+    final expanding = !_isMapExpanded;
+    _sheetController.animateTo(
+      expanding ? 0.14 : 0.4,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+    setState(() => _isMapExpanded = expanding);
   }
 
   void _tick() {
@@ -336,6 +368,13 @@ class _LiveGpsTrackingScreenState extends State<LiveGpsTrackingScreen> {
                     }
                   },
                 ),
+                const SizedBox(height: 8),
+                MapFloatingButton(
+                  icon: _isMapExpanded
+                      ? Icons.fullscreen_exit
+                      : Icons.fullscreen,
+                  onTap: _toggleMapExpanded,
+                ),
               ],
             ),
           ),
@@ -349,6 +388,7 @@ class _LiveGpsTrackingScreenState extends State<LiveGpsTrackingScreen> {
           // still overflows on a small screen.
           DraggableScrollableSheet(
             key: const Key('trackingInfoSheet'),
+            controller: _sheetController,
             initialChildSize: 0.4,
             minChildSize: 0.14,
             maxChildSize: 0.75,

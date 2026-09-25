@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\SubmitCompanyVerificationRequest;
+use App\Http\Requests\Company\UpdateCompanyLocationRequest;
 use App\Http\Resources\CompanyResource;
 use App\Models\TransporterCompany;
 use App\Services\Company\CompanyAutoVerifier;
@@ -105,6 +106,28 @@ class CompanyVerificationController extends Controller
         $company = $existing
             ? tap($existing)->update($attributes)
             : TransporterCompany::create([...$attributes, 'owner_user_id' => $user->id]);
+
+        return new CompanyResource($company);
+    }
+
+    /**
+     * The company's "home base" pin — a map point shown on its public
+     * profile alongside physical_address, not part of the verification
+     * submission. Deliberately not gated behind an approved/company.
+     * approved check like submit() above: a company can relocate (or
+     * simply add a pin it never set at submission time) without that
+     * being treated as "correcting" its verification, and while a
+     * submission is still pending, so there's nothing to re-verify here.
+     */
+    public function updateLocation(UpdateCompanyLocationRequest $request): CompanyResource
+    {
+        $company = $request->user()->transporterCompany;
+        abort_if($company === null, 404);
+
+        $company->update([
+            'physical_lat' => $request->validated('lat'),
+            'physical_lng' => $request->validated('lng'),
+        ]);
 
         return new CompanyResource($company);
     }

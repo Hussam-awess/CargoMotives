@@ -31,6 +31,10 @@ class CompanyFeaturedStatus {
     required this.durationDays,
     required this.preferredRoutes,
     this.homeRegion,
+    this.autoDeclineBelowBudget = false,
+    this.floorRate,
+    this.displayCurrency = 'TZS',
+    this.acceptingLoads = true,
   });
 
   factory CompanyFeaturedStatus.fromJson(Map<String, dynamic> json) {
@@ -45,6 +49,10 @@ class CompanyFeaturedStatus {
           .map((e) => PreferredRoute.fromJson(e as Map<String, dynamic>))
           .toList(),
       homeRegion: json['home_region'] as String?,
+      autoDeclineBelowBudget: json['auto_decline_below_budget'] as bool? ?? false,
+      floorRate: (json['floor_rate'] as num?)?.toDouble(),
+      displayCurrency: json['display_currency'] as String? ?? 'TZS',
+      acceptingLoads: json['accepting_loads'] as bool? ?? true,
     );
   }
 
@@ -58,6 +66,40 @@ class CompanyFeaturedStatus {
   /// plain free-text region name, not a coordinate. Null when never set;
   /// return-load suggestions then rank by proximity alone.
   final String? homeRegion;
+
+  /// Plus Polish: actually filters the Open Jobs feed now
+  /// (CompanyJobController::applyFloorRateFilter()) when true and
+  /// [floorRate] is set — see CompanyPreferencesRepository.
+  final bool autoDeclineBelowBudget;
+  final double? floorRate;
+
+  /// Purely cosmetic — formats the company's own Plus subscription price
+  /// on the Cargo Motives Plus screen. Never affects a job's/bid's own
+  /// currency, which always stays whatever the posting customer chose
+  /// (this app has no currency-conversion system).
+  final String displayCurrency;
+
+  /// Settings' "Accepting loads" — when false, the backend stops sending
+  /// this company new-job alerts (the Open Jobs feed stays browsable).
+  final bool acceptingLoads;
+
+  CompanyFeaturedStatus copyWith({
+    bool? autoDeclineBelowBudget,
+    double? floorRate,
+    String? displayCurrency,
+    bool? acceptingLoads,
+  }) => CompanyFeaturedStatus(
+    isFeatured: isFeatured,
+    featuredUntil: featuredUntil,
+    price: price,
+    durationDays: durationDays,
+    preferredRoutes: preferredRoutes,
+    homeRegion: homeRegion,
+    autoDeclineBelowBudget: autoDeclineBelowBudget ?? this.autoDeclineBelowBudget,
+    floorRate: floorRate ?? this.floorRate,
+    displayCurrency: displayCurrency ?? this.displayCurrency,
+    acceptingLoads: acceptingLoads ?? this.acceptingLoads,
+  );
 }
 
 /// A Featured (or commission) mobile money payment attempt.

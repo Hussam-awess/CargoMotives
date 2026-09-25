@@ -108,4 +108,60 @@ void main() {
     expect(openedSupport, isTrue);
     expect(openedFleet, isFalse);
   });
+
+  testWidgets('in shared mode, renders off the external notifier instead of self-fetching', (tester) async {
+    final external = ValueNotifier<int>(5);
+    await tester.pumpWidget(
+      _appUnder(
+        Scaffold(
+          appBar: AppBar(
+            actions: [
+              NotificationBellButton(
+                repository: FakeNotificationRepository(onUnreadCount: () async => 99),
+                externalUnreadCount: external,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The repository's own count (99) is ignored entirely in shared mode —
+    // only the externally-owned notifier drives the badge.
+    expect(find.text('5'), findsOneWidget);
+    expect(find.text('99'), findsNothing);
+
+    external.value = 2;
+    await tester.pump();
+    expect(find.text('2'), findsOneWidget);
+  });
+
+  testWidgets('in shared mode, calls onRead (not a self-refetch) after the notifications screen closes', (tester) async {
+    final external = ValueNotifier<int>(4);
+    var readCalled = 0;
+    await tester.pumpWidget(
+      _appUnder(
+        Scaffold(
+          appBar: AppBar(
+            actions: [
+              NotificationBellButton(
+                repository: FakeNotificationRepository(onUnreadCount: () async => 4, onList: () async => []),
+                externalUnreadCount: external,
+                onRead: () => readCalled++,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.notifications_outlined));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(readCalled, 1);
+  });
 }

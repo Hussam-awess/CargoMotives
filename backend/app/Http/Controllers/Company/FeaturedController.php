@@ -40,6 +40,13 @@ class FeaturedController extends Controller
             'duration_days' => $this->settings->getInt('featured_duration_days', 30),
             'preferred_routes' => $company->preferred_routes ?? [],
             'home_region' => $company->home_region,
+            // Plus Polish: read alongside the rest of this screen's fetch
+            // rather than a separate call — see
+            // CompanyPreferencesController's own docblock for what these do.
+            'auto_decline_below_budget' => (bool) $company->auto_decline_below_budget,
+            'floor_rate' => $company->floor_rate !== null ? (float) $company->floor_rate : null,
+            'display_currency' => $company->display_currency,
+            'accepting_loads' => (bool) $company->accepting_loads,
         ]);
     }
 

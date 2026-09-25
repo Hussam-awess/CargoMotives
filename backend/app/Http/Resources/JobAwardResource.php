@@ -29,6 +29,7 @@ class JobAwardResource extends JsonResource
             'agreed_price' => (float) $this->agreed_price,
             'status' => $this->status,
             'completed_at' => $this->completed_at?->toIso8601String(),
+            'driver_instructions' => $this->driver_instructions,
             'assigned_fleet' => $this->when(
                 $this->relationLoaded('truckAssignments'),
                 fn () => $this->truckAssignments->map(fn ($assignment) => [

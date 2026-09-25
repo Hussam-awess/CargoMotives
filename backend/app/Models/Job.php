@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\DB;
     'customer_notes', 'budget_price', 'currency', 'photo_urls', 'assigned_company_id', 'assigned_bid_id', 'assigned_truck_id',
     'assigned_driver_id', 'agreed_price', 'cancelled_reason', 'gps_tracking_active', 'gps_signal_status',
     'gps_tracking_started_at', 'bidding_expires_at',
+    'pickup_permit_path', 'pickup_permit_uploaded_at', 'dropoff_permit_path', 'dropoff_permit_uploaded_at',
+    'driver_instructions',
 ])]
 class Job extends Model
 {
@@ -67,6 +69,9 @@ class Job extends Model
             'bidding_expires_at' => 'datetime',
             'bidding_expiry_notified_at' => 'datetime',
             'dropoff_arrival_notified_at' => 'datetime',
+            'pickup_permit_uploaded_at' => 'datetime',
+            'dropoff_permit_uploaded_at' => 'datetime',
+            'dropoff_permit_reminder_sent_at' => 'datetime',
         ];
     }
 

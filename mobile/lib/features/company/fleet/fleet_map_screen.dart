@@ -8,18 +8,29 @@ import '../../../core/map/app_map.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../jobs/map_placeholder.dart';
+import '../data/company_repository.dart';
 import '../data/truck_repository.dart';
+import '../settings/company_location_screen.dart';
 
 /// The fleet map (AppFlow §2.7) — every transporter's own GPS-connected
 /// trucks, not a Plus-only feature. A real map (AppMap — OpenStreetMap)
 /// plots one marker per truck with a known position, with a real
 /// bottom-sheet list of the fleet's actual registration/status/last-known-
-/// position data underneath, matching the mockup's map+sheet layout.
+/// position data underneath, matching the mockup's map+sheet layout. Also
+/// plots the company's own "home base" pin (Settings → Company details,
+/// CompanyLocationScreen) when one is set — this is the highest-traffic
+/// map a company opens, so it's the natural place to both see and set that
+/// pin, rather than only being reachable from a settings sub-screen.
 class FleetMapScreen extends StatefulWidget {
-  FleetMapScreen({super.key, TruckRepository? repository})
-    : repository = repository ?? TruckRepository();
+  FleetMapScreen({
+    super.key,
+    TruckRepository? repository,
+    CompanyRepository? companyRepository,
+  }) : repository = repository ?? TruckRepository(),
+       companyRepository = companyRepository ?? CompanyRepository();
 
   final TruckRepository repository;
+  final CompanyRepository companyRepository;
 
   @override
   State<FleetMapScreen> createState() => _FleetMapScreenState();
@@ -46,11 +57,43 @@ class _FleetMapScreenState extends State<FleetMapScreen> {
   Timer? _refreshTimer;
   int _secondsUntilRefresh = _refreshCountdownSeconds;
 
+  /// Fetched once, not on every refresh tick — a company's own location
+  /// changes rarely, unlike truck positions, so there's no need to re-poll
+  /// it on the same 12s cadence.
+  CompanyVerification? _company;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _loadCompany();
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  Future<void> _loadCompany() async {
+    try {
+      final company = await widget.companyRepository.getStatus();
+      if (mounted) setState(() => _company = company);
+    } catch (_) {
+      // Best-effort — the fleet map still works with just truck data if
+      // this fails; the "set/edit location" action just won't show.
+    }
+  }
+
+  Future<void> _openCompanyLocation() async {
+    final company = _company;
+    if (company == null) return;
+
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CompanyLocationScreen(
+          initialLat: company.physicalLat,
+          initialLng: company.physicalLng,
+          repository: widget.companyRepository,
+        ),
+      ),
+    );
+    if (saved == true) _loadCompany();
   }
 
   @override
@@ -77,11 +120,9 @@ class _FleetMapScreenState extends State<FleetMapScreen> {
       final trucks = await widget.repository.map();
       if (mounted) setState(() => _trucks = trucks);
     } on ApiException catch (_) {
-      if (mounted)
-        setState(() => _loadError = 'Could not load your fleet map.');
+      if (mounted) setState(() => _loadError = 'Could not load your fleet map.');
     } catch (_) {
-      if (mounted)
-        setState(() => _loadError = 'Could not load your fleet map.');
+      if (mounted) setState(() => _loadError = 'Could not load your fleet map.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -142,10 +183,16 @@ class _FleetMapScreenState extends State<FleetMapScreen> {
         )
         .length;
 
-    final points = _trucks
-        .where((t) => t.lastKnownLat != null && t.lastKnownLng != null)
-        .map((t) => LatLng(t.lastKnownLat!, t.lastKnownLng!))
-        .toList();
+    final companyPoint =
+        (_company?.physicalLat != null && _company?.physicalLng != null)
+        ? LatLng(_company!.physicalLat!, _company!.physicalLng!)
+        : null;
+    final points = [
+      ..._trucks
+          .where((t) => t.lastKnownLat != null && t.lastKnownLng != null)
+          .map((t) => LatLng(t.lastKnownLat!, t.lastKnownLng!)),
+      if (companyPoint != null) companyPoint,
+    ];
     final fit = AppMap.fit(points);
 
     return Scaffold(
@@ -155,6 +202,20 @@ class _FleetMapScreenState extends State<FleetMapScreen> {
             initialCenter: fit.center,
             initialZoom: fit.zoom,
             markers: [
+              if (companyPoint != null)
+                Marker(
+                  point: companyPoint,
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.topCenter,
+                  child: GestureDetector(
+                    onTap: _openCompanyLocation,
+                    child: AppMapPin(
+                      color: AppColors.primary,
+                      icon: Icons.home,
+                    ),
+                  ),
+                ),
               for (final t in _trucks)
                 if (t.lastKnownLat != null && t.lastKnownLng != null)
                   Marker(
@@ -231,6 +292,15 @@ class _FleetMapScreenState extends State<FleetMapScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  const Spacer(),
+                  // Always shown, even before any pin is set — this is the
+                  // one discoverable "add a company location" entry point
+                  // on the map a company opens most often, rather than only
+                  // being reachable from Settings → Company details.
+                  MapFloatingButton(
+                    icon: Icons.home,
+                    onTap: _openCompanyLocation,
                   ),
                 ],
               ),

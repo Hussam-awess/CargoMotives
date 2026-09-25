@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
 
+import '../../core/map/app_map.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/plus_badge.dart';
 import '../../shared/widgets/rating_stars.dart';
@@ -186,6 +189,51 @@ class _TransporterProfileScreenState extends State<TransporterProfileScreen> {
                     ],
                   ),
                 ),
+                if (profile.locationLat != null &&
+                    profile.locationLng != null) ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    'Location',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textLabel,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox(
+                      height: 140,
+                      child: IgnorePointer(
+                        // Non-interactive — this is a small at-a-glance
+                        // preview, not a real map to pan/zoom; a viewer
+                        // wanting the interactive one would expect a
+                        // dedicated screen, which nothing here links to yet.
+                        child: AppMap(
+                          initialCenter: LatLng(
+                            profile.locationLat!,
+                            profile.locationLng!,
+                          ),
+                          initialZoom: 13,
+                          interactive: false,
+                          markers: [
+                            Marker(
+                              point: LatLng(
+                                profile.locationLat!,
+                                profile.locationLng!,
+                              ),
+                              width: 36,
+                              height: 36,
+                              alignment: Alignment.topCenter,
+                              child: const AppMapPin(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 if (profile.recentCompletedJobs.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   Text(

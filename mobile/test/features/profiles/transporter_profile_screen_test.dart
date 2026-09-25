@@ -1,3 +1,4 @@
+import 'package:cargo_motives/core/map/app_map.dart';
 import 'package:cargo_motives/features/profiles/data/profile_repository.dart';
 import 'package:cargo_motives/features/profiles/transporter_profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,8 @@ import '../../support/fake_profile_repository.dart';
 CompanyProfile _profile({
   bool verified = true,
   String? location = 'Kariakoo, Dar es Salaam',
+  double? locationLat,
+  double? locationLng,
   String? logoUrl,
   String? ownerAvatarUrl,
   double? averageRating = 4.8,
@@ -25,6 +28,8 @@ CompanyProfile _profile({
   ownerAvatarUrl: ownerAvatarUrl,
   verified: verified,
   location: location,
+  locationLat: locationLat,
+  locationLng: locationLng,
   memberSince: DateTime(2024, 6, 1),
   averageRating: averageRating,
   ratingCount: ratingCount,
@@ -318,5 +323,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PLUS'), findsNothing);
+  });
+
+  testWidgets('shows a location map preview once the company has set a pin', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransporterProfileScreen(
+          companyId: 7,
+          repository: FakeProfileRepository(
+            onCompany: (_) async => _profile(locationLat: -6.8161, locationLng: 39.2803),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Location'), findsOneWidget);
+    expect(find.byType(AppMap), findsOneWidget);
+    expect(find.byType(AppMapPin), findsOneWidget);
+  });
+
+  testWidgets('shows no location map preview when the company has no pin set', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransporterProfileScreen(
+          companyId: 7,
+          repository: FakeProfileRepository(onCompany: (_) async => _profile()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Location'), findsNothing);
+    expect(find.byType(AppMap), findsNothing);
   });
 }

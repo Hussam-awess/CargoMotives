@@ -15,11 +15,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * only in App\Http\Resources\ProofOfDeliveryResource, the same pattern
  * already used for company/truck verification documents.
  */
-#[Fillable(['job_id', 'job_award_id', 'driver_id', 'driver_link_id', 'photo_urls', 'recipient_name', 'notes'])]
+#[Fillable(['job_id', 'job_award_id', 'driver_id', 'driver_link_id', 'photo_urls', 'recipient_name', 'notes', 'is_system_generated'])]
 class ProofOfDelivery extends Model
 {
     /** @use HasFactory<ProofOfDeliveryFactory> */
     use HasFactory;
+
+    protected $attributes = [
+        'is_system_generated' => false,
+    ];
 
     /**
      * @return array<string, string>
@@ -29,6 +33,7 @@ class ProofOfDelivery extends Model
         return [
             'photo_urls' => 'array',
             'confirmed_by_customer_at' => 'datetime',
+            'is_system_generated' => 'boolean',
         ];
     }
 

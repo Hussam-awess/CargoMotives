@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 #[Fillable([
     'job_id', 'bid_id', 'transporter_company_id', 'trucks_offered', 'agreed_price', 'status', 'completed_at',
-    'gps_tracking_active', 'gps_signal_status', 'gps_tracking_started_at',
+    'gps_tracking_active', 'gps_signal_status', 'gps_tracking_started_at', 'driver_instructions',
 ])]
 class JobAward extends Model
 {
@@ -38,6 +38,7 @@ class JobAward extends Model
             'gps_tracking_started_at' => 'datetime',
             'completed_at' => 'datetime',
             'dropoff_arrival_notified_at' => 'datetime',
+            'dropoff_permit_reminder_sent_at' => 'datetime',
         ];
     }
 

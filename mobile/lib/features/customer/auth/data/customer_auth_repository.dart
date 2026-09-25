@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart' show FormData, MultipartFile;
 import 'package:file_picker/file_picker.dart';
 
+import '../../../../core/device/device_name.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../auth/data/two_factor_repository.dart';
 
 /// Everything collected on the Customer sign-up form — kept as one typed
 /// object (not loose parameters) so CustomerOtpScreen can hold onto it and
@@ -68,23 +70,24 @@ class CustomerAuthRepository {
   }) async {
     final body = await _client.post(
       '/auth/customer/register/verify',
-      data: {'email': email, 'code': code},
+      data: {'email': email, 'code': code, 'device_name': currentDeviceName()},
     );
 
     return body['token'] as String;
   }
 
-  /// Returns the session's bearer token.
+  /// Returns the session's bearer token, or throws [TwoFactorRequired] when
+  /// the account has two-factor on and a code is needed first.
   Future<String> login({
     required String email,
     required String password,
   }) async {
     final body = await _client.post(
       '/auth/customer/login',
-      data: {'email': email, 'password': password},
+      data: {'email': email, 'password': password, 'device_name': currentDeviceName()},
     );
 
-    return body['token'] as String;
+    return TwoFactorRequired.tokenOrThrow(body);
   }
 
   /// Deliberately returns nothing to check — the backend's own response is

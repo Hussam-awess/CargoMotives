@@ -3,11 +3,14 @@
 namespace Tests\Feature\Jobs;
 
 use App\Models\Driver;
+use App\Models\DriverLink;
 use App\Models\Job;
 use App\Models\TransporterCompany;
 use App\Models\Truck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class JobAssignmentTest extends TestCase
@@ -221,5 +224,88 @@ class JobAssignmentTest extends TestCase
         $this->actingAs($company)
             ->getJson("/api/company/jobs/{$job->id}/driver-link")
             ->assertNotFound();
+    }
+
+    /**
+     * The manual escape hatch for a stuck 'in_transit' job (a real,
+     * live-reported bug: an inaccurate pickup location meant the truck
+     * never crossed JobStatusAutoAdvancer's departure/arrival radii) — the
+     * company can submit proof of delivery itself, from its own app,
+     * instead of needing the driver to visit the separate Driver Link page.
+     */
+    public function test_a_company_can_submit_proof_of_delivery_for_its_own_stuck_job(): void
+    {
+        Storage::fake('local');
+        $company = $this->approvedCompanyUser();
+        $companyId = $company->transporterCompany->id;
+        $job = Job::factory()->assignedTo($companyId)->create(['status' => 'in_transit', 'dropoff_permit_path' => 'permits/test.pdf']);
+        $truck = Truck::factory()->approved()->create(['transporter_company_id' => $companyId, 'current_status' => 'on_job']);
+        $driver = Driver::factory()->create(['transporter_company_id' => $companyId]);
+        $job->update(['assigned_truck_id' => $truck->id, 'assigned_driver_id' => $driver->id]);
+        $link = DriverLink::create([
+            'job_id' => $job->id, 'driver_id' => $driver->id, 'token' => 'test-token-1',
+            'status' => 'active', 'expires_at' => now()->addDays(2),
+        ]);
+
+        $response = $this->actingAs($company)->postJson("/api/company/jobs/{$job->id}/proof-of-delivery", [
+            'photos' => [UploadedFile::fake()->create('proof.jpg', 200, 'image/jpeg')],
+            'recipient_name' => 'Asha Mwinyi',
+        ]);
+
+        $response->assertOk()->assertJsonPath('data.status', 'delivered');
+        $this->assertSame('delivered', $job->fresh()->status);
+        $this->assertDatabaseHas('proof_of_deliveries', [
+            'job_id' => $job->id, 'driver_id' => $driver->id, 'driver_link_id' => $link->id, 'recipient_name' => 'Asha Mwinyi',
+        ]);
+        $this->assertSame('used', $link->fresh()->status);
+    }
+
+    public function test_cannot_submit_proof_of_delivery_for_a_job_already_delivered(): void
+    {
+        Storage::fake('local');
+        $company = $this->approvedCompanyUser();
+        $companyId = $company->transporterCompany->id;
+        $job = Job::factory()->assignedTo($companyId)->create(['status' => 'delivered']);
+        $driver = Driver::factory()->create(['transporter_company_id' => $companyId]);
+        DriverLink::create([
+            'job_id' => $job->id, 'driver_id' => $driver->id, 'token' => 'test-token-2',
+            'status' => 'used', 'expires_at' => now()->addDays(2), 'used_at' => now(),
+        ]);
+
+        $this->actingAs($company)->postJson("/api/company/jobs/{$job->id}/proof-of-delivery", [
+            'photos' => [UploadedFile::fake()->create('proof.jpg', 200, 'image/jpeg')],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['status']);
+    }
+
+    public function test_cannot_submit_proof_of_delivery_for_a_job_it_does_not_own(): void
+    {
+        Storage::fake('local');
+        $company = $this->approvedCompanyUser();
+        $job = Job::factory()->create(['status' => 'in_transit']); // owned by a different (or no) company
+
+        $this->actingAs($company)->postJson("/api/company/jobs/{$job->id}/proof-of-delivery", [
+            'photos' => [UploadedFile::fake()->create('proof.jpg', 200, 'image/jpeg')],
+        ])->assertNotFound();
+    }
+
+    public function test_submitting_proof_of_delivery_requires_at_least_one_photo(): void
+    {
+        $company = $this->approvedCompanyUser();
+        $job = Job::factory()->assignedTo($company->transporterCompany->id)->create(['status' => 'in_transit']);
+
+        $this->actingAs($company)->postJson("/api/company/jobs/{$job->id}/proof-of-delivery", [])
+            ->assertUnprocessable()->assertJsonValidationErrors(['photos']);
+    }
+
+    public function test_cannot_submit_proof_of_delivery_without_a_dropoff_permit_attached(): void
+    {
+        Storage::fake('local');
+        $company = $this->approvedCompanyUser();
+        $job = Job::factory()->assignedTo($company->transporterCompany->id)->create(['status' => 'in_transit']); // no dropoff_permit_path
+
+        $this->actingAs($company)->postJson("/api/company/jobs/{$job->id}/proof-of-delivery", [
+            'photos' => [UploadedFile::fake()->create('proof.jpg', 200, 'image/jpeg')],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['dropoff_permit']);
+        $this->assertSame('in_transit', $job->fresh()->status);
     }
 }

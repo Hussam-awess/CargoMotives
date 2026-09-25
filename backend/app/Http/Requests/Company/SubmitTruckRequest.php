@@ -9,7 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * one request. Used both to register a new truck and to edit an existing
  * one — see rules() for why the documents aren't required in the second
  * case, and for the "locked" branch that limits an already-real truck's
- * edits to just capacity/type.
+ * edits to just capacity/type/photos.
  */
 class SubmitTruckRequest extends FormRequest
 {
@@ -38,6 +38,16 @@ class SubmitTruckRequest extends FormRequest
             return [
                 'capacity_tons' => ['required', 'numeric', 'min:0.1', 'max:999'],
                 'vehicle_type' => ['required', 'string', 'max:100'],
+                // Photos are the one document-ish field exempt from the
+                // lock above: they're just a visual reference, not a legal
+                // identity document like the registration card/insurance/
+                // roadworthiness permit, so a company can still refresh
+                // them (a repaint, a better angle, an extra photo) without
+                // that counting as "changing the vehicle." Optional here —
+                // submitting a locked edit for capacity/type alone doesn't
+                // require touching photos at all.
+                'photos' => ['nullable', 'array', 'max:5'],
+                'photos.*' => ['file', 'image', 'max:10240'],
             ];
         }
 

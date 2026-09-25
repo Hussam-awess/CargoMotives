@@ -11,10 +11,12 @@ use App\Http\Requests\Auth\RequestCustomerPasswordResetRequest;
 use App\Http\Requests\Auth\VerifyCustomerRegistrationRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Auth\DeviceName;
 use App\Services\Auth\EmailOtpService;
 use App\Services\Auth\LoginThrottle;
 use App\Services\Auth\OtpCooldownException;
 use App\Services\Auth\PhoneNumberNormalizer;
+use App\Services\Auth\TwoFactorChallenge;
 use App\Services\Documents\DocumentStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -50,6 +52,7 @@ class CustomerAuthController extends Controller
         private readonly EmailOtpService $otp,
         private readonly DocumentStorage $documents,
         private readonly LoginThrottle $loginThrottle,
+        private readonly TwoFactorChallenge $twoFactor,
     ) {}
 
     public function register(RegisterCustomerRequest $request): JsonResponse
@@ -136,7 +139,7 @@ class CustomerAuthController extends Controller
         $user->password_hash = $pending['password_hash'];
         $user->save();
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        $token = $user->createToken(DeviceName::from($request))->plainTextToken;
 
         return response()->json([
             'token' => $token,
@@ -167,8 +170,12 @@ class CustomerAuthController extends Controller
 
         $this->loginThrottle->clear($throttleKey);
 
+        if ($user->two_factor_enabled) {
+            return response()->json($this->twoFactor->start($user, DeviceName::from($request)));
+        }
+
         return response()->json([
-            'token' => $user->createToken('mobile-app')->plainTextToken,
+            'token' => $user->createToken(DeviceName::from($request))->plainTextToken,
             'user' => new UserResource($user),
         ]);
     }

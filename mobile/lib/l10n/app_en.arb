@@ -176,6 +176,9 @@
   "forgotPasswordLabel": "Forgot password?",
   "@forgotPasswordLabel": {"description": "Link on both login screens, opens the password reset flow."},
 
+  "rememberMe": "Remember me",
+  "@rememberMe": {"description": "Checkbox on both login screens — remembers the email/phone entered so it's pre-filled next time, not the password."},
+
   "forgotPasswordTitle": "Reset password",
   "@forgotPasswordTitle": {"description": "AppBar title on the forgot-password screen, both roles."},
 
@@ -322,11 +325,11 @@
   "twoFactorAuthLabel": "Two-factor authentication",
   "@twoFactorAuthLabel": {"description": "Settings toggle row title, both Customer and Company."},
 
-  "twoFactorAuthSubtitle": "SMS code on new devices",
+  "twoFactorAuthSubtitle": "A code is sent each time you log in",
   "@twoFactorAuthSubtitle": {"description": "Customer Settings two-factor toggle subtitle."},
 
   "activeSessionsLabel": "Active sessions",
-  "@activeSessionsLabel": {"description": "Customer Settings nav row title, also the not-available dialog title."},
+  "@activeSessionsLabel": {"description": "Settings nav row title and Active sessions screen title, both roles."},
 
   "legalSectionLabel": "Legal",
   "@legalSectionLabel": {"description": "Settings section heading, both Customer and Company."},
@@ -347,13 +350,7 @@
   "@logoutConfirmMessage": {"description": "Body of the confirmation dialog shown before logging out, both Customer and Company Settings."},
 
   "deleteAccountLabel": "Delete account",
-  "@deleteAccountLabel": {"description": "Customer Settings button, also the not-available dialog title."},
-
-  "activeSessionsUnavailableMessage": "Viewing and managing active sessions isn't available in the app yet.",
-  "@activeSessionsUnavailableMessage": {"description": "Customer Settings — Active sessions not-available dialog body."},
-
-  "deleteAccountUnavailableMessage": "Account deletion isn't available in the app yet. Contact support to request it.",
-  "@deleteAccountUnavailableMessage": {"description": "Customer Settings — Delete account not-available dialog body."},
+  "@deleteAccountLabel": {"description": "Settings button and Delete account screen title, both roles."},
 
   "okLabel": "OK",
   "@okLabel": {"description": "A generic dialog dismiss button."},
@@ -399,7 +396,7 @@
   "acceptingLoadsTitle": "Accepting loads",
   "@acceptingLoadsTitle": {"description": "Company Settings toggle row title."},
 
-  "acceptingLoadsSubtitle": "Turn off when your whole fleet is committed",
+  "acceptingLoadsSubtitle": "Turn off to pause new-load alerts while your fleet is busy",
   "@acceptingLoadsSubtitle": {"description": "Company Settings toggle row subtitle."},
 
   "searchRadiusLabel": "Search radius",
@@ -420,12 +417,6 @@
   "manageDriversLabel": "Manage drivers",
   "@manageDriversLabel": {"description": "Company Settings nav row title."},
 
-  "shareGpsTitle": "Share GPS with customers",
-  "@shareGpsTitle": {"description": "Company Settings toggle row title."},
-
-  "shareGpsSubtitle": "Only while a job is active",
-  "@shareGpsSubtitle": {"description": "Company Settings toggle row subtitle."},
-
   "documentExpiryRemindersLabel": "Document expiry reminders",
   "@documentExpiryRemindersLabel": {"description": "Company Settings nav row title."},
 
@@ -437,9 +428,6 @@
 
   "bidAcceptedOrDeclinedTitle": "Bid accepted or declined",
   "@bidAcceptedOrDeclinedTitle": {"description": "Company Settings notification toggle title."},
-
-  "payoutReleasedTitle": "Payout released",
-  "@payoutReleasedTitle": {"description": "Company Settings notification toggle title."},
 
   "driverOffRouteTitle": "Driver went off-route",
   "@driverOffRouteTitle": {"description": "Company Settings notification toggle title."},
@@ -583,5 +571,152 @@
     "placeholders": {
       "count": {"type": "int"}
     }
-  }
+  },
+
+  "twoFactorCodeTitle": "Enter verification code",
+  "@twoFactorCodeTitle": {"description":"Two-factor login screen title."},
+
+  "twoFactorCodeSentSms": "We sent a code by SMS to {destination}.",
+  "@twoFactorCodeSentSms": {"description":"Two-factor login screen body (company).","placeholders":{"destination":{"type":"String"}}},
+
+  "twoFactorCodeSentEmail": "We sent a code by email to {destination}.",
+  "@twoFactorCodeSentEmail": {"description":"Two-factor login screen body (customer).","placeholders":{"destination":{"type":"String"}}},
+
+  "codeResentMessage": "A new code has been sent.",
+  "@codeResentMessage": {"description":"Snackbar after resending a verification code."},
+
+  "confirmPasswordTitle": "Confirm your password",
+  "@confirmPasswordTitle": {"description":"Dialog title asking for the current password before a security change."},
+
+  "currentPasswordHint": "Current password",
+  "@currentPasswordHint": {"description":"Password field hint in security-change dialogs."},
+
+  "continueLabel": "Continue",
+  "@continueLabel": {"description":"Generic dialog confirm button."},
+
+  "cancelLabel": "Cancel",
+  "@cancelLabel": {"description":"Generic dialog cancel button."},
+
+  "twoFactorEnabledMessage": "Two-factor authentication is on.",
+  "@twoFactorEnabledMessage": {"description":"Snackbar after enabling 2FA."},
+
+  "twoFactorDisabledMessage": "Two-factor authentication is off.",
+  "@twoFactorDisabledMessage": {"description":"Snackbar after disabling 2FA."},
+
+  "thisDeviceLabel": "This device",
+  "@thisDeviceLabel": {"description":"Active sessions — tag on the current device."},
+
+  "lastActiveLabel": "Last active {when}",
+  "@lastActiveLabel": {"description":"Active sessions — row subtitle.","placeholders":{"when":{"type":"String"}}},
+
+  "signedInLabel": "Signed in {when}",
+  "@signedInLabel": {"description":"Active sessions — subtitle for a session never used since sign-in.","placeholders":{"when":{"type":"String"}}},
+
+  "signOutLabel": "Sign out",
+  "@signOutLabel": {"description":"Active sessions — sign a device out."},
+
+  "signOutOtherDevicesLabel": "Sign out all other devices",
+  "@signOutOtherDevicesLabel": {"description":"Active sessions — bottom button."},
+
+  "signedOutDeviceMessage": "Signed out of that device.",
+  "@signedOutDeviceMessage": {"description":"Snackbar after revoking a session."},
+
+  "signedOutOtherDevicesMessage": "Signed out of all other devices.",
+  "@signedOutOtherDevicesMessage": {"description":"Snackbar after revoking all other sessions."},
+
+  "noOtherSessionsMessage": "No other devices are signed in to your account.",
+  "@noOtherSessionsMessage": {"description":"Active sessions — shown when only this device is signed in."},
+
+  "couldNotLoadSessions": "Could not load your sessions.",
+  "@couldNotLoadSessions": {"description":"Active sessions — load error."},
+
+  "deleteAccountWarning": "Deleting your account erases your personal information and signs you out on every device. Records of past jobs and payments are kept in anonymized form, and any remaining Cargo Motives Plus time is lost. This can't be undone.",
+  "@deleteAccountWarning": {"description":"Delete account screen explanation."},
+
+  "deleteAccountBlockedHint": "You can't delete your account while you have a job that is open or in progress, a pending bid, or an active assignment.",
+  "@deleteAccountBlockedHint": {"description":"Delete account screen — precondition note."},
+
+  "deleteAccountConfirmButton": "Delete my account",
+  "@deleteAccountConfirmButton": {"description":"Delete account screen — destructive confirm button."},
+
+  "accountDeletedMessage": "Your account has been deleted.",
+  "@accountDeletedMessage": {"description":"Shown after account deletion succeeds."},
+
+  "enterYourPassword": "Enter your password.",
+  "@enterYourPassword": {"description":"Validation error when a password field is empty."},
+
+  "promotionsSubtitle": "Offers and tips from Cargo Motives",
+  "@promotionsSubtitle": {"description":"Customer Settings promotions toggle subtitle."},
+
+  "couldNotSaveSetting": "Could not save that setting. Please try again.",
+  "@couldNotSaveSetting": {"description": "Snackbar when a Settings change fails to save."},
+
+  "saveLabel": "Save",
+  "@saveLabel": {"description": "Generic dialog save button."},
+
+  "floorRateLabel": "Floor rate",
+  "@floorRateLabel": {"description": "Company Settings nav row title (shown when auto-decline is on) and the floor rate dialog title."},
+
+  "floorRateNotSet": "Not set",
+  "@floorRateNotSet": {"description": "Company Settings — Floor rate row value when no floor rate has been saved yet."},
+
+  "floorRateHint": "Minimum budget you'll accept",
+  "@floorRateHint": {"description": "Floor rate dialog — amount field placeholder."},
+
+  "enterValidAmount": "Enter a valid amount.",
+  "@enterValidAmount": {"description": "Validation error when an amount field isn't a non-negative number."},
+
+  "couldNotUpdateCurrency": "Could not update currency.",
+  "@couldNotUpdateCurrency": {"description": "Customer Settings snackbar when saving the preferred currency fails."},
+
+  "paymentHistoryLabel": "Payment history",
+  "@paymentHistoryLabel": {"description": "Company Settings nav row title, opens Payment History."},
+
+  "paymentHistoryTitle": "Payment History",
+  "@paymentHistoryTitle": {"description": "AppBar title on the Payment History screen."},
+
+  "totalPaidLabel": "Total paid",
+  "@totalPaidLabel": {"description": "Payment History summary card — label above the total of all successful payments."},
+
+  "latestPaymentLabel": "Latest payment",
+  "@latestPaymentLabel": {"description": "Payment History summary card stat label — amount of the most recent successful payment."},
+
+  "paymentsCountLabel": "Payments",
+  "@paymentsCountLabel": {"description": "Payment History summary card stat label — number of successful payments."},
+
+  "defaultPaymentMethodLabel": "Default payment method",
+  "@defaultPaymentMethodLabel": {"description": "Payment History — caption under the saved default mobile-money method."},
+
+  "changeLabel": "Change",
+  "@changeLabel": {"description": "Payment History — button to pick a different default payment method."},
+
+  "bankTransferLabel": "Bank transfer",
+  "@bankTransferLabel": {"description": "Payment method option (the others — M-Pesa, Airtel Money, Tigo Pesa — are brand names and not translated)."},
+
+  "transactionsLabel": "Transactions",
+  "@transactionsLabel": {"description": "Payment History section heading above the list of payments."},
+
+  "noPaymentsYet": "No payments yet.",
+  "@noPaymentsYet": {"description": "Payment History empty state."},
+
+  "couldNotLoadPaymentHistory": "Could not load payment history.",
+  "@couldNotLoadPaymentHistory": {"description": "Payment History load error."},
+
+  "commissionPaymentLabel": "Commission payment",
+  "@commissionPaymentLabel": {"description": "Payment History row title for a commission payment."},
+
+  "paymentStatusPaid": "Paid",
+  "@paymentStatusPaid": {"description": "Payment History row status — payment succeeded."},
+
+  "paymentStatusPending": "Pending",
+  "@paymentStatusPending": {"description": "Payment History row status — waiting for mobile-money confirmation."},
+
+  "paymentStatusInitiated": "Initiated",
+  "@paymentStatusInitiated": {"description": "Payment History row status — payment started but not yet sent for confirmation."},
+
+  "paymentStatusFailed": "Failed",
+  "@paymentStatusFailed": {"description": "Payment History row status — payment failed."},
+
+  "friendlyErrorMessage": "Something went wrong showing this part of the screen. Please go back and try again.",
+  "@friendlyErrorMessage": {"description": "Release builds only — replaces a widget that failed to build."}
 }

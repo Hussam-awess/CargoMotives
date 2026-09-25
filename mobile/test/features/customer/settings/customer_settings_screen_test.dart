@@ -3,9 +3,12 @@ import 'package:cargo_motives/core/localization/locale_scope.dart';
 import 'package:cargo_motives/core/theme/theme_controller.dart';
 import 'package:cargo_motives/core/theme/theme_scope.dart';
 import 'package:cargo_motives/features/auth/data/auth_repository.dart';
+import 'package:cargo_motives/features/auth/edit_profile_screen.dart';
 import 'package:cargo_motives/features/customer/auth/customer_forgot_password_screen.dart';
 import 'package:cargo_motives/features/customer/settings/customer_settings_screen.dart';
+import 'package:cargo_motives/features/support/active_sessions_screen.dart';
 import 'package:cargo_motives/features/support/change_password_screen.dart';
+import 'package:cargo_motives/features/support/delete_account_screen.dart';
 import 'package:cargo_motives/features/support/settings_widgets.dart';
 import 'package:cargo_motives/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -91,7 +94,7 @@ void main() {
     },
   );
 
-  testWidgets('tapping Active sessions shows an honest not-available dialog', (
+  testWidgets('tapping Active sessions opens the real session list', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -103,6 +106,9 @@ void main() {
               companyName: null,
               isFeatured: false,
             ),
+            onSessions: () async => [
+              ActiveSession(id: 1, deviceName: 'Android device', lastUsedAt: DateTime(2026, 9, 24), createdAt: null, isCurrent: true),
+            ],
           ),
         ),
       ),
@@ -121,12 +127,117 @@ void main() {
     await tester.tap(find.text('Active sessions'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text(
-        'Viewing and managing active sessions isn\'t available in the app yet.',
+    expect(find.byType(ActiveSessionsScreen), findsOneWidget);
+    expect(find.text('Android device'), findsOneWidget);
+    expect(find.text('This device'), findsOneWidget);
+  });
+
+  testWidgets('turning on two-factor asks for the password and saves it', (tester) async {
+    bool? savedEnabled;
+    String? savedPassword;
+    await tester.pumpWidget(
+      _appUnder(
+        CustomerSettingsScreen(
+          authRepository: FakeAuthRepository(
+            onMe: () async => const UserProfile(fullName: 'Amina Hassan', companyName: null, isFeatured: false),
+            onUpdateTwoFactor: (enabled, password) async {
+              savedEnabled = enabled;
+              savedPassword = password;
+              return UserProfile(fullName: 'Amina Hassan', companyName: null, isFeatured: false, twoFactorEnabled: enabled);
+            },
+          ),
+        ),
       ),
-      findsOneWidget,
     );
+    await tester.pumpAndSettle();
+
+    final row = find.widgetWithText(SettingsToggleRow, 'Two-factor authentication');
+    await tester.scrollUntilVisible(row, 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confirm your password'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, 'secret123');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(savedEnabled, isTrue);
+    expect(savedPassword, 'secret123');
+    expect(tester.widget<Switch>(find.descendant(of: row, matching: find.byType(Switch))).value, isTrue);
+  });
+
+  testWidgets('cancelling the password prompt leaves two-factor off', (tester) async {
+    var called = false;
+    await tester.pumpWidget(
+      _appUnder(
+        CustomerSettingsScreen(
+          authRepository: FakeAuthRepository(
+            onMe: () async => const UserProfile(fullName: 'Amina Hassan', companyName: null, isFeatured: false),
+            onUpdateTwoFactor: (enabled, password) async {
+              called = true;
+              return const UserProfile(fullName: 'Amina Hassan', companyName: null, isFeatured: false);
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final row = find.widgetWithText(SettingsToggleRow, 'Two-factor authentication');
+    await tester.scrollUntilVisible(row, 300, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(called, isFalse);
+    expect(tester.widget<Switch>(find.descendant(of: row, matching: find.byType(Switch))).value, isFalse);
+  });
+
+  testWidgets('SMS alerts and Promotions are off by default and save to the server', (tester) async {
+    final saved = <Map<String, bool>>[];
+    await tester.pumpWidget(
+      _appUnder(
+        CustomerSettingsScreen(
+          authRepository: FakeAuthRepository(
+            onMe: () async => const UserProfile(fullName: 'Amina Hassan', companyName: null, isFeatured: false),
+            onUpdateNotificationPreferences: (preferences) async {
+              saved.add(preferences);
+              return UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+                notificationPreferences: {...UserProfile.defaultNotificationPreferences, ...preferences},
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final sms = find.widgetWithText(SettingsToggleRow, 'SMS alerts');
+    await tester.scrollUntilVisible(sms, 300, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(find.descendant(of: sms, matching: find.byType(Switch))).value, isFalse);
+
+    await tester.tap(find.descendant(of: sms, matching: find.byType(Switch)));
+    await tester.pumpAndSettle();
+
+    final promotions = find.widgetWithText(SettingsToggleRow, 'Promotions');
+    await tester.ensureVisible(promotions);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: promotions, matching: find.byType(Switch)));
+    await tester.pumpAndSettle();
+
+    expect(saved, [
+      {'sms_alerts': true},
+      {'promotions': true},
+    ]);
   });
 
   testWidgets('masks the registered phone number', (tester) async {
@@ -449,6 +560,75 @@ void main() {
 
       expect(loggedOut, isTrue);
       expect(find.text('WELCOME_SCREEN'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'tapping the registered phone row opens Edit Profile, same as Email',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+                phoneNumber: '+255712345678',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final row = find.text('+255 712 ••• 678');
+      await tester.scrollUntilVisible(
+        row,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EditProfileScreen), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Delete account opens the real deletion screen',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          CustomerSettingsScreen(
+            authRepository: FakeAuthRepository(
+              onMe: () async => const UserProfile(
+                fullName: 'Amina Hassan',
+                companyName: null,
+                isFeatured: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final deleteButton = find.text('Delete account');
+      await tester.scrollUntilVisible(
+        deleteButton,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(deleteButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(deleteButton);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DeleteAccountScreen), findsOneWidget);
+      expect(find.text('Delete my account'), findsOneWidget);
     },
   );
 }

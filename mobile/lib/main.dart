@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import 'app.dart';
+import 'core/diagnostics/error_reporter.dart';
 import 'core/localization/locale_controller.dart';
 import 'core/push/push_notification_service.dart';
 import 'core/theme/theme_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ErrorReporter.install();
+
   final localeController = await LocaleController.load();
   final themeController = await ThemeController.load();
 

@@ -2,9 +2,13 @@
 
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminCompanyController;
+use App\Http\Controllers\Auth\AccountController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\ProfileController;
+use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\Auth\TwoFactorController;
+use App\Http\Controllers\Company\CompanyPreferencesController;
 use App\Http\Controllers\Company\CompanyVerificationController;
 use App\Http\Controllers\Company\DriverController;
 use App\Http\Controllers\Company\FeaturedController as CompanyFeaturedController;
@@ -21,6 +25,7 @@ use App\Http\Controllers\Jobs\JobAwardController;
 use App\Http\Controllers\Jobs\JobController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\Profiles\CompanyProfileController;
 use App\Http\Controllers\Profiles\CustomerProfileController;
 use App\Http\Controllers\Reviews\JobReviewController;
@@ -59,7 +64,20 @@ Route::prefix('auth')->group(function () {
     Route::post('/customer/password/forgot', [CustomerAuthController::class, 'requestPasswordReset'])->middleware('throttle:customer-password-reset-request');
     Route::post('/customer/password/reset', [CustomerAuthController::class, 'confirmPasswordReset'])->middleware('throttle:customer-password-reset-confirm');
 
+    // Second login step for an account with two-factor on (both roles) —
+    // see TwoFactorChallenge.
+    Route::post('/login/two-factor', [TwoFactorController::class, 'verifyLogin'])->middleware('throttle:two-factor-verify');
+    Route::post('/login/two-factor/resend', [TwoFactorController::class, 'resendLoginCode'])->middleware('throttle:two-factor-resend');
+
     Route::middleware('auth-active')->group(function () {
+        Route::post('/profile/two-factor', [TwoFactorController::class, 'update'])->middleware('throttle:profile-password-change');
+
+        Route::get('/sessions', [SessionController::class, 'index']);
+        Route::delete('/sessions', [SessionController::class, 'destroyOthers']);
+        Route::delete('/sessions/{session}', [SessionController::class, 'destroy'])->whereNumber('session');
+
+        Route::delete('/account', [AccountController::class, 'destroy'])->middleware('throttle:profile-password-change');
+
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile/language', [ProfileController::class, 'updateLanguage']);
@@ -108,11 +126,18 @@ Route::middleware(['auth-active', 'account_type:customer'])->group(function () {
     Route::post('/jobs/{job}/report-problem', [JobController::class, 'reportProblem']);
     Route::get('/jobs/{job}/bids', [BidController::class, 'index']);
 
+    // Cargo-authority checkpoint permits — see JobController's
+    // submitPickupPermit()/submitDropoffPermit() docblocks.
+    Route::post('/jobs/{job}/pickup-permit', [JobController::class, 'submitPickupPermit']);
+    Route::post('/jobs/{job}/dropoff-permit', [JobController::class, 'submitDropoffPermit']);
+
     Route::post('/bids/{bid}/accept', [BidController::class, 'accept']);
 
     // Featured (Customer) — AppFlow §3.6.
     Route::get('/featured/status', [CustomerFeaturedController::class, 'status']);
     Route::post('/featured/purchase', [CustomerFeaturedController::class, 'purchase']);
+
+    Route::get('/payments', [PaymentController::class, 'index']);
 });
 
 // A job's message thread (Backend Schema §2.15) — reachable by either
@@ -165,6 +190,7 @@ Route::middleware('auth-active')->group(function () {
 Route::prefix('company')->middleware(['auth-active', 'account_type:transporter_company'])->group(function () {
     Route::get('/verification', [CompanyVerificationController::class, 'show']);
     Route::post('/verification', [CompanyVerificationController::class, 'submit']);
+    Route::post('/verification/location', [CompanyVerificationController::class, 'updateLocation']);
 
     // Fleet management and bidding only open up once the company itself is
     // approved (PRD §6's core flow: verify, then register trucks, then
@@ -199,6 +225,8 @@ Route::prefix('company')->middleware(['auth-active', 'account_type:transporter_c
         // the resulting link to re-share it.
         Route::post('/jobs/{job}/assign', [JobAssignmentController::class, 'store']);
         Route::get('/jobs/{job}/driver-link', [JobAssignmentController::class, 'driverLink']);
+        Route::post('/jobs/{job}/instructions', [JobAssignmentController::class, 'updateInstructions']);
+        Route::post('/jobs/{job}/proof-of-delivery', [JobAssignmentController::class, 'submitProofOfDelivery']);
 
         // Connect GPS (AppFlow §2.3) — Wialon, Traccar, and Tracksolid Pro.
         Route::get('/gps-connections', [GpsConnectionController::class, 'index']);
@@ -210,6 +238,14 @@ Route::prefix('company')->middleware(['auth-active', 'account_type:transporter_c
         Route::get('/featured/status', [CompanyFeaturedController::class, 'status']);
         Route::post('/featured/purchase', [CompanyFeaturedController::class, 'purchase']);
         Route::post('/featured/preferred-routes', [CompanyFeaturedController::class, 'updatePreferredRoutes']);
+
+        Route::get('/payments', [PaymentController::class, 'index']);
+
+        // Small standalone company preferences — auto-decline-below-budget
+        // floor rate and the company's own display currency (cosmetic only,
+        // never affects a job's/bid's own currency). See
+        // CompanyPreferencesController's own docblock.
+        Route::post('/preferences', [CompanyPreferencesController::class, 'update']);
 
         // Fleet map (every transporter, not just Plus — Plus Polish Batch
         // Phase 1) and Featured-only return-load suggestions.

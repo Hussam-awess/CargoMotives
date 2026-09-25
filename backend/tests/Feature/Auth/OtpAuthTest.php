@@ -3,12 +3,10 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
-use App\Services\Sms\SmsGateway;
-use App\Services\Sms\SmsSendResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Mockery;
+use Tests\Concerns\CapturesOtpCodes;
 use Tests\TestCase;
 
 /**
@@ -24,14 +22,8 @@ use Tests\TestCase;
  */
 class OtpAuthTest extends TestCase
 {
+    use CapturesOtpCodes;
     use RefreshDatabase;
-
-    private function fakeSms(): void
-    {
-        $sms = Mockery::mock(SmsGateway::class);
-        $sms->shouldReceive('send')->andReturn(SmsSendResult::success());
-        $this->app->instance(SmsGateway::class, $sms);
-    }
 
     /**
      * @return array<string, mixed>
@@ -63,7 +55,7 @@ class OtpAuthTest extends TestCase
 
         $this->postJson('/api/auth/otp/request', $this->requestPayload())->assertOk();
 
-        $code = Cache::get('otp:+255712345678:code')['code'];
+        $code = $this->smsCodeSentTo('+255712345678');
 
         $response = $this->postJson('/api/auth/otp/verify', [
             'phone_number' => '0712345678',
@@ -137,7 +129,7 @@ class OtpAuthTest extends TestCase
             'code' => '000000',
         ])->assertUnprocessable()->assertJsonValidationErrors('code');
 
-        $realCode = Cache::get('otp:+255712345678:code')['code'];
+        $realCode = $this->smsCodeSentTo('+255712345678');
         $this->postJson('/api/auth/otp/verify', [
             'phone_number' => '0712345678',
             'account_type' => 'transporter_company',
@@ -214,7 +206,7 @@ class OtpAuthTest extends TestCase
     {
         $this->fakeSms();
         $this->postJson('/api/auth/otp/request', $this->requestPayload())->assertOk();
-        $code = Cache::get('otp:+255712345678:code')['code'];
+        $code = $this->smsCodeSentTo('+255712345678');
         $this->postJson('/api/auth/otp/verify', [
             'phone_number' => '0712345678',
             'account_type' => 'transporter_company',
@@ -337,7 +329,7 @@ class OtpAuthTest extends TestCase
         User::factory()->transporterCompany()->create(['phone_number' => '+255712345678']);
 
         $this->postJson('/api/auth/company/password/forgot', ['phone_number' => '0712345678'])->assertOk();
-        $code = Cache::get('otp:+255712345678:code')['code'];
+        $code = $this->smsCodeSentTo('+255712345678');
 
         $this->postJson('/api/auth/company/password/reset', [
             'phone_number' => '0712345678',
@@ -362,7 +354,7 @@ class OtpAuthTest extends TestCase
         $token = $user->createToken('mobile-app')->plainTextToken;
 
         $this->postJson('/api/auth/company/password/forgot', ['phone_number' => '0712345678'])->assertOk();
-        $code = Cache::get('otp:+255712345678:code')['code'];
+        $code = $this->smsCodeSentTo('+255712345678');
         $this->postJson('/api/auth/company/password/reset', [
             'phone_number' => '0712345678',
             'code' => $code,

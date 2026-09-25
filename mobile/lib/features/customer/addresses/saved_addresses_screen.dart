@@ -257,6 +257,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                         ),
                       ),
                       IconButton(
+                        tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
                         icon: const Icon(Icons.delete_outline, size: 20),
                         onPressed: () => _removeAddress(index),
                       ),

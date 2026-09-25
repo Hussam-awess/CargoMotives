@@ -7,6 +7,7 @@ import '../../l10n/generated/app_localizations.dart';
 import '../auth/data/auth_repository.dart';
 import '../jobs/data/company_job_repository.dart';
 import '../jobs/messages_inbox_screen.dart';
+import '../notifications/data/notification_repository.dart';
 import '../profiles/customer_profile_screen.dart';
 import 'company_home_tab.dart';
 import 'company_profile_tab.dart';
@@ -40,13 +41,15 @@ class CompanyHomeShell extends StatefulWidget {
     CompanyFeaturedRepository? featuredRepository,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
+    NotificationRepository? notificationRepository,
   }) : truckRepository = truckRepository ?? TruckRepository(),
        driverRepository = driverRepository ?? DriverRepository(),
        companyRepository = companyRepository ?? CompanyRepository(),
        companyJobRepository = companyJobRepository ?? CompanyJobRepository(),
        featuredRepository = featuredRepository ?? CompanyFeaturedRepository(),
        authRepository = authRepository ?? AuthRepository(),
-       sessionStore = sessionStore ?? SessionStore();
+       sessionStore = sessionStore ?? SessionStore(),
+       notificationRepository = notificationRepository ?? NotificationRepository();
 
   /// Already known by the time CompanyHomeGate reaches the approved branch
   /// (it's how that branch was chosen) — passed straight through rather
@@ -59,6 +62,7 @@ class CompanyHomeShell extends StatefulWidget {
   final CompanyFeaturedRepository featuredRepository;
   final AuthRepository authRepository;
   final SessionStore sessionStore;
+  final NotificationRepository notificationRepository;
 
   @override
   State<CompanyHomeShell> createState() => _CompanyHomeShellState();
@@ -67,6 +71,14 @@ class CompanyHomeShell extends StatefulWidget {
 class _CompanyHomeShellState extends State<CompanyHomeShell> {
   int _index = 0;
   final _homeTabKey = GlobalKey<CompanyHomeTabState>();
+
+  /// Owned here, not by either tab — fixes a real bug: the Dashboard and
+  /// Find Jobs tabs each used to fetch their own unread count once and
+  /// never sync with each other (both live inside the IndexedStack below,
+  /// which mounts every tab once and keeps them all alive). Reading a
+  /// notification on one now updates this single shared count, which both
+  /// tabs' bells render off of.
+  final _unreadCount = ValueNotifier<int>(0);
 
   @override
   void initState() {
@@ -79,6 +91,23 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PushNotificationService().registerDeviceToken();
     });
+    _refreshUnreadCount();
+  }
+
+  @override
+  void dispose() {
+    _unreadCount.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshUnreadCount() async {
+    try {
+      final count = await widget.notificationRepository.unreadCount();
+      if (mounted) _unreadCount.value = count;
+    } catch (_) {
+      // Same graceful-degradation reasoning as NotificationBellButton's own
+      // self-contained mode — never block the home screen over this.
+    }
   }
 
   Future<void> _openAddTruck() async {
@@ -112,7 +141,10 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
         companyJobRepository: widget.companyJobRepository,
         truckRepository: widget.truckRepository,
         driverRepository: widget.driverRepository,
+        notificationRepository: widget.notificationRepository,
         featuredRepository: widget.featuredRepository,
+        unreadCountNotifier: _unreadCount,
+        onNotificationRead: _refreshUnreadCount,
         onFindJobs: () => setState(() => _index = 1),
         onManageFleet: _openFleet,
         onAddTruck: _openAddTruck,
@@ -120,6 +152,9 @@ class _CompanyHomeShellState extends State<CompanyHomeShell> {
       CompanyJobsScreen(
         repository: widget.companyJobRepository,
         featuredRepository: widget.featuredRepository,
+        notificationRepository: widget.notificationRepository,
+        unreadCountNotifier: _unreadCount,
+        onNotificationRead: _refreshUnreadCount,
       ),
       MessagesInboxScreen(
         fetchJobs: widget.companyJobRepository.active,

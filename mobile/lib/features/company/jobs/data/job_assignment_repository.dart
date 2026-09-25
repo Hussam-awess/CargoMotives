@@ -1,5 +1,9 @@
+import 'package:dio/dio.dart' show FormData, ListFormat, MultipartFile;
+import 'package:file_picker/file_picker.dart';
+
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../jobs/data/job_repository.dart' show Job;
 
 /// The Driver Link issued when a truck + driver are assigned to a job
 /// (Backend Schema §2.5) — a single-use, no-login token the driver opens
@@ -57,5 +61,50 @@ class JobAssignmentRepository {
       if (e.statusCode == 404) return null;
       rethrow;
     }
+  }
+
+  /// The manual "end job" escape hatch for a job stuck at 'in_transit'
+  /// because of an inaccurate GPS fix — lets the company submit proof of
+  /// delivery itself, from its own app, instead of needing the driver to
+  /// visit the separate Driver Link page. Reuses that same driver link
+  /// under the hood (backend), so it's indistinguishable afterward from a
+  /// driver-submitted one.
+  Future<Job> submitProofOfDelivery({
+    required int jobId,
+    required List<PlatformFile> photos,
+    String? recipientName,
+    String? notes,
+  }) async {
+    final formData = FormData.fromMap({
+      'photos': await Future.wait(photos.map(_toMultipart)),
+      if (recipientName != null && recipientName.isNotEmpty) 'recipient_name': recipientName,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      // Same fix as CompanyRepository's other_documents: a bare
+      // List<MultipartFile> under Dio's default ListFormat.multi only
+      // brackets a list entry when it's a Map/List, so every photo would
+      // otherwise land under the same non-bracketed field name and Laravel
+      // would keep only the last one.
+    }, ListFormat.multiCompatible);
+
+    final body = await _client.postForm('/company/jobs/$jobId/proof-of-delivery', formData);
+
+    return Job.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// A one-way note to the driver(s) currently on this job/award — see
+  /// JobAssignmentController::updateInstructions()'s own docblock for why
+  /// there's no reply channel (a driver has no account, no push).
+  Future<Job> updateInstructions(int jobId, String instructions) async {
+    final body = await _client.post('/company/jobs/$jobId/instructions', data: {'instructions': instructions});
+
+    return Job.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  Future<MultipartFile> _toMultipart(PlatformFile file) async {
+    if (file.bytes != null) {
+      return MultipartFile.fromBytes(file.bytes!, filename: file.name);
+    }
+
+    return MultipartFile.fromFile(file.path!, filename: file.name);
   }
 }

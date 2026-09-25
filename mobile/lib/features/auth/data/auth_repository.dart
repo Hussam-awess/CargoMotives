@@ -2,7 +2,38 @@ import 'package:dio/dio.dart' show FormData, MultipartFile;
 import 'package:file_picker/file_picker.dart';
 
 import '../../../core/auth/session_store.dart';
+import '../../../core/device/device_name.dart';
 import '../../../core/network/api_client.dart';
+import 'two_factor_repository.dart';
+
+export 'two_factor_repository.dart' show TwoFactorRequired;
+
+/// One signed-in device (a Sanctum token) — Settings > Active sessions.
+class ActiveSession {
+  const ActiveSession({
+    required this.id,
+    required this.deviceName,
+    required this.lastUsedAt,
+    required this.createdAt,
+    required this.isCurrent,
+  });
+
+  factory ActiveSession.fromJson(Map<String, dynamic> json) {
+    return ActiveSession(
+      id: json['id'] as int,
+      deviceName: json['device_name'] as String,
+      lastUsedAt: json['last_used_at'] == null ? null : DateTime.parse(json['last_used_at'] as String),
+      createdAt: json['created_at'] == null ? null : DateTime.parse(json['created_at'] as String),
+      isCurrent: json['is_current'] as bool? ?? false,
+    );
+  }
+
+  final int id;
+  final String deviceName;
+  final DateTime? lastUsedAt;
+  final DateTime? createdAt;
+  final bool isCurrent;
+}
 
 class OtpVerifyResult {
   const OtpVerifyResult({required this.token});
@@ -22,13 +53,9 @@ class UserProfile {
     this.email,
     this.avatarUrl,
     this.companyLogoUrl,
-    this.notificationPreferences = const {
-      'bids': true,
-      'shipment_updates': true,
-      'messages': true,
-      'new_job_matches': true,
-    },
+    this.notificationPreferences = defaultNotificationPreferences,
     this.preferredCurrency = 'TZS',
+    this.twoFactorEnabled = false,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -43,15 +70,28 @@ class UserProfile {
       notificationPreferences:
           (json['notification_preferences'] as Map<String, dynamic>?)
               ?.cast<String, bool>() ??
-          const {
-            'bids': true,
-            'shipment_updates': true,
-            'messages': true,
-            'new_job_matches': true,
-          },
+          defaultNotificationPreferences,
       preferredCurrency: json['preferred_currency'] as String? ?? 'TZS',
+      twoFactorEnabled: json['two_factor_enabled'] as bool? ?? false,
     );
   }
+
+  /// Mirrors the backend's defaults: service notifications on, the paid
+  /// (SMS) and promotional ones off until the user opts in.
+  static const defaultNotificationPreferences = {
+    'bids': true,
+    'shipment_updates': true,
+    'messages': true,
+    'new_job_matches': true,
+    'sms_alerts': false,
+    'promotions': false,
+  };
+
+  /// Whether [category] is on, falling back to its default when absent.
+  bool wants(String category) =>
+      notificationPreferences[category] ?? defaultNotificationPreferences[category] ?? true;
+
+  final bool twoFactorEnabled;
 
   final String? fullName;
   final String? companyName;
@@ -68,9 +108,10 @@ class UserProfile {
   /// other account_type.
   final String? companyLogoUrl;
 
-  /// Keys: bids, shipment_updates, messages, new_job_matches — always
-  /// resolved with every key present (UserResource fills in the default of
-  /// `true` server-side), never a partial map.
+  /// Keys: bids, shipment_updates, messages, new_job_matches, sms_alerts,
+  /// promotions — resolved server-side with every key present (UserResource
+  /// fills in the defaults); read through [wants] to stay safe against an
+  /// older server that omits the newer keys.
   final Map<String, bool> notificationPreferences;
 
   /// A denomination choice for this user's own future job postings —
@@ -131,22 +172,25 @@ class AuthRepository {
         'phone_number': phoneNumber,
         'account_type': _accountTypeValue(role),
         'code': code,
+        'device_name': currentDeviceName(),
       },
     );
 
     return OtpVerifyResult(token: body['token'] as String);
   }
 
+  /// Returns the session token, or throws [TwoFactorRequired] when the
+  /// account has two-factor on and a code is needed first.
   Future<String> login({
     required String phoneNumber,
     required String password,
   }) async {
     final body = await _client.post(
       '/auth/company/login',
-      data: {'phone_number': phoneNumber, 'password': password},
+      data: {'phone_number': phoneNumber, 'password': password, 'device_name': currentDeviceName()},
     );
 
-    return body['token'] as String;
+    return TwoFactorRequired.tokenOrThrow(body);
   }
 
   /// Deliberately returns nothing to check — the backend's own response
@@ -337,6 +381,36 @@ class AuthRepository {
   }
 
   Future<void> logout() => _client.post('/auth/logout');
+
+  /// Password-confirmed in both directions — see the backend's
+  /// UpdateTwoFactorRequest for why.
+  Future<UserProfile> updateTwoFactor({
+    required bool enabled,
+    required String currentPassword,
+  }) async {
+    final body = await _client.post(
+      '/auth/profile/two-factor',
+      data: {'enabled': enabled, 'current_password': currentPassword},
+    );
+    return UserProfile.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<ActiveSession>> sessions() async {
+    final body = await _client.get('/auth/sessions');
+    return (body['data'] as List)
+        .map((e) => ActiveSession.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> revokeSession(int sessionId) => _client.delete('/auth/sessions/$sessionId');
+
+  Future<void> revokeOtherSessions() => _client.delete('/auth/sessions');
+
+  /// Permanent — see the backend's AccountDeletionService. Fails with a
+  /// readable message while the account still has open jobs/bids.
+  Future<void> deleteAccount({required String currentPassword}) {
+    return _client.delete('/auth/account', data: {'current_password': currentPassword});
+  }
 
   String _accountTypeValue(AccountRole role) => switch (role) {
     AccountRole.customer => 'customer',

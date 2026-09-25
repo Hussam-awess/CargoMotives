@@ -48,6 +48,19 @@ class FeaturedTierServiceTest extends TestCase
         $this->assertTrue($customer->featured_until->isAfter(now()->addDays(13)));
     }
 
+    public function test_a_fresh_purchase_resets_the_expiry_reminder_guard(): void
+    {
+        PlatformSetting::create(['key' => 'featured_duration_days', 'value' => '30']);
+        $owner = User::factory()->create();
+        $company = TransporterCompany::factory()->for($owner, 'owner')->create(['is_featured' => true]);
+        $company->forceFill(['featured_expiry_reminder_sent_at' => now()->subDay()])->save();
+        $payment = Payment::factory()->succeeded()->create(['user_id' => $owner->id, 'purpose' => 'featured_company']);
+
+        $this->service()->activateFromPayment($payment);
+
+        $this->assertNull($company->fresh()->featured_expiry_reminder_sent_at);
+    }
+
     public function test_a_non_featured_purpose_is_rejected(): void
     {
         $owner = User::factory()->create();

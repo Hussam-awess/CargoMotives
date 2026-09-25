@@ -121,6 +121,40 @@ void main() {
     },
   );
 
+  /// The explicit "extended map" option — a transporter shouldn't have to
+  /// discover the sheet is draggable at all to see more of the map.
+  testWidgets(
+    'the fullscreen button collapses the info sheet, and toggles back',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveGpsTrackingScreen(
+            job: _job(),
+            onRefresh: () async => _job(),
+            routingService: _FakeRoutingService(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final sheetContent = find.byKey(const Key('trackingInfoSheetContent'));
+      final heightBefore = tester.getSize(sheetContent).height;
+
+      expect(find.byIcon(Icons.fullscreen), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.fullscreen));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(sheetContent).height, lessThan(heightBefore));
+      expect(find.byIcon(Icons.fullscreen_exit), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.fullscreen_exit));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(sheetContent).height, heightBefore);
+      expect(find.byIcon(Icons.fullscreen), findsOneWidget);
+    },
+  );
+
   testWidgets('shows speed and ETA once the truck is live and moving', (
     tester,
   ) async {

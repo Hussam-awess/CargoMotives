@@ -15,11 +15,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * company_representatives table since MVP only needs one rep per company).
  */
 #[Fillable([
-    'owner_user_id', 'company_name', 'registration_number', 'tin', 'physical_address', 'company_phone', 'company_email',
-    'logo_url', 'documents', 'rep_full_name', 'rep_position', 'rep_national_id_number',
+    'owner_user_id', 'company_name', 'registration_number', 'tin', 'physical_address', 'physical_lat', 'physical_lng',
+    'company_phone', 'company_email', 'logo_url', 'documents', 'rep_full_name', 'rep_position', 'rep_national_id_number',
     'rep_id_document_url', 'rep_selfie_url', 'rep_phone_verified', 'rep_email_verified',
     'verification_status', 'verification_rejected_reason', 'auto_check_notes', 'verified_at',
     'is_featured', 'featured_until', 'home_region', 'preferred_routes',
+    'auto_decline_below_budget', 'floor_rate', 'floor_rate_currency', 'display_currency', 'accepting_loads',
 ])]
 class TransporterCompany extends Model
 {
@@ -39,6 +40,10 @@ class TransporterCompany extends Model
         'verification_status' => 'pending',
         'is_featured' => false,
         'rating_count' => 0,
+        'auto_decline_below_budget' => false,
+        'floor_rate_currency' => 'TZS',
+        'display_currency' => 'TZS',
+        'accepting_loads' => true,
     ];
 
     /**
@@ -50,12 +55,18 @@ class TransporterCompany extends Model
             'documents' => 'array',
             'auto_check_notes' => 'array',
             'preferred_routes' => 'array',
+            'physical_lat' => 'float',
+            'physical_lng' => 'float',
             'rep_phone_verified' => 'boolean',
             'rep_email_verified' => 'boolean',
             'is_featured' => 'boolean',
             'featured_until' => 'datetime',
+            'featured_expiry_reminder_sent_at' => 'datetime',
             'verified_at' => 'datetime',
             'average_rating' => 'decimal:1',
+            'auto_decline_below_budget' => 'boolean',
+            'accepting_loads' => 'boolean',
+            'floor_rate' => 'decimal:2',
         ];
     }
 

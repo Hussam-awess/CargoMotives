@@ -9,11 +9,10 @@ use App\Models\DriverLink;
 use App\Models\Job;
 use App\Models\JobAward;
 use App\Models\JobTruckAssignment;
-use App\Models\ProofOfDelivery;
 use App\Services\Documents\DocumentStorage;
+use App\Services\Jobs\ProofOfDeliveryService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 
 /**
  * The Driver Link (AppFlow §4, TRD's "Lightweight server-rendered mobile
@@ -34,7 +33,10 @@ class DriverLinkPageController extends Controller
      */
     private const DRIVER_SETTABLE_STATUSES = ['en_route_pickup', 'picked_up', 'in_transit'];
 
-    public function __construct(private readonly DocumentStorage $documents) {}
+    public function __construct(
+        private readonly DocumentStorage $documents,
+        private readonly ProofOfDeliveryService $proofOfDelivery,
+    ) {}
 
     public function show(string $token): View
     {
@@ -62,6 +64,9 @@ class DriverLinkPageController extends Controller
             'job' => $job,
             'token' => $token,
             'nextStatus' => $nextStatus,
+            'pickupPermitUrl' => $job->pickup_permit_path !== null ? $this->documents->signedUrl($job->pickup_permit_path) : null,
+            'dropoffPermitUrl' => $job->dropoff_permit_path !== null ? $this->documents->signedUrl($job->dropoff_permit_path) : null,
+            'driverInstructions' => $award?->driver_instructions ?? $job->driver_instructions,
             'canSubmitProofOfDelivery' => $mayControlStatus && in_array($statusForDriver, ['assigned', ...self::DRIVER_SETTABLE_STATUSES], true),
             // Bulk Cargo epic: a non-lead roster member on a multi-truck
             // job can view their assignment (pickup/dropoff, their own
@@ -109,36 +114,23 @@ class DriverLinkPageController extends Controller
             return back()->withErrors(['photos' => 'Proof of delivery was already submitted for this job.']);
         }
 
+        // Job-level, regardless of whether this driver belongs to $award or
+        // the job directly — see the permit migrations' docblocks.
+        if ($job->dropoff_permit_path === null) {
+            return back()->withErrors(['dropoff_permit' => 'Attach the drop-off permit before this job can be marked delivered.']);
+        }
+
         $photoKeys = collect($request->file('photos'))
             ->map(fn ($photo) => $this->documents->store($photo, "proof-of-delivery/{$job->id}"))
             ->all();
 
-        DB::transaction(function () use ($request, $job, $award, $link, $photoKeys) {
-            ProofOfDelivery::create([
-                'job_id' => $job->id,
-                'job_award_id' => $award?->id,
-                'driver_id' => $link->driver_id,
-                'driver_link_id' => $link->id,
-                'photo_urls' => $photoKeys,
-                'recipient_name' => $request->validated('recipient_name'),
-                'notes' => $request->validated('notes'),
-            ]);
-
-            ($award ?? $job)->update(['status' => 'delivered']);
-            $link->update(['status' => 'used', 'used_at' => now()]);
-
-            // "Fans out instantly to the Customer, the Company, and Admin's
-            // record" (AppFlow §4) — satisfied by the data itself becoming
-            // visible on the next fetch of the job (JobResource now exposes
-            // proof_of_delivery) for whichever of the three looks at it,
-            // the same ordinary REST + refresh-on-open pattern already used
-            // for messaging/status lists (TRD §4) rather than a new push
-            // channel. No FCM/notifications infrastructure exists yet in
-            // this codebase (nor has any prior phase built one, despite the
-            // notification trigger map listing "Push" for earlier events
-            // too) — that's a bigger, separate piece of work, not something
-            // to half-build here.
-        });
+        // "Fans out instantly to the Customer, the Company, and Admin's
+        // record" (AppFlow §4) — satisfied by the data itself becoming
+        // visible on the next fetch of the job (JobResource now exposes
+        // proof_of_delivery) for whichever of the three looks at it, the
+        // same ordinary REST + refresh-on-open pattern already used for
+        // messaging/status lists (TRD §4) rather than a new push channel.
+        $this->proofOfDelivery->submit($job, $award, $link, $photoKeys, $request->validated('recipient_name'), $request->validated('notes'));
 
         return redirect()->route('driver-link.show', $token);
     }

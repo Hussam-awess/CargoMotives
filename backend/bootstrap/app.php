@@ -1,10 +1,15 @@
 <?php
 
+use App\Console\Commands\AutoCompleteStuckDeliveries;
 use App\Console\Commands\CheckGpsSignalLoss;
 use App\Console\Commands\NotifyBiddingClosed;
+use App\Console\Commands\NotifyFeaturedExpiringSoon;
 use App\Console\Commands\NudgeInactiveUsers;
+use App\Console\Commands\PruneStaleSessions;
+use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureAccountType;
 use App\Http\Middleware\EnsureCompanyApproved;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TouchLastActive;
 use App\Jobs\PollGpsPositionsJob;
 use Illuminate\Console\Scheduling\Schedule;
@@ -54,6 +59,20 @@ return Application::configure(basePath: dirname(__DIR__))
         // once a day is plenty, this only cares about day-granularity
         // staleness.
         $schedule->command(NudgeInactiveUsers::class)->daily();
+
+        // The other half of the manual "End Job" escape hatch — see the
+        // command's own docblock. The grace period is hours-scale, so
+        // hourly is plenty; no need for the minute-level cadence the GPS
+        // sweeps above need.
+        $schedule->command(AutoCompleteStuckDeliveries::class)->hourly();
+
+        // Plus-expiry warning — day-granularity check, same cadence as the
+        // re-engagement nudge above for the same reason.
+        $schedule->command(NotifyFeaturedExpiringSoon::class)->daily();
+
+        // Sessions nobody has used in months (a lost or replaced phone)
+        // shouldn't stay valid forever — see the command's docblock.
+        $schedule->command(PruneStaleSessions::class)->daily();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         // Everywhere else, this is a pure JSON API (no server-rendered
@@ -74,6 +93,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'account_type' => EnsureAccountType::class,
             'company.approved' => EnsureCompanyApproved::class,
         ]);
+
+        // Every response, web and API alike — see each class's docblock.
+        $middleware->append([AssignRequestId::class, SecurityHeaders::class]);
+
+        // The 'api' limiter defined in AppServiceProvider — a generous
+        // ceiling under every /api route's tighter per-endpoint limits.
+        $middleware->throttleApi();
 
         // Bundles auth:sanctum with the "haven't opened the app in a
         // while" activity touch (TouchLastActive) so every authenticated

@@ -11,11 +11,13 @@ class NudgeInactiveUsersTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const OPTED_IN = ['promotions' => true];
+
     public function test_it_nudges_a_user_inactive_for_over_a_week(): void
     {
         Queue::fake();
 
-        $user = User::factory()->create(['last_active_at' => now()->subDays(10)]);
+        $user = User::factory()->create(['last_active_at' => now()->subDays(10), 'notification_preferences' => self::OPTED_IN]);
 
         $this->artisan('notifications:nudge-inactive-users');
 
@@ -23,11 +25,38 @@ class NudgeInactiveUsersTest extends TestCase
         $this->assertNotNull($user->fresh()->last_inactivity_nudge_at);
     }
 
+    public function test_it_does_not_nudge_a_customer_who_has_not_opted_in_to_promotions(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create(['last_active_at' => now()->subDays(10)]);
+
+        $this->artisan('notifications:nudge-inactive-users');
+
+        $this->assertDatabaseMissing('notifications', ['user_id' => $user->id, 'type' => 're_engagement']);
+    }
+
+    public function test_a_company_is_nudged_unless_it_muted_new_job_matches(): void
+    {
+        Queue::fake();
+
+        $nudged = User::factory()->transporterCompany()->create(['last_active_at' => now()->subDays(10)]);
+        $muted = User::factory()->transporterCompany()->create([
+            'last_active_at' => now()->subDays(10),
+            'notification_preferences' => ['new_job_matches' => false],
+        ]);
+
+        $this->artisan('notifications:nudge-inactive-users');
+
+        $this->assertDatabaseHas('notifications', ['user_id' => $nudged->id, 'type' => 're_engagement']);
+        $this->assertDatabaseMissing('notifications', ['user_id' => $muted->id, 'type' => 're_engagement']);
+    }
+
     public function test_it_does_not_nudge_a_recently_active_user(): void
     {
         Queue::fake();
 
-        $user = User::factory()->create(['last_active_at' => now()->subDays(2)]);
+        $user = User::factory()->create(['last_active_at' => now()->subDays(2), 'notification_preferences' => self::OPTED_IN]);
 
         $this->artisan('notifications:nudge-inactive-users');
 
@@ -41,6 +70,7 @@ class NudgeInactiveUsersTest extends TestCase
         $user = User::factory()->create([
             'last_active_at' => now()->subDays(10),
             'last_inactivity_nudge_at' => now()->subDays(2),
+            'notification_preferences' => self::OPTED_IN,
         ]);
 
         $this->artisan('notifications:nudge-inactive-users');
@@ -55,6 +85,7 @@ class NudgeInactiveUsersTest extends TestCase
         $user = User::factory()->create([
             'last_active_at' => now()->subDays(20),
             'last_inactivity_nudge_at' => now()->subDays(8),
+            'notification_preferences' => self::OPTED_IN,
         ]);
 
         $this->artisan('notifications:nudge-inactive-users');

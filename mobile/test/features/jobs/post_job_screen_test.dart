@@ -740,6 +740,46 @@ void main() {
   );
 
   testWidgets(
+    'the map\'s clear button also blanks the pickup/drop-off address fields',
+    (tester) async {
+      await tester.pumpWidget(_appUnder(repository: FakeJobRepository()));
+      await tester.tap(find.text('Open post job'));
+      await tester.pumpAndSettle();
+
+      final map = find.byType(AppMap).first;
+      // Drop a pickup pin, then a drop-off pin (mode auto-advances).
+      await tester.tapAt(tester.getCenter(map));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tapAt(tester.getCenter(map));
+      await tester.pumpAndSettle();
+
+      final pickupAddress = find.widgetWithText(
+        TextFormField,
+        'Pickup address',
+      );
+      await tester.enterText(pickupAddress, 'Some pickup address');
+      await tester.pumpAndSettle();
+
+      // Entering text into a field further down the form scrolls it into
+      // view, which can carry the Clear button (positioned above the map)
+      // off-screen — bring it back into view before tapping it.
+      await tester.ensureVisible(find.byIcon(Icons.clear));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.clear));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<TextFormField>(pickupAddress).controller!.text,
+        isEmpty,
+      );
+      final pickupLat = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, 'Latitude').first,
+      );
+      expect(pickupLat.controller!.text, isEmpty);
+    },
+  );
+
+  testWidgets(
     'shows saved addresses as quick-fill chips on the route map',
     (tester) async {
       SharedPreferences.setMockInitialValues({

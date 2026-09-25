@@ -16,7 +16,7 @@ class _FakeGeocodingService extends GeocodingService {
   String? lastSearchQuery;
 
   @override
-  Future<List<PlaceResult>> search(String query) async {
+  Future<List<PlaceResult>> search(String query, {LatLng? near}) async {
     lastSearchQuery = query;
     return searchResults;
   }
@@ -340,4 +340,133 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'no clear button is shown until at least one pin is set',
+    (tester) async {
+      await tester.pumpWidget(
+        _appUnder(
+          RoutePickerMap(
+            geocodingService: _FakeGeocodingService(),
+            routingService: _FakeRoutingService(),
+            onPickupChanged: (_, _) {},
+            onDropoffChanged: (_, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.clear), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'the clear button resets both pins, the route, and notifies the caller',
+    (tester) async {
+      var cleared = false;
+
+      await tester.pumpWidget(
+        _appUnder(
+          RoutePickerMap(
+            geocodingService: _FakeGeocodingService(),
+            routingService: _FakeRoutingService(
+              result: const RouteResult(
+                points: [LatLng(-6.8, 39.2), LatLng(-6.9, 39.3)],
+                distanceKm: 12,
+                durationMinutes: 20,
+              ),
+            ),
+            onPickupChanged: (_, _) {},
+            onDropoffChanged: (_, _) {},
+            onCleared: () => cleared = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Drop both pins so there's something to clear.
+      await tester.tapAt(tester.getCenter(find.byType(AppMap)));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tapAt(tester.getCenter(find.byType(AppMap)));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppMapPin), findsNWidgets(2));
+      expect(find.textContaining('km'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.clear));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppMapPin), findsNothing);
+      expect(find.textContaining('km'), findsNothing);
+      expect(find.byIcon(Icons.clear), findsNothing);
+      expect(cleared, isTrue);
+
+      // Back to pickup mode, ready to start over.
+      final segmented = tester.widget<SegmentedButton<MapPinMode>>(
+        find.byType(SegmentedButton<MapPinMode>),
+      );
+      expect(segmented.selected, {MapPinMode.pickup});
+    },
+  );
+
+  testWidgets(
+    'the expand button opens a full-screen picker that stays in sync with the embedded map',
+    (tester) async {
+      LatLng? pickup;
+
+      await tester.pumpWidget(
+        _appUnder(
+          RoutePickerMap(
+            geocodingService: _FakeGeocodingService(),
+            routingService: _FakeRoutingService(),
+            onPickupChanged: (point, _) => pickup = point,
+            onDropoffChanged: (_, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.fullscreen));
+      await tester.pumpAndSettle();
+
+      // The full-screen picker is a second, independent RoutePickerMap
+      // instance — no expand button of its own (no infinite nesting), and
+      // dropping a pin there must still reach the original caller's
+      // callbacks exactly as if it happened on the embedded map.
+      expect(find.text('Pickup & drop-off'), findsOneWidget);
+      expect(find.byIcon(Icons.fullscreen), findsNothing);
+
+      await tester.tapAt(tester.getCenter(find.byType(AppMap).last));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      expect(pickup, isNotNull);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      // Back on the embedded map, showing the pin just set full-screen.
+      expect(find.text('Pickup & drop-off'), findsNothing);
+      expect(find.byType(AppMapPin), findsOneWidget);
+    },
+  );
+
+  testWidgets('a pushed full-screen picker never shows its own expand button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appUnder(
+        RoutePickerMap(
+          geocodingService: _FakeGeocodingService(),
+          routingService: _FakeRoutingService(),
+          onPickupChanged: (_, _) {},
+          onDropoffChanged: (_, _) {},
+          showExpandButton: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.fullscreen), findsNothing);
+  });
 }

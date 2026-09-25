@@ -18,4 +18,15 @@ return [
 
     'login_lockout_minutes' => 15,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Idle Session Expiry
+    |--------------------------------------------------------------------------
+    |
+    | A sign-in session (Sanctum token) unused for this many days is revoked
+    | by the daily auth:prune-stale-sessions command.
+    */
+
+    'session_idle_days' => (int) env('SESSION_IDLE_DAYS', 90),
+
 ];

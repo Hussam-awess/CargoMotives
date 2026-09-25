@@ -27,6 +27,8 @@ class UpdateNotificationPreferencesRequest extends FormRequest
             'shipment_updates' => ['sometimes', 'boolean'],
             'messages' => ['sometimes', 'boolean'],
             'new_job_matches' => ['sometimes', 'boolean'],
+            'sms_alerts' => ['sometimes', 'boolean'],
+            'promotions' => ['sometimes', 'boolean'],
         ];
     }
 }

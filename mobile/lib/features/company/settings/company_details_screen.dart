@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../data/company_repository.dart';
+import 'company_location_screen.dart';
 
 /// "Company details & documents" (mockup, Settings → Company & billing) —
 /// a read-only view of the company's own submitted verification details.
 /// Real data: CompanyRepository.getStatus() already returns every one of
 /// these fields (CompanyResource on the backend), the mobile model just
-/// hadn't read them until now — no new endpoint needed. Deliberately
-/// read-only: editing any of this is a resubmission (CompanyVerification
-/// Screen), a different, heavier flow than a settings row should trigger.
+/// hadn't read them until now — no new endpoint needed. Every verification
+/// field here stays read-only (editing one of those is a resubmission,
+/// CompanyVerificationScreen, a different, heavier flow than a settings
+/// row should trigger) — except the map pin, which is its own standalone,
+/// always-editable action (CompanyLocationScreen), not part of
+/// verification at all.
 class CompanyDetailsScreen extends StatefulWidget {
   CompanyDetailsScreen({super.key, CompanyRepository? repository})
     : repository = repository ?? CompanyRepository();
@@ -29,6 +33,21 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
     _future = widget.repository.getStatus();
   }
 
+  Future<void> _openLocationPicker(CompanyVerification company) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CompanyLocationScreen(
+          initialLat: company.physicalLat,
+          initialLng: company.physicalLng,
+          repository: widget.repository,
+        ),
+      ),
+    );
+    if (saved == true) {
+      setState(() => _future = widget.repository.getStatus());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,6 +65,8 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
             );
           }
 
+          final hasPin = company.physicalLat != null && company.physicalLng != null;
+
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -58,6 +79,31 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
               _DetailRow(
                 label: 'Physical address',
                 value: company.physicalAddress,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 140,
+                      child: Text(
+                        'Location on map',
+                        style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        hasPin ? 'Pin set' : 'Not set',
+                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _openLocationPicker(company),
+                      child: Text(hasPin ? 'Edit' : 'Set'),
+                    ),
+                  ],
+                ),
               ),
               _DetailRow(label: 'Company phone', value: company.companyPhone),
               _DetailRow(label: 'Company email', value: company.companyEmail),

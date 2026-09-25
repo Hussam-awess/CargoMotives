@@ -50,7 +50,16 @@ class User extends Authenticatable
         'preferred_currency' => 'TZS',
         'is_featured' => false,
         'rating_count' => 0,
+        'two_factor_enabled' => false,
     ];
+
+    /**
+     * Categories that are off until the user explicitly turns them on —
+     * SMS costs the user money ("charges may apply") and promotional
+     * messages need affirmative consent, so neither may default to on the
+     * way every service-notification category does.
+     */
+    public const OPT_IN_NOTIFICATION_CATEGORIES = ['sms_alerts', 'promotions'];
 
     /**
      * @return array<string, string>
@@ -59,8 +68,13 @@ class User extends Authenticatable
     {
         return [
             'password_hash' => 'hashed',
+            // Security-sensitive: deliberately not in #[Fillable] — only
+            // ProfileController::updateTwoFactor() (password-confirmed)
+            // and AccountDeletionService write it, via forceFill().
+            'two_factor_enabled' => 'boolean',
             'is_featured' => 'boolean',
             'featured_until' => 'datetime',
+            'featured_expiry_reminder_sent_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'notification_preferences' => 'array',
             'last_active_at' => 'datetime',
@@ -78,13 +92,17 @@ class User extends Authenticatable
     }
 
     /**
-     * Opt-out, not opt-in: an absent key (the default for every user who's
-     * never touched a Settings toggle) means "on", so NotificationService
-     * still delivers everything the trigger map promises out of the box.
+     * Opt-out for service notifications: an absent key (the default for
+     * every user who's never touched a Settings toggle) means "on", so
+     * NotificationService still delivers everything the trigger map
+     * promises out of the box. The OPT_IN_NOTIFICATION_CATEGORIES are the
+     * exception — absent means "off".
      */
     public function wantsNotificationCategory(string $category): bool
     {
-        return (bool) ($this->notification_preferences[$category] ?? true);
+        $default = ! in_array($category, self::OPT_IN_NOTIFICATION_CATEGORIES, true);
+
+        return (bool) ($this->notification_preferences[$category] ?? $default);
     }
 
     public function transporterCompany(): HasOne

@@ -4,43 +4,37 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/auth/session_store.dart';
 import '../../../core/config/app_config.dart';
-import '../../../core/local/local_prefs.dart';
 import '../../../core/localization/language_switcher_tile.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../core/theme/theme_scope.dart';
+import '../../../shared/widgets/confirm_password_dialog.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/edit_profile_screen.dart';
 import '../auth/customer_forgot_password_screen.dart';
+import '../../support/active_sessions_screen.dart';
 import '../../support/change_password_screen.dart';
+import '../../support/delete_account_screen.dart';
 import '../../support/how_it_works_screen.dart';
 import '../../support/settings_widgets.dart';
 
-/// "Settings" (mockup) — Customer. Real: the language switcher, the
-/// registered phone/email (AuthRepository.me()), Terms/Privacy (real
-/// server-rendered pages), Log out. Dark mode is real (ThemeScope/
-/// ThemeController — see core/theme), not a preview: the toggle here drives
-/// the whole app's theme. Locally-stateful only, no backend field yet:
-/// notification-category toggles. Distance units stay shown, not editable
-/// — this app only ever uses kilometres. Currency IS now editable
-/// (TZS/USD, a denomination choice for this customer's own future job
-/// postings — see users.preferred_currency's migration docblock; no
-/// conversion system exists behind it). Change password is real
-/// (POST /auth/profile/password, shared with the Company side via
-/// ChangePasswordScreen). Delete account has no backend endpoint yet and
-/// says so honestly instead of pretending to save anything.
+/// "Settings" (mockup) — Customer. Every control here is backed by the
+/// server: notification categories (including the opt-in SMS alerts and
+/// Promotions), two-factor authentication, active sessions, account
+/// deletion, currency, language, Terms/Privacy and Log out. Dark mode is
+/// real too (ThemeScope/ThemeController), stored on the device. Distance
+/// units stay shown, not editable — this app only ever uses kilometres.
 class CustomerSettingsScreen extends StatefulWidget {
   CustomerSettingsScreen({
     super.key,
     AuthRepository? authRepository,
     SessionStore? sessionStore,
-    this.prefs = const LocalPrefs(),
   }) : authRepository = authRepository ?? AuthRepository(),
        sessionStore = sessionStore ?? SessionStore();
 
   final AuthRepository authRepository;
   final SessionStore sessionStore;
-  final LocalPrefs prefs;
 
   @override
   State<CustomerSettingsScreen> createState() => _CustomerSettingsScreenState();
@@ -50,95 +44,61 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
   AuthRepository get _authRepository => widget.authRepository;
   SessionStore get _sessionStore => widget.sessionStore;
 
-  bool _shipmentUpdates = true;
-  bool _newOffers = true;
-  bool _newMessages = true;
-  bool _smsAlerts = false;
-  bool _promotions = false;
-  bool _twoFactor = false;
   UserProfile? _profile;
+
+  /// Optimistic toggle values shown while a save is in flight — keyed by
+  /// category, cleared once the server answers (success or failure).
+  final _pending = <String, bool>{};
 
   @override
   void initState() {
     super.initState();
-    _loadToggles();
     _loadProfile();
-  }
-
-  Future<void> _loadToggles() async {
-    final shipmentUpdates = await widget.prefs.getBool(
-      'settings.notif.shipment_updates',
-      defaultValue: true,
-    );
-    final newOffers = await widget.prefs.getBool(
-      'settings.notif.new_offers',
-      defaultValue: true,
-    );
-    final smsAlerts = await widget.prefs.getBool(
-      'settings.notif.sms_alerts',
-      defaultValue: false,
-    );
-    final promotions = await widget.prefs.getBool(
-      'settings.notif.promotions',
-      defaultValue: false,
-    );
-    final twoFactor = await widget.prefs.getBool(
-      'settings.two_factor',
-      defaultValue: false,
-    );
-    if (!mounted) return;
-    setState(() {
-      _shipmentUpdates = shipmentUpdates;
-      _newOffers = newOffers;
-      _smsAlerts = smsAlerts;
-      _promotions = promotions;
-      _twoFactor = twoFactor;
-    });
   }
 
   Future<void> _loadProfile() async {
     try {
       final profile = await _authRepository.me();
-      if (!mounted) return;
-      setState(() {
-        _profile = profile;
-        // Real backend fields (Phase 12) take over from the LocalPrefs
-        // placeholders _loadToggles() set — 'new offers' is a customer's
-        // own wording for the 'bids' category (a company bidding on their
-        // job), not a literal backend category name.
-        _shipmentUpdates =
-            profile.notificationPreferences['shipment_updates'] ?? true;
-        _newOffers = profile.notificationPreferences['bids'] ?? true;
-        _newMessages = profile.notificationPreferences['messages'] ?? true;
-      });
+      if (mounted) setState(() => _profile = profile);
     } catch (_) {
-      // Non-critical — the phone/email row just stays blank.
+      // Non-critical — the toggles show their defaults until it loads.
     }
   }
 
-  Future<void> _setNotificationCategory(
-    String category,
-    bool value,
-    VoidCallback apply,
-  ) async {
-    final previous = _profile?.notificationPreferences[category] ?? true;
-    setState(apply);
+  bool _wants(String category) =>
+      _pending[category] ?? _profile?.wants(category) ?? UserProfile.defaultNotificationPreferences[category] ?? true;
+
+  Future<void> _setNotificationCategory(String category, bool value) async {
+    setState(() => _pending[category] = value);
     try {
-      final profile = await _authRepository.updateNotificationPreferences({
-        category: value,
-      });
+      final profile = await _authRepository.updateNotificationPreferences({category: value});
       if (mounted) setState(() => _profile = profile);
     } catch (_) {
-      // Revert on failure — the toggle shouldn't silently claim a
-      // preference stuck that the server never actually saved.
-      if (mounted) {
-        setState(() {
-          if (category == 'shipment_updates') _shipmentUpdates = previous;
-          if (category == 'bids') _newOffers = previous;
-          if (category == 'messages') _newMessages = previous;
-        });
-      }
+      // Falls back to the last server-confirmed value below — the toggle
+      // never claims a preference the server didn't actually save.
+      if (mounted) _showMessage(AppLocalizations.of(context)!.couldNotSaveSetting);
+    } finally {
+      if (mounted) setState(() => _pending.remove(category));
     }
+  }
+
+  Future<void> _setTwoFactor(bool enabled) async {
+    final l10n = AppLocalizations.of(context)!;
+    final password = await showConfirmPasswordDialog(context);
+    if (password == null || !mounted) return;
+
+    try {
+      final profile = await _authRepository.updateTwoFactor(enabled: enabled, currentPassword: password);
+      if (!mounted) return;
+      setState(() => _profile = profile);
+      _showMessage(enabled ? l10n.twoFactorEnabledMessage : l10n.twoFactorDisabledMessage);
+    } on ApiException catch (e) {
+      if (mounted) _showMessage(e.firstErrorFor('current_password') ?? e.message);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openCurrencyPicker() async {
@@ -146,7 +106,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Currency'),
+        title: Text(AppLocalizations.of(context)!.currencyLabel),
         children: [
           for (final currency in const ['TZS', 'USD'])
             SimpleDialogOption(
@@ -171,11 +131,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
       final profile = await _authRepository.updatePreferredCurrency(selected);
       if (mounted) setState(() => _profile = profile);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not update currency.')),
-        );
-      }
+      if (mounted) _showMessage(AppLocalizations.of(context)!.couldNotUpdateCurrency);
     }
   }
 
@@ -194,22 +150,11 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
     _loadProfile();
   }
 
-  Future<void> _setToggle(String key, bool value, VoidCallback apply) async {
-    setState(apply);
-    await widget.prefs.setBool(key, value);
-  }
-
   Future<void> _openLegal(String path) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}$path');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.couldNotOpenUri(uri.toString()),
-          ),
-        ),
-      );
+      _showMessage(AppLocalizations.of(context)!.couldNotOpenUri(uri.toString()));
     }
   }
 
@@ -219,41 +164,6 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
     if (digits.length < 12) return raw;
     final national = digits.substring(digits.length - 9);
     return '+255 ${national.substring(0, 3)} ••• ${national.substring(6)}';
-  }
-
-  Future<void> _showActiveSessionsUnavailable() async {
-    final l10n = AppLocalizations.of(context)!;
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.activeSessionsLabel),
-        content: Text(l10n.activeSessionsUnavailableMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.okLabel),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmDeleteAccount() async {
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.deleteAccountLabel),
-        content: Text(l10n.deleteAccountUnavailableMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.okLabel),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) return;
   }
 
   Future<void> _logout() async {
@@ -266,7 +176,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancelLabel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -279,6 +189,8 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
 
     try {
       await _authRepository.logout();
+    } catch (_) {
+      // Even if the server can't be reached, this device still signs out.
     } finally {
       await _sessionStore.clear();
       if (mounted) context.go('/welcome');
@@ -299,48 +211,34 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
               SettingsToggleRow(
                 title: l10n.shipmentUpdatesTitle,
                 subtitle: l10n.shipmentUpdatesSubtitle,
-                value: _shipmentUpdates,
-                onChanged: (v) => _setNotificationCategory(
-                  'shipment_updates',
-                  v,
-                  () => _shipmentUpdates = v,
-                ),
+                value: _wants('shipment_updates'),
+                onChanged: (v) => _setNotificationCategory('shipment_updates', v),
               ),
+              // 'New offers' is a customer's own wording for the backend's
+              // 'bids' category (a company bidding on their job).
               SettingsToggleRow(
                 title: l10n.newOffersTitle,
                 subtitle: l10n.newOffersSubtitle,
-                value: _newOffers,
-                onChanged: (v) =>
-                    _setNotificationCategory('bids', v, () => _newOffers = v),
+                value: _wants('bids'),
+                onChanged: (v) => _setNotificationCategory('bids', v),
               ),
               SettingsToggleRow(
                 title: l10n.newMessagesTitle,
                 subtitle: l10n.newMessagesSubtitle,
-                value: _newMessages,
-                onChanged: (v) => _setNotificationCategory(
-                  'messages',
-                  v,
-                  () => _newMessages = v,
-                ),
+                value: _wants('messages'),
+                onChanged: (v) => _setNotificationCategory('messages', v),
               ),
               SettingsToggleRow(
                 title: l10n.smsAlertsTitle,
                 subtitle: l10n.smsAlertsSubtitle,
-                value: _smsAlerts,
-                onChanged: (v) => _setToggle(
-                  'settings.notif.sms_alerts',
-                  v,
-                  () => _smsAlerts = v,
-                ),
+                value: _wants('sms_alerts'),
+                onChanged: (v) => _setNotificationCategory('sms_alerts', v),
               ),
               SettingsToggleRow(
                 title: l10n.promotionsTitle,
-                value: _promotions,
-                onChanged: (v) => _setToggle(
-                  'settings.notif.promotions',
-                  v,
-                  () => _promotions = v,
-                ),
+                subtitle: l10n.promotionsSubtitle,
+                value: _wants('promotions'),
+                onChanged: (v) => _setNotificationCategory('promotions', v),
                 isLast: true,
               ),
             ],
@@ -396,9 +294,8 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
             children: [
               SettingsNavRow(
                 title: l10n.registeredPhoneLabel,
-                value: _profile == null
-                    ? null
-                    : _maskPhone(_profile!.phoneNumber),
+                value: _profile == null ? null : _maskPhone(_profile!.phoneNumber),
+                onTap: _profile == null ? null : _openEditProfile,
               ),
               SettingsNavRow(
                 title: l10n.emailHint,
@@ -429,13 +326,16 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
               SettingsToggleRow(
                 title: l10n.twoFactorAuthLabel,
                 subtitle: l10n.twoFactorAuthSubtitle,
-                value: _twoFactor,
-                onChanged: (v) =>
-                    _setToggle('settings.two_factor', v, () => _twoFactor = v),
+                value: _profile?.twoFactorEnabled ?? false,
+                onChanged: _setTwoFactor,
               ),
               SettingsNavRow(
                 title: l10n.activeSessionsLabel,
-                onTap: _showActiveSessionsUnavailable,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ActiveSessionsScreen(authRepository: _authRepository),
+                  ),
+                ),
                 isLast: true,
               ),
             ],
@@ -481,7 +381,11 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
           const SizedBox(height: 12),
           Center(
             child: TextButton(
-              onPressed: _confirmDeleteAccount,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => DeleteAccountScreen(authRepository: _authRepository, sessionStore: _sessionStore),
+                ),
+              ),
               child: Text(
                 l10n.deleteAccountLabel,
                 style: const TextStyle(color: AppColors.statusError),

@@ -3,6 +3,7 @@
 namespace App\Services\Notifications;
 
 use App\Jobs\SendPushNotificationJob;
+use App\Jobs\SendSmsAlertJob;
 use App\Models\Job;
 use App\Models\Notification;
 use App\Models\User;
@@ -41,11 +42,15 @@ class NotificationService
         'return_load_claim' => 'bids',
         'bid_accepted' => 'bids',
         'bid_not_selected' => 'bids',
+        'bid_withdrawn' => 'bids',
         'proof_of_delivery_submitted' => 'shipment_updates',
         'delivery_confirmed' => 'shipment_updates',
         'gps_signal_lost' => 'shipment_updates',
         'job_status_changed' => 'shipment_updates',
         'job_arrived_at_dropoff' => 'shipment_updates',
+        'dropoff_permit_needed' => 'shipment_updates',
+        'job_auto_completed' => 'shipment_updates',
+        'featured_expiring_soon' => 'shipment_updates',
         'new_message' => 'messages',
         'support_message' => 'messages',
         'new_job_posted' => 'new_job_matches',
@@ -71,6 +76,10 @@ class NotificationService
         ]);
 
         SendPushNotificationJob::dispatch($notification->id);
+
+        if ($category === 'shipment_updates' && $user->phone_number !== null && $user->wantsNotificationCategory('sms_alerts')) {
+            SendSmsAlertJob::dispatch($notification->id);
+        }
 
         return $notification;
     }
